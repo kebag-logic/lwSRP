@@ -1,0 +1,4 @@
+name: lwsrp
+build:
+  cmake: .
+  kconfig: Kconfig.zephyr
