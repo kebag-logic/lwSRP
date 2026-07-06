@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+config LWSRP
+	bool "lwSRP — IEEE 802.1Q MRP/MVRP/MMRP/MSRP state machines"
+	help
+	  Portable MRP base + applications. Tick-driven (call
+	  shlan_timer_tick() and mrp_tick() at centisecond rate);
+	  PDU transmit assembly is not yet part of the library.
