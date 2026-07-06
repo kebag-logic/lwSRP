@@ -44,16 +44,18 @@ static void msrp_join_ind(struct mrp_app *app, uint8_t port_id,
 
     switch (attr_type) {
     case MSRP_ATTR_TYPE_TALKER_ADV:
-        if (ctx->on_talker_advertise)
+        if (ctx->on_talker_advertise) {
             ctx->on_talker_advertise(ctx, port_id,
                                      (const struct msrp_talker_adv *)attr_val,
                                      is_new);
+        }
         break;
     case MSRP_ATTR_TYPE_TALKER_FAILED:
-        if (ctx->on_talker_failed)
+        if (ctx->on_talker_failed) {
             ctx->on_talker_failed(ctx, port_id,
                                   (const struct msrp_talker_failed *)attr_val,
                                   is_new);
+        }
         break;
     case MSRP_ATTR_TYPE_LISTENER: {
         /*
@@ -65,21 +67,119 @@ static void msrp_join_ind(struct mrp_app *app, uint8_t port_id,
         struct msrp_stream_id sid;
         memcpy(sid.bytes, v, 8);
         enum msrp_listener_decl decl = (enum msrp_listener_decl)v[8];
-        if (ctx->on_listener)
+        if (ctx->on_listener) {
             ctx->on_listener(ctx, port_id, &sid, decl, is_new);
+        }
         break;
     }
     default:
         break;
     }
+
+    /* MAP propagation is handled by mrp_app_ops.map_join — see msrp_map_join. */
 }
 
 static void msrp_leave_ind(struct mrp_app *app, uint8_t port_id,
                            uint8_t attr_type, const void *attr_val)
 {
     struct msrp_ctx *ctx = (struct msrp_ctx *)app->ops->ctx;
-    if (ctx->on_leave)
+    if (ctx->on_leave) {
         ctx->on_leave(ctx, port_id, attr_type, attr_val);
+    }
+    /* MAP propagation is handled by mrp_app_ops.map_leave — see msrp_map_leave. */
+}
+
+/* ------------------------------------------------------------------ */
+/* MAP policy — §35.2.3                                                */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Build a bitmask of every port except src_port.
+ */
+static uint32_t all_ports_except(const struct mrp_app *app, uint8_t src_port)
+{
+    uint8_t  n    = mrp_app_n_ports(app);
+    uint32_t mask = 0;
+    for (uint8_t p = 0; p < n && p < 32u; p++) {
+        if (p != src_port) {
+            mask |= (1u << p);
+        }
+    }
+    return mask;
+}
+
+/*
+ * msrp_map_join — §35.2.3 propagation rules on registration.
+ *
+ * Talker Advertise / Talker Failed (§35.2.3 bridge component):
+ *   Flood to every port except the port of registration.
+ *
+ * Listener (§35.2.3):
+ *   Propagate only toward the talker — re-declare on every port where the
+ *   Talker Advertise or Talker Failed for the same StreamID is registered
+ *   (Registrar IN), excluding the port the Listener arrived on.
+ *   This routes the listener declaration back toward the stream source.
+ *
+ * Domain (type 4) and any unknown attribute types:
+ *   Not propagated — domain attributes are per-port administrative state
+ *   and must not be relayed between ports.
+ *
+ * TODO: once RSTP is integrated, gate the returned bitmask on port role
+ *       so that only Designated ports are included (§10.3, MAP domain).
+ */
+static uint32_t msrp_map_join(const struct mrp_app *app, uint8_t src_port,
+                              uint8_t attr_type, const void *attr_val)
+{
+    switch (attr_type) {
+    case MSRP_ATTR_TYPE_TALKER_ADV:
+    case MSRP_ATTR_TYPE_TALKER_FAILED:
+        return all_ports_except(app, src_port);
+
+    case MSRP_ATTR_TYPE_LISTENER: {
+        /*
+         * The StreamID occupies the first 8 bytes of every MSRP attribute
+         * value, so passing attr_val directly to mrp_attr_registered_ports
+         * with a Talker type works: attr_cmp compares the first 8 bytes.
+         */
+        uint32_t talker_ports =
+            mrp_attr_registered_ports(app, MSRP_ATTR_TYPE_TALKER_ADV,    attr_val) |
+            mrp_attr_registered_ports(app, MSRP_ATTR_TYPE_TALKER_FAILED,  attr_val);
+        return talker_ports & all_ports_except(app, src_port);
+    }
+
+    default:
+        return 0u;
+    }
+}
+
+/*
+ * msrp_map_leave — §35.2.3 propagation rules on deregistration.
+ *
+ * Talker Advertise / Talker Failed:
+ *   Withdraw from every port except src_port.
+ *
+ * Listener:
+ *   Withdraw from every port except src_port.  mrp_mad_leave is a no-op
+ *   when the attribute is not declared on a port, so it is safe to call
+ *   unconditionally — avoids a stale-talker-set problem if the talker
+ *   deregistered before the listener.
+ *
+ * Domain / unknown:
+ *   Not withdrawn.
+ */
+static uint32_t msrp_map_leave(const struct mrp_app *app, uint8_t src_port,
+                               uint8_t attr_type, const void *attr_val)
+{
+    (void)attr_val;
+    switch (attr_type) {
+    case MSRP_ATTR_TYPE_TALKER_ADV:
+    case MSRP_ATTR_TYPE_TALKER_FAILED:
+    case MSRP_ATTR_TYPE_LISTENER:
+        return all_ports_except(app, src_port);
+
+    default:
+        return 0u;
+    }
 }
 
 static int msrp_encode_attr(uint8_t attr_type, const void *attr_val,
@@ -139,6 +239,8 @@ static int msrp_attr_cmp(uint8_t attr_type, const void *a, const void *b)
 static const struct mrp_app_ops msrp_ops_tmpl = {
     .join_ind      = msrp_join_ind,
     .leave_ind     = msrp_leave_ind,
+    .map_join      = msrp_map_join,
+    .map_leave     = msrp_map_leave,
     .encode_attr   = msrp_encode_attr,
     .decode_attr   = msrp_decode_attr,
     .attr_len      = msrp_attr_len,

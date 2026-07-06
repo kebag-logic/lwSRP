@@ -16,6 +16,7 @@
 #include "shish_lan/mrp.h"
 #include "shish_lan/mrp_pdu.h"
 #include "ports/alloc.h"
+#include "ports/timer.h"
 
 /* ------------------------------------------------------------------ */
 /* Internal types                                                       */
@@ -30,25 +31,56 @@ enum tx_msg {
     TX_MSG_IN,     /* §10.7.6.5 s   (In if Reg=IN, Mt otherwise)          */
 };
 
+/*
+ * Callback argument types for port- and attribute-level timers.
+ * Embedded directly in the state structs to avoid separate heap allocation.
+ */
+
+struct mrp_port_timer_arg {
+    struct mrp_app *app;
+    uint8_t         port_id;
+};
+
+/* mrp_attr_inst is defined below; the pointer in mrp_attr_timer_arg only
+ * requires a forward declaration here. */
+struct mrp_attr_inst;
+
+struct mrp_attr_timer_arg {
+    struct mrp_app       *app;
+    struct mrp_attr_inst *ai;
+    uint8_t               port_id;
+};
+
+/* Forward declarations — bodies follow the state machine functions. */
+static void on_la_timer(void *arg);
+static void on_pt_timer(void *arg);
+static void on_leave_timer(void *arg);
+
 /* Per-attribute instance: one Applicant SM + one Registrar SM */
 struct mrp_attr_inst {
     uint8_t              attr_type;
     uint8_t              attr_val[32]; /* max attribute value size */
     enum mrp_appl_state  appl;         /* Applicant state          */
     enum mrp_reg_state   reg;          /* Registrar state          */
-    uint32_t             leave_cs;     /* leavetimer countdown (cs) */
     enum tx_msg          pending_tx;   /* message scheduled for next tx */
     struct mrp_attr_inst *next;
+    /* Leave timer: fires MRP_EVENT_LEAVETIMER into the Registrar SM on expiry */
+    struct shlan_timer          leave_timer;
+    struct mrp_attr_timer_arg   leave_timer_arg;
 };
 
 /* Per-port MRP Participant state */
 struct mrp_port_state {
     enum mrp_la_state    la;          /* LeaveAll SM state (Table 10-5) */
     enum mrp_pt_state    pt;          /* PeriodicTransmission SM state  */
-    uint32_t             la_cs;       /* leavealltimer countdown (cs)   */
-    uint32_t             pt_cs;       /* periodictimer countdown (cs)   */
     bool                 tx_pending;  /* transmission opportunity needed */
     struct mrp_attr_inst *attrs;      /* linked list of attribute instances */
+    /* LeaveAll timer: fires MRP_EVENT_LEAVEALLTIMER on expiry */
+    struct shlan_timer          la_timer;
+    /* PeriodicTransmission timer: fires MRP_EVENT_PERIODICTIMER on expiry */
+    struct shlan_timer          pt_timer;
+    /* Shared callback arg for la_timer and pt_timer (same app + port_id) */
+    struct mrp_port_timer_arg   timer_arg;
 };
 
 /* Private data hanging off struct mrp_app */
@@ -368,6 +400,30 @@ static struct mrp_priv *priv_of(struct mrp_app *app)
     return (struct mrp_priv *)app->priv;
 }
 
+uint8_t mrp_app_n_ports(const struct mrp_app *app)
+{
+    return priv_of((struct mrp_app *)app)->n_ports;
+}
+
+uint32_t mrp_attr_registered_ports(const struct mrp_app *app,
+                                   uint8_t attr_type, const void *attr_val)
+{
+    const struct mrp_priv *priv = priv_of((struct mrp_app *)app);
+    uint32_t mask = 0;
+    for (uint8_t p = 0; p < priv->n_ports && p < 32u; p++) {
+        const struct mrp_port_state *ps = &priv->ports[p];
+        for (const struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
+            if (a->attr_type == attr_type &&
+                app->ops->attr_cmp(attr_type, a->attr_val, attr_val) == 0 &&
+                a->reg == MRP_REG_STATE_IN) {
+                mask |= (1u << p);
+                break;
+            }
+        }
+    }
+    return mask;
+}
+
 static struct mrp_attr_inst *find_attr(struct mrp_port_state *ps, const struct mrp_app_ops *ops,
                                    uint8_t type, const void *val)
 {
@@ -377,15 +433,21 @@ static struct mrp_attr_inst *find_attr(struct mrp_port_state *ps, const struct m
     return NULL;
 }
 
-static struct mrp_attr_inst *get_or_create_attr(struct mrp_port_state *ps,
-                                            const struct mrp_app_ops *ops,
+static struct mrp_attr_inst *get_or_create_attr(struct mrp_app *app,
+                                            struct mrp_port_state *ps,
+                                            uint8_t port_id,
                                             uint8_t type, const void *val)
 {
+    const struct mrp_app_ops *ops = app->ops;
     struct mrp_attr_inst *a = find_attr(ps, ops, type, val);
-    if (a) return a;
+    if (a) {
+        return a;
+    }
 
     a = shlan_calloc(1, sizeof(*a) + ops->attr_len(type));
-    if (!a) return NULL;
+    if (!a) {
+        return NULL;
+    }
 
     a->attr_type = type;
     memcpy(a->attr_val, val, ops->attr_len(type));
@@ -394,6 +456,12 @@ static struct mrp_attr_inst *get_or_create_attr(struct mrp_port_state *ps,
     a->pending_tx = TX_MSG_NONE;
     a->next       = ps->attrs;
     ps->attrs     = a;
+
+    a->leave_timer_arg.app     = app;
+    a->leave_timer_arg.ai      = a;
+    a->leave_timer_arg.port_id = port_id;
+    shlan_timer_init(&a->leave_timer, on_leave_timer, &a->leave_timer_arg);
+
     return a;
 }
 
@@ -401,10 +469,55 @@ static struct mrp_attr_inst *get_or_create_attr(struct mrp_port_state *ps,
 static void appl_event(struct mrp_attr_inst *ai, enum mrp_event ev)
 {
     const struct appl_entry *e = &appl_table[ev][ai->appl];
-    if (e->ns != MRP_APPL_STATE_COUNT)
+    if (e->ns != MRP_APPL_STATE_COUNT) {
         ai->appl = e->ns;
-    if (e->tx != TX_MSG_NONE)
+    }
+    if (e->tx != TX_MSG_NONE) {
         ai->pending_tx = e->tx;
+    }
+}
+
+/*
+ * MAP helpers — apply the port bitmask returned by map_join / map_leave.
+ *
+ * map_apply_join uses is_new=false (MRP_EVENT_JOIN).  The Registrar SM
+ * ignores MRP_EVENT_JOIN, so no join_ind fires on the target ports and
+ * there is no indication loop.
+ */
+static void map_apply_join(struct mrp_app *app, uint8_t src_port,
+                           uint8_t attr_type, const void *attr_val)
+{
+    if (!app->ops->map_join) {
+        return;
+    }
+    uint32_t ports = app->ops->map_join(app, src_port, attr_type, attr_val);
+    if (!ports) {
+        return;
+    }
+    uint8_t n = priv_of(app)->n_ports;
+    for (uint8_t p = 0; p < n && p < 32u; p++) {
+        if (ports & (1u << p)) {
+            mrp_mad_join(app, p, attr_type, attr_val, false);
+        }
+    }
+}
+
+static void map_apply_leave(struct mrp_app *app, uint8_t src_port,
+                            uint8_t attr_type, const void *attr_val)
+{
+    if (!app->ops->map_leave) {
+        return;
+    }
+    uint32_t ports = app->ops->map_leave(app, src_port, attr_type, attr_val);
+    if (!ports) {
+        return;
+    }
+    uint8_t n = priv_of(app)->n_ports;
+    for (uint8_t p = 0; p < n && p < 32u; p++) {
+        if (ports & (1u << p)) {
+            mrp_mad_leave(app, p, attr_type, attr_val);
+        }
+    }
 }
 
 /* Apply one Registrar SM event; issues MAD indications via ops callbacks. */
@@ -413,24 +526,28 @@ static void reg_event(struct mrp_app *app, struct mrp_attr_inst *ai,
 {
     const struct reg_entry *e = &reg_table[ev][ai->reg];
 
-    if (e->ns != MRP_REG_STATE_COUNT)
+    if (e->ns != MRP_REG_STATE_COUNT) {
         ai->reg = e->ns;
+    }
 
     switch (e->timer) {
-    case REG_TIMER_START: ai->leave_cs = MRP_LEAVE_TIME_CS; break;
-    case REG_TIMER_STOP:  ai->leave_cs = 0; break;
-    default: break;
+    case REG_TIMER_START: shlan_timer_arm(&ai->leave_timer, MRP_LEAVE_TIME_CS); break;
+    case REG_TIMER_STOP:  shlan_timer_disarm(&ai->leave_timer);                 break;
+    default:                                                                     break;
     }
 
     switch (e->ind) {
     case REG_IND_NEW:
         app->ops->join_ind(app, port_id, ai->attr_type, ai->attr_val, true);
+        map_apply_join(app, port_id, ai->attr_type, ai->attr_val);
         break;
     case REG_IND_JOIN:
         app->ops->join_ind(app, port_id, ai->attr_type, ai->attr_val, false);
+        map_apply_join(app, port_id, ai->attr_type, ai->attr_val);
         break;
     case REG_IND_LV:
         app->ops->leave_ind(app, port_id, ai->attr_type, ai->attr_val);
+        map_apply_leave(app, port_id, ai->attr_type, ai->attr_val);
         break;
     default:
         break;
@@ -463,29 +580,29 @@ static void la_event(struct mrp_app *app, struct mrp_port_state *ps,
 {
     switch (ev) {
     case MRP_EVENT_BEGIN:
-        ps->la    = MRP_LA_STATE_PASSIVE;
-        ps->la_cs = MRP_LEAVEALL_TIME_CS;
+        ps->la = MRP_LA_STATE_PASSIVE;
+        shlan_timer_arm(&ps->la_timer, MRP_LEAVEALL_TIME_CS);
         break;
 
     case MRP_EVENT_TX:
         if (ps->la == MRP_LA_STATE_ACTIVE) {
             /* sLA: send LeaveAll, reset timer, go Passive */
-            ps->la    = MRP_LA_STATE_PASSIVE;
-            ps->la_cs = MRP_LEAVEALL_TIME_CS;
+            ps->la = MRP_LA_STATE_PASSIVE;
+            shlan_timer_arm(&ps->la_timer, MRP_LEAVEALL_TIME_CS);
             /* Also generate rLA! for all local Applicant/Registrar SMs */
             broadcast_event(app, ps, MRP_EVENT_RLA, port_id);
         }
         break;
 
     case MRP_EVENT_RLA:
-        ps->la    = MRP_LA_STATE_PASSIVE;
-        ps->la_cs = MRP_LEAVEALL_TIME_CS;
+        ps->la = MRP_LA_STATE_PASSIVE;
+        shlan_timer_arm(&ps->la_timer, MRP_LEAVEALL_TIME_CS);
         break;
 
     case MRP_EVENT_LEAVEALLTIMER:
         /* Timer expired → Active, request tx so sLA can fire */
-        ps->la    = MRP_LA_STATE_ACTIVE;
-        ps->la_cs = MRP_LEAVEALL_TIME_CS; /* restart for next cycle */
+        ps->la = MRP_LA_STATE_ACTIVE;
+        shlan_timer_arm(&ps->la_timer, MRP_LEAVEALL_TIME_CS); /* restart for next cycle */
         ps->tx_pending = true;
         break;
 
@@ -503,13 +620,13 @@ static void pt_event(struct mrp_app *app, struct mrp_port_state *ps,
 {
     switch (ev) {
     case MRP_EVENT_BEGIN:
-        ps->pt    = MRP_PT_STATE_ACTIVE;
-        ps->pt_cs = MRP_JOIN_TIME_CS;
+        ps->pt = MRP_PT_STATE_ACTIVE;
+        shlan_timer_arm(&ps->pt_timer, MRP_JOIN_TIME_CS);
         break;
 
     case MRP_EVENT_PERIODICTIMER:
         if (ps->pt == MRP_PT_STATE_ACTIVE) {
-            ps->pt_cs = MRP_JOIN_TIME_CS; /* restart */
+            shlan_timer_arm(&ps->pt_timer, MRP_JOIN_TIME_CS); /* restart */
             /* Generate periodic! for all Applicant SMs */
             broadcast_event(app, ps, MRP_EVENT_PERIODIC, port_id);
             ps->tx_pending = true;
@@ -519,6 +636,30 @@ static void pt_event(struct mrp_app *app, struct mrp_port_state *ps,
     default:
         break;
     }
+}
+
+/* ------------------------------------------------------------------ */
+/* Timer callbacks                                                      */
+/* ------------------------------------------------------------------ */
+
+static void on_la_timer(void *arg)
+{
+    struct mrp_port_timer_arg *a  = (struct mrp_port_timer_arg *)arg;
+    struct mrp_port_state     *ps = &priv_of(a->app)->ports[a->port_id];
+    la_event(a->app, ps, MRP_EVENT_LEAVEALLTIMER, a->port_id);
+}
+
+static void on_pt_timer(void *arg)
+{
+    struct mrp_port_timer_arg *a  = (struct mrp_port_timer_arg *)arg;
+    struct mrp_port_state     *ps = &priv_of(a->app)->ports[a->port_id];
+    pt_event(a->app, ps, MRP_EVENT_PERIODICTIMER, a->port_id);
+}
+
+static void on_leave_timer(void *arg)
+{
+    struct mrp_attr_timer_arg *a = (struct mrp_attr_timer_arg *)arg;
+    reg_event(a->app, a->ai, MRP_EVENT_LEAVETIMER, a->port_id);
 }
 
 /* ------------------------------------------------------------------ */
@@ -540,9 +681,13 @@ struct mrp_app *mrp_app_create(const struct mrp_app_ops *ops, uint8_t n_ports)
     app->priv  = priv;
     priv->n_ports = n_ports;
 
-    /* Initialise each port's state machines via Begin! */
+    /* Initialise each port's timers and state machines via Begin! */
     for (uint8_t p = 0; p < n_ports; p++) {
         struct mrp_port_state *ps = &priv->ports[p];
+        ps->timer_arg.app     = app;
+        ps->timer_arg.port_id = p;
+        shlan_timer_init(&ps->la_timer, on_la_timer, &ps->timer_arg);
+        shlan_timer_init(&ps->pt_timer, on_pt_timer, &ps->timer_arg);
         la_event(app, ps, MRP_EVENT_BEGIN, p);
         pt_event(app, ps, MRP_EVENT_BEGIN, p);
     }
@@ -571,7 +716,7 @@ int mrp_mad_join(struct mrp_app *app, uint8_t port_id,
 {
     struct mrp_priv       *priv = priv_of(app);
     struct mrp_port_state *ps   = &priv->ports[port_id];
-    struct mrp_attr_inst  *ai   = get_or_create_attr(ps, app->ops, attr_type, attr_val);
+    struct mrp_attr_inst  *ai   = get_or_create_attr(app, ps, port_id, attr_type, attr_val);
     if (!ai) return -ENOMEM;
 
     deliver_event(app, ps, ai, is_new ? MRP_EVENT_NEW : MRP_EVENT_JOIN, port_id);
@@ -603,8 +748,8 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
                        enum mrp_attr_event attr_event, const void *attr_val)
 {
     struct rx_ctx        *rc = (struct rx_ctx *)raw_ctx;
-    struct mrp_attr_inst *ai = get_or_create_attr(rc->ps, rc->app->ops,
-                                              attr_type, attr_val);
+    struct mrp_attr_inst *ai = get_or_create_attr(rc->app, rc->ps,
+                                              rc->port_id, attr_type, attr_val);
     if (!ai) return;
 
     /* Map wire AttributeEvent → internal MRP event */
@@ -642,22 +787,9 @@ int mrp_rx(struct mrp_app *app, uint8_t port_id,
 
 void mrp_tick(struct mrp_app *app, uint8_t port_id)
 {
-    struct mrp_priv       *priv = priv_of(app);
-    struct mrp_port_state *ps   = &priv->ports[port_id];
-
-    /* leavealltimer */
-    if (ps->la_cs > 0 && --ps->la_cs == 0)
-        la_event(app, ps, MRP_EVENT_LEAVEALLTIMER, port_id);
-
-    /* periodictimer */
-    if (ps->pt_cs > 0 && --ps->pt_cs == 0)
-        pt_event(app, ps, MRP_EVENT_PERIODICTIMER, port_id);
-
-    /* leavetimer per attribute */
-    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
-        if (a->leave_cs > 0 && --a->leave_cs == 0)
-            reg_event(app, a, MRP_EVENT_LEAVETIMER, port_id);
-    }
+    (void)app;
+    (void)port_id;
+    shlan_timer_tick();
 }
 
 void mrp_port_role_change(struct mrp_app *app, uint8_t port_id, bool flush)
@@ -675,9 +807,10 @@ void mrp_set_periodic(struct mrp_app *app, uint8_t port_id, bool enable)
     struct mrp_priv       *priv = priv_of(app);
     struct mrp_port_state *ps   = &priv->ports[port_id];
     if (enable && ps->pt == MRP_PT_STATE_PASSIVE) {
-        ps->pt    = MRP_PT_STATE_ACTIVE;
-        ps->pt_cs = MRP_JOIN_TIME_CS;
+        ps->pt = MRP_PT_STATE_ACTIVE;
+        shlan_timer_arm(&ps->pt_timer, MRP_JOIN_TIME_CS);
     } else if (!enable && ps->pt == MRP_PT_STATE_ACTIVE) {
         ps->pt = MRP_PT_STATE_PASSIVE;
+        shlan_timer_disarm(&ps->pt_timer);
     }
 }

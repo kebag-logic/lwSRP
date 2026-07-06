@@ -153,6 +153,31 @@ struct mrp_app_ops {
                          uint8_t attr_type, const void *attr_val);
 
     /*
+     * MAP policy — §10.3.  Optional; set to NULL for end-station behaviour.
+     *
+     * map_join:  called after join_ind fires on src_port.  Return a bitmask
+     *            of ports to re-declare the attribute on (bit N = port N).
+     *            Return 0 to suppress all propagation.
+     *
+     * map_leave: called after leave_ind fires on src_port.  Return a bitmask
+     *            of ports to withdraw the attribute from.
+     *
+     * The MRP base applies the bitmask by calling mrp_mad_join / mrp_mad_leave
+     * with is_new=false so the Registrar SM on target ports is not disturbed
+     * and there is no indication loop.
+     *
+     * Note: bitmask limits MAP to ≤ 32 ports.
+     *
+     * TODO: once RSTP is integrated, implementations must gate propagation on
+     * port role — only Designated ports should be included in the returned
+     * bitmask (§10.3, MAP domain membership).
+     */
+    uint32_t (*map_join)(const struct mrp_app *app, uint8_t src_port,
+                         uint8_t attr_type, const void *attr_val);
+    uint32_t (*map_leave)(const struct mrp_app *app, uint8_t src_port,
+                          uint8_t attr_type, const void *attr_val);
+
+    /*
      * Encode FirstValue into buf — §10.8.2.7.
      * Returns bytes written, or negative errno.
      */
@@ -196,7 +221,18 @@ struct mrp_app {
 
 /* Create/destroy an MRP application instance (all ports share one). */
 struct mrp_app *mrp_app_create(const struct mrp_app_ops *ops, uint8_t n_ports);
-void        mrp_app_destroy(struct mrp_app *app);
+void            mrp_app_destroy(struct mrp_app *app);
+
+/* Return the number of ports the application was created with. */
+uint8_t mrp_app_n_ports(const struct mrp_app *app);
+
+/*
+ * Return a bitmask of ports on which attr_type/attr_val is currently
+ * registered (Registrar state == IN).  Bit N set means port N has it.
+ * Intended for use inside map_join / map_leave callbacks.
+ */
+uint32_t mrp_attr_registered_ports(const struct mrp_app *app,
+                                   uint8_t attr_type, const void *attr_val);
 
 /*
  * MAD_Join.request — §10.2.
