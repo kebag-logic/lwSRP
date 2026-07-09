@@ -59,7 +59,9 @@ static void on_leave_timer(void *arg);
 /* Per-attribute instance: one Applicant SM + one Registrar SM */
 struct mrp_attr_inst {
     uint8_t              attr_type;
-    uint8_t              attr_val[32]; /* max attribute value size */
+    /* Largest in-memory value (struct msrp_talker_failed) with margin;
+     * see attr_store_len(). */
+    uint8_t              attr_val[48];
     enum mrp_appl_state  appl;         /* Applicant state          */
     enum mrp_reg_state   reg;          /* Registrar state          */
     enum tx_msg          pending_tx;   /* message scheduled for next tx */
@@ -86,6 +88,9 @@ struct mrp_port_state {
 /* Private data hanging off struct mrp_app */
 struct mrp_priv {
     uint8_t              n_ports;
+    /* Optional transition observer (mrp_set_observer) */
+    void               (*obs_fn)(void *ctx, const struct mrp_transition *t);
+    void                *obs_ctx;
     struct mrp_port_state ports[]; /* flexible array */
 };
 
@@ -433,6 +438,22 @@ static struct mrp_attr_inst *find_attr(struct mrp_port_state *ps, const struct m
     return NULL;
 }
 
+/*
+ * Stored value length: the in-memory representation the app's
+ * decode_attr produces (attr_mem_len), falling back to the wire
+ * FirstValue length when the two are identical.
+ */
+static size_t attr_store_len(const struct mrp_app_ops *ops, uint8_t type)
+{
+    size_t n = ops->attr_mem_len ? ops->attr_mem_len(type)
+                                 : ops->attr_len(type);
+
+    if (n > sizeof(((struct mrp_attr_inst *)0)->attr_val)) {
+        n = sizeof(((struct mrp_attr_inst *)0)->attr_val);
+    }
+    return n;
+}
+
 static struct mrp_attr_inst *get_or_create_attr(struct mrp_app *app,
                                             struct mrp_port_state *ps,
                                             uint8_t port_id,
@@ -441,16 +462,22 @@ static struct mrp_attr_inst *get_or_create_attr(struct mrp_app *app,
     const struct mrp_app_ops *ops = app->ops;
     struct mrp_attr_inst *a = find_attr(ps, ops, type, val);
     if (a) {
+        /*
+         * Refresh the stored value: identity (attr_cmp) is unchanged,
+         * but the payload may not be — a re-advertised Talker TSpec,
+         * a Listener declaration subtype.
+         */
+        memcpy(a->attr_val, val, attr_store_len(ops, type));
         return a;
     }
 
-    a = shlan_calloc(1, sizeof(*a) + ops->attr_len(type));
+    a = shlan_calloc(1, sizeof(*a));
     if (!a) {
         return NULL;
     }
 
     a->attr_type = type;
-    memcpy(a->attr_val, val, ops->attr_len(type));
+    memcpy(a->attr_val, val, attr_store_len(ops, type));
     a->appl       = MRP_APPL_STATE_VO;
     a->reg        = MRP_REG_STATE_MT;
     a->pending_tx = TX_MSG_NONE;
@@ -554,13 +581,47 @@ static void reg_event(struct mrp_app *app, struct mrp_attr_inst *ai,
     }
 }
 
+/*
+ * Report an Applicant/Registrar state change to the registered observer.
+ * Called with the states captured before the event was applied.
+ */
+static void observe(struct mrp_app *app, const struct mrp_attr_inst *ai,
+                    enum mrp_event ev, uint8_t port_id,
+                    enum mrp_appl_state appl_from, enum mrp_reg_state reg_from)
+{
+    struct mrp_priv *priv = priv_of(app);
+
+    if (!priv->obs_fn) {
+        return;
+    }
+    if (ai->appl == appl_from && ai->reg == reg_from) {
+        return; /* the event changed nothing */
+    }
+
+    struct mrp_transition t = {
+        .port_id   = port_id,
+        .attr_type = ai->attr_type,
+        .attr_val  = ai->attr_val,
+        .event     = ev,
+        .appl_from = appl_from,
+        .appl_to   = ai->appl,
+        .reg_from  = reg_from,
+        .reg_to    = ai->reg,
+    };
+    priv->obs_fn(priv->obs_ctx, &t);
+}
+
 /* Deliver an event to both Applicant and Registrar SMs for one attribute. */
 static void deliver_event(struct mrp_app *app, struct mrp_port_state *ps,
                           struct mrp_attr_inst *ai, enum mrp_event ev, uint8_t port_id)
 {
+    enum mrp_appl_state appl_from = ai->appl;
+    enum mrp_reg_state  reg_from  = ai->reg;
+
     (void)ps;
     appl_event(ai, ev);
     reg_event(app, ai, ev, port_id);
+    observe(app, ai, ev, port_id, appl_from, reg_from);
 }
 
 /* Broadcast an event to all attributes on a port. */
@@ -659,7 +720,12 @@ static void on_pt_timer(void *arg)
 static void on_leave_timer(void *arg)
 {
     struct mrp_attr_timer_arg *a = (struct mrp_attr_timer_arg *)arg;
+    enum mrp_appl_state appl_from = a->ai->appl;
+    enum mrp_reg_state  reg_from  = a->ai->reg;
+
     reg_event(a->app, a->ai, MRP_EVENT_LEAVETIMER, a->port_id);
+    observe(a->app, a->ai, MRP_EVENT_LEAVETIMER, a->port_id,
+            appl_from, reg_from);
 }
 
 /* ------------------------------------------------------------------ */
@@ -813,4 +879,103 @@ void mrp_set_periodic(struct mrp_app *app, uint8_t port_id, bool enable)
         ps->pt = MRP_PT_STATE_PASSIVE;
         shlan_timer_disarm(&ps->pt_timer);
     }
+}
+
+/* ------------------------------------------------------------------ */
+/* Introspection and observability                                      */
+/* ------------------------------------------------------------------ */
+
+void mrp_set_observer(struct mrp_app *app,
+                      void (*fn)(void *ctx, const struct mrp_transition *t),
+                      void *ctx)
+{
+    struct mrp_priv *priv = priv_of(app);
+
+    priv->obs_fn  = fn;
+    priv->obs_ctx = ctx;
+}
+
+int mrp_attr_visit(const struct mrp_app *app, uint8_t port_id,
+                   void (*visit)(void *ctx, const struct mrp_attr_status *st),
+                   void *ctx)
+{
+    const struct mrp_priv *priv = priv_of((struct mrp_app *)app);
+    int count = 0;
+
+    if (port_id >= priv->n_ports) {
+        return -EINVAL;
+    }
+
+    for (const struct mrp_attr_inst *a = priv->ports[port_id].attrs;
+         a; a = a->next) {
+        if (visit) {
+            struct mrp_attr_status st = {
+                .port_id   = port_id,
+                .attr_type = a->attr_type,
+                .attr_val  = a->attr_val,
+                .appl      = a->appl,
+                .reg       = a->reg,
+            };
+            visit(ctx, &st);
+        }
+        count++;
+    }
+    return count;
+}
+
+int mrp_port_status(const struct mrp_app *app, uint8_t port_id,
+                    enum mrp_la_state *la, enum mrp_pt_state *pt)
+{
+    const struct mrp_priv *priv = priv_of((struct mrp_app *)app);
+
+    if (port_id >= priv->n_ports) {
+        return -EINVAL;
+    }
+    if (la) {
+        *la = priv->ports[port_id].la;
+    }
+    if (pt) {
+        *pt = priv->ports[port_id].pt;
+    }
+    return 0;
+}
+
+/* §10.7.7 / §10.7.8 state abbreviations and §10.7.5 event names */
+static const char *const appl_state_names[MRP_APPL_STATE_COUNT] = {
+    "VO", "VP", "VN", "AN", "AA", "QA", "LA", "AO", "QO", "AP", "QP", "LO",
+};
+
+static const char *const reg_state_names[MRP_REG_STATE_COUNT] = {
+    "IN", "LV", "MT",
+};
+
+static const char *const event_names[MRP_EVENT_COUNT] = {
+    "Begin!", "New!", "Join!", "Lv!", "tx!", "txLA!", "txLAF!",
+    "rNew!", "rJoinIn!", "rJoinMt!", "rIn!", "rMt!", "rLv!", "rLA!",
+    "Flush!", "Re-declare!", "periodic!", "leavetimer!", "leavealltimer!",
+    "periodictimer!",
+};
+
+const char *mrp_appl_state_name(enum mrp_appl_state s)
+{
+    if ((unsigned int)s >= MRP_APPL_STATE_COUNT) {
+        return "?";
+    }
+    return appl_state_names[s];
+}
+
+const char *mrp_reg_state_name(enum mrp_reg_state s)
+{
+    if ((unsigned int)s >= MRP_REG_STATE_COUNT) {
+        return "?";
+    }
+    return reg_state_names[s];
+}
+
+const char *mrp_event_name(enum mrp_event ev)
+{
+    if ((unsigned int)ev >= MRP_EVENT_COUNT) {
+        return "?";
+    }
+    return event_names[ev];
 }
