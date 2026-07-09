@@ -8,12 +8,14 @@
  *
  * MSRP differs from MVRP/MMRP:
  *   - AttributeListLength IS present in the Message header (§10.8.2.4).
- *   - Listener attributes use FourPackedEvents rather than ThreePackedEvents.
+ *   - Listener attributes carry a FourPackedEvents subtype vector after
+ *     the ThreePackedEvents (§35.2.2.7.2): attr_has_subtype tells
+ *     mrpdu_parse to decode it, and the declaration type arrives as the
+ *     9th attr_val octet (see msrp_join_ind).
  *   - EtherType: 0x22EA.
  *
- * NOTE: Listener FourPackedEvents are NOT yet decoded in mrpdu_parse()
- *       (mrp_pdu.c uses ThreePacked for all types).  A future patch should
- *       detect MSRP Listener attrs and switch to mrp_four_unpack().
+ * Talker attribute values are converted between wire big-endian and the
+ * host-endian struct msrp_talker_adv fields here (encode/decode_attr).
  */
 
 #include <errno.h>
@@ -182,19 +184,85 @@ static uint32_t msrp_map_leave(const struct mrp_app *app, uint8_t src_port,
     }
 }
 
+/* Wire field helpers: MRPDU FirstValue fields are big-endian (§10.8.2.7). */
+static void be16_put(uint8_t *b, uint16_t v)
+{
+    b[0] = (uint8_t)(v >> 8);
+    b[1] = (uint8_t)v;
+}
+
+static uint16_t be16_get(const uint8_t *b)
+{
+    return (uint16_t)(((uint16_t)b[0] << 8) | b[1]);
+}
+
+static void be32_put(uint8_t *b, uint32_t v)
+{
+    b[0] = (uint8_t)(v >> 24);
+    b[1] = (uint8_t)(v >> 16);
+    b[2] = (uint8_t)(v >> 8);
+    b[3] = (uint8_t)v;
+}
+
+static uint32_t be32_get(const uint8_t *b)
+{
+    return ((uint32_t)b[0] << 24) | ((uint32_t)b[1] << 16) |
+           ((uint32_t)b[2] << 8) | b[3];
+}
+
+/*
+ * Talker Advertise FirstValue layout (§35.2.1.3, 25 octets):
+ *   StreamID 8 | DataFrameParameters 8 (DA 6, VID 2) |
+ *   TSpec 4 (MaxFrameSize 2, MaxIntervalFrames 2) |
+ *   PriorityAndRank 1 | AccumulatedLatency 4
+ */
+static void talker_to_wire(const struct msrp_talker_adv *t, uint8_t *b)
+{
+    memcpy(&b[0], t->stream_id.bytes, 8);
+    memcpy(&b[8], t->dest_mac, 6);
+    be16_put(&b[14], t->vlan_id);
+    be16_put(&b[16], t->max_frame_size);
+    be16_put(&b[18], t->max_interval_frames);
+    b[20] = t->priority_and_rank;
+    be32_put(&b[21], t->accumulated_latency);
+}
+
+static void talker_from_wire(const uint8_t *b, struct msrp_talker_adv *t)
+{
+    memcpy(t->stream_id.bytes, &b[0], 8);
+    memcpy(t->dest_mac, &b[8], 6);
+    t->vlan_id             = be16_get(&b[14]);
+    t->max_frame_size      = be16_get(&b[16]);
+    t->max_interval_frames = be16_get(&b[18]);
+    t->priority_and_rank   = b[20];
+    t->accumulated_latency = be32_get(&b[21]);
+}
+
 static int msrp_encode_attr(uint8_t attr_type, const void *attr_val,
                             uint8_t *buf, size_t buf_len)
 {
-    uint8_t alen;
     switch (attr_type) {
-    case MSRP_ATTR_TYPE_TALKER_ADV:    alen = MSRP_ATTR_LEN_TALKER_ADV;    break;
-    case MSRP_ATTR_TYPE_TALKER_FAILED: alen = MSRP_ATTR_LEN_TALKER_FAILED;  break;
-    case MSRP_ATTR_TYPE_LISTENER:      alen = MSRP_ATTR_LEN_LISTENER;       break;
-    default: return -EINVAL;
+    case MSRP_ATTR_TYPE_TALKER_ADV:
+        if (buf_len < MSRP_ATTR_LEN_TALKER_ADV) return -ENOBUFS;
+        talker_to_wire((const struct msrp_talker_adv *)attr_val, buf);
+        return MSRP_ATTR_LEN_TALKER_ADV;
+
+    case MSRP_ATTR_TYPE_TALKER_FAILED: {
+        const struct msrp_talker_failed *tf = attr_val;
+        if (buf_len < MSRP_ATTR_LEN_TALKER_FAILED) return -ENOBUFS;
+        talker_to_wire(&tf->talker, buf);
+        memcpy(buf + MSRP_ATTR_LEN_TALKER_ADV, tf->failure_info, 9);
+        return MSRP_ATTR_LEN_TALKER_FAILED;
     }
-    if (buf_len < alen) return -ENOBUFS;
-    memcpy(buf, attr_val, alen);
-    return alen;
+
+    case MSRP_ATTR_TYPE_LISTENER:
+        if (buf_len < MSRP_ATTR_LEN_LISTENER) return -ENOBUFS;
+        memcpy(buf, attr_val, MSRP_ATTR_LEN_LISTENER);
+        return MSRP_ATTR_LEN_LISTENER;
+
+    default:
+        return -EINVAL;
+    }
 }
 
 /*
@@ -207,16 +275,28 @@ static int msrp_decode_attr(uint8_t attr_type, uint32_t offset,
                             void *attr_val_out)
 {
     (void)offset;
-    uint8_t alen;
     switch (attr_type) {
-    case MSRP_ATTR_TYPE_TALKER_ADV:    alen = MSRP_ATTR_LEN_TALKER_ADV;    break;
-    case MSRP_ATTR_TYPE_TALKER_FAILED: alen = MSRP_ATTR_LEN_TALKER_FAILED;  break;
-    case MSRP_ATTR_TYPE_LISTENER:      alen = MSRP_ATTR_LEN_LISTENER;       break;
-    default: return -EINVAL;
+    case MSRP_ATTR_TYPE_TALKER_ADV:
+        if (buf_len < MSRP_ATTR_LEN_TALKER_ADV) return -EINVAL;
+        talker_from_wire(buf, (struct msrp_talker_adv *)attr_val_out);
+        return MSRP_ATTR_LEN_TALKER_ADV;
+
+    case MSRP_ATTR_TYPE_TALKER_FAILED: {
+        struct msrp_talker_failed *tf = attr_val_out;
+        if (buf_len < MSRP_ATTR_LEN_TALKER_FAILED) return -EINVAL;
+        talker_from_wire(buf, &tf->talker);
+        memcpy(tf->failure_info, buf + MSRP_ATTR_LEN_TALKER_ADV, 9);
+        return MSRP_ATTR_LEN_TALKER_FAILED;
     }
-    if (buf_len < alen) return -EINVAL;
-    memcpy(attr_val_out, buf, alen);
-    return alen;
+
+    case MSRP_ATTR_TYPE_LISTENER:
+        if (buf_len < MSRP_ATTR_LEN_LISTENER) return -EINVAL;
+        memcpy(attr_val_out, buf, MSRP_ATTR_LEN_LISTENER);
+        return MSRP_ATTR_LEN_LISTENER;
+
+    default:
+        return -EINVAL;
+    }
 }
 
 static uint8_t msrp_attr_len(uint8_t attr_type)
@@ -229,6 +309,26 @@ static uint8_t msrp_attr_len(uint8_t attr_type)
     }
 }
 
+/* Listener declarations ride the FourPackedEvents subtype vector. */
+static bool msrp_attr_has_subtype(uint8_t attr_type)
+{
+    return attr_type == MSRP_ATTR_TYPE_LISTENER;
+}
+
+/*
+ * In-memory sizes: talker attributes decode into host-endian structs,
+ * the listener value is the 8-byte StreamID plus the declaration octet.
+ */
+static uint8_t msrp_attr_mem_len(uint8_t attr_type)
+{
+    switch (attr_type) {
+    case MSRP_ATTR_TYPE_TALKER_ADV:    return sizeof(struct msrp_talker_adv);
+    case MSRP_ATTR_TYPE_TALKER_FAILED: return sizeof(struct msrp_talker_failed);
+    case MSRP_ATTR_TYPE_LISTENER:      return MSRP_ATTR_LEN_LISTENER + 1u;
+    default: return 0;
+    }
+}
+
 static int msrp_attr_cmp(uint8_t attr_type, const void *a, const void *b)
 {
     /* Stream identity is determined by StreamID (first 8 bytes for all types) */
@@ -237,18 +337,20 @@ static int msrp_attr_cmp(uint8_t attr_type, const void *a, const void *b)
 }
 
 static const struct mrp_app_ops msrp_ops_tmpl = {
-    .join_ind      = msrp_join_ind,
-    .leave_ind     = msrp_leave_ind,
-    .map_join      = msrp_map_join,
-    .map_leave     = msrp_map_leave,
-    .encode_attr   = msrp_encode_attr,
-    .decode_attr   = msrp_decode_attr,
-    .attr_len      = msrp_attr_len,
-    .attr_cmp      = msrp_attr_cmp,
-    .ethertype     = MRP_ETHERTYPE_MSRP,
-    .proto_version = MRP_PROTOCOL_VERSION,
+    .join_ind         = msrp_join_ind,
+    .leave_ind        = msrp_leave_ind,
+    .map_join         = msrp_map_join,
+    .map_leave        = msrp_map_leave,
+    .encode_attr      = msrp_encode_attr,
+    .decode_attr      = msrp_decode_attr,
+    .attr_len         = msrp_attr_len,
+    .attr_cmp         = msrp_attr_cmp,
+    .attr_has_subtype = msrp_attr_has_subtype,
+    .attr_mem_len     = msrp_attr_mem_len,
+    .ethertype        = MRP_ETHERTYPE_MSRP,
+    .proto_version    = MRP_PROTOCOL_VERSION,
     /* group_addr: MSRP uses 91:E0:F0:00:0E:80 per 802.1Q Table 10-1 */
-    .group_addr    = { 0x91u, 0xE0u, 0xF0u, 0x00u, 0x0Eu, 0x80u },
+    .group_addr       = { 0x91u, 0xE0u, 0xF0u, 0x00u, 0x0Eu, 0x80u },
 };
 
 /* ------------------------------------------------------------------ */
