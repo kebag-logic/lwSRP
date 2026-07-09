@@ -14,7 +14,7 @@
  *   Vector           ::= ThreePackedEvents {, ThreePackedEvents}
  *                      | FourPackedEvents  {, FourPackedEvents}
  *   ThreePackedEvents BYTE ::= (((e1 * 6) + e2) * 6) + e3
- *   FourPackedEvents  BYTE ::= (((e1 * 64) + e2) * 16) + (e3 * 4) + e4
+ *   FourPackedEvents  BYTE ::= (e1 * 64) + (e2 * 16) + (e3 * 4) + e4
  *   EndMark SHORT    ::= 0x0000
  *
  * AttributeEvent values (§10.8.2.5):
@@ -69,11 +69,11 @@ static inline void mrp_three_unpack(uint8_t b, uint8_t *e1, uint8_t *e2, uint8_t
 
 /* ------------------------------------------------------------------ */
 /* §10.8.2.10.2 FourPacked encoding (used by MSRP)                     */
-/* 4 FourPackedType values packed into one octet                       */
+/* 4 FourPackedType values (0..3) packed into one octet                */
 /* ------------------------------------------------------------------ */
 static inline uint8_t mrp_four_pack(uint8_t e1, uint8_t e2, uint8_t e3, uint8_t e4)
 {
-    return (uint8_t)(((e1 * 64u + e2) * 16u) + (e3 * 4u) + e4);
+    return (uint8_t)((e1 * 64u) + (e2 * 16u) + (e3 * 4u) + e4);
 }
 static inline void mrp_four_unpack(uint8_t b, uint8_t *e1, uint8_t *e2,
                                    uint8_t *e3, uint8_t *e4)

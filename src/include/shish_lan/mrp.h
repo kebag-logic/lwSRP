@@ -203,6 +203,26 @@ struct mrp_app_ops {
      */
     int     (*attr_cmp)(uint8_t attr_type, const void *a, const void *b);
 
+    /*
+     * Optional (may be NULL): return true for attribute types whose
+     * VectorAttribute carries a FourPackedEvents subtype vector after
+     * the ThreePackedEvents — the MSRP Listener declaration type
+     * (§35.2.2.7.2). When true, mrpdu_parse decodes both vectors and
+     * appends the subtype value as one extra octet after the
+     * attr_len(attr_type) FirstValue octets in attr_val, and the MAD
+     * stores that octet with the attribute instance.
+     */
+    bool    (*attr_has_subtype)(uint8_t attr_type);
+
+    /*
+     * Optional (may be NULL): in-memory size of a decoded attribute
+     * value — what decode_attr writes and the indication callbacks
+     * receive — when it differs from the wire FirstValue length
+     * attr_len(attr_type): a host-endian struct, an appended subtype
+     * octet. NULL means the two are identical.
+     */
+    uint8_t (*attr_mem_len)(uint8_t attr_type);
+
     uint16_t ethertype;      /* §10.5 Table 10-2 */
     uint8_t  proto_version;  /* §10.8.2.1        */
     uint8_t  group_addr[6];  /* §10.5 Table 10-1 */
@@ -274,5 +294,63 @@ void mrp_port_role_change(struct mrp_app *app, uint8_t port_id, bool flush);
  * events into the PeriodicTransmission state machine (§10.7.10, Table 10-6).
  */
 void mrp_set_periodic(struct mrp_app *app, uint8_t port_id, bool enable);
+
+/* ------------------------------------------------------------------ */
+/* Introspection and observability (debug consoles)                    */
+/* ------------------------------------------------------------------ */
+
+/* Snapshot of one attribute instance's per-attribute state machines. */
+struct mrp_attr_status {
+    uint8_t             port_id;
+    uint8_t             attr_type;
+    const void         *attr_val;   /* attr_len(attr_type) octets */
+    enum mrp_appl_state appl;
+    enum mrp_reg_state  reg;
+};
+
+/*
+ * One Applicant and/or Registrar state change, reported after the event
+ * was applied and after any MAD indications fired.
+ */
+struct mrp_transition {
+    uint8_t             port_id;
+    uint8_t             attr_type;
+    const void         *attr_val;   /* attr_len(attr_type) octets */
+    enum mrp_event      event;      /* the event that caused the change */
+    enum mrp_appl_state appl_from;
+    enum mrp_appl_state appl_to;
+    enum mrp_reg_state  reg_from;
+    enum mrp_reg_state  reg_to;
+};
+
+/*
+ * Observe every Applicant/Registrar state change on any port of the app.
+ * The callback runs synchronously in state machine context; keep it
+ * short and do not call back into the same app from it. One observer
+ * per app; fn=NULL clears it.
+ *
+ * LeaveAll and PeriodicTransmission flip by design on their timers and
+ * are not reported here; read their current state with mrp_port_status.
+ */
+void mrp_set_observer(struct mrp_app *app,
+                      void (*fn)(void *ctx, const struct mrp_transition *t),
+                      void *ctx);
+
+/*
+ * Visit every attribute instance on port_id (newest first). visit=NULL
+ * only counts. Returns the number of instances, or negative errno.
+ */
+int mrp_attr_visit(const struct mrp_app *app, uint8_t port_id,
+                   void (*visit)(void *ctx, const struct mrp_attr_status *st),
+                   void *ctx);
+
+/* Current LeaveAll / PeriodicTransmission state of a port participant. */
+int mrp_port_status(const struct mrp_app *app, uint8_t port_id,
+                    enum mrp_la_state *la, enum mrp_pt_state *pt);
+
+/* Short 802.1Q names ("QA", "IN", "rJoinIn!") for console output. */
+const char *mrp_appl_state_name(enum mrp_appl_state s);
+const char *mrp_reg_state_name(enum mrp_reg_state s);
+const char *mrp_event_name(enum mrp_event ev);
 
 #endif /* SHISH_LAN_MRP_H */

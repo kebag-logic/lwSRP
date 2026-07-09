@@ -159,41 +159,61 @@ static int parse_message(const uint8_t *buf, size_t len,
         const uint8_t *first_val = buf + off;
         off += attr_length;
 
-        /* Decode n_values packed events */
-        uint32_t i = 0;
-        while (i < n_values) {
-            if (off >= len) return -EINVAL;
-            uint8_t packed = buf[off++];
+        /*
+         * Vector layout: ceil(n/3) ThreePackedEvents octets carry the
+         * AttributeEvents; attribute types with a subtype (the MSRP
+         * Listener declaration, §35.2.2.7.2) append ceil(n/4)
+         * FourPackedEvents octets after them.
+         */
+        bool has_subtype = (ops && ops->attr_has_subtype &&
+                            ops->attr_has_subtype(attr_type));
+        size_t ev_len  = ((size_t)n_values + 2u) / 3u;
+        size_t sub_len = has_subtype ? (((size_t)n_values + 3u) / 4u) : 0u;
 
-            /* ThreePacked — standard for MVRP/MMRP and non-Listener MSRP */
+        if (off + ev_len + sub_len > len) return -EINVAL;
+        const uint8_t *ev_bytes  = buf + off;
+        const uint8_t *sub_bytes = buf + off + ev_len;
+        off += ev_len + sub_len;
+
+        for (uint32_t i = 0; i < n_values; i++) {
             uint8_t e[3];
-            mrp_three_unpack(packed, &e[0], &e[1], &e[2]);
+            mrp_three_unpack(ev_bytes[i / 3u], &e[0], &e[1], &e[2]);
+            uint8_t ev = e[i % 3u];
 
-            for (int s = 0; s < 3 && i < n_values; s++, i++) {
-                if (e[s] > MRP_ATTR_EVENT_LV) continue; /* ignore reserved */
+            if (ev > MRP_ATTR_EVENT_LV) continue; /* ignore reserved */
 
-                uint8_t attr_val[64] = {0};
-                if (ops && ops->decode_attr) {
-                    r = ops->decode_attr(attr_type, i,
-                                        first_val, attr_length, attr_val);
-                    if (r < 0) continue;
-                } else {
-                    /* Fallback: increment FirstValue by offset (integer attrs) */
-                    if (attr_length <= sizeof(attr_val)) {
-                        memcpy(attr_val, first_val, attr_length);
-                        /* Simple big-endian increment by i */
-                        uint32_t carry = i;
-                        for (int b = attr_length - 1; b >= 0 && carry; b--) {
-                            carry += attr_val[b];
-                            attr_val[b] = (uint8_t)carry;
-                            carry >>= 8;
-                        }
+            uint8_t attr_val[64] = {0};
+            if (ops && ops->decode_attr) {
+                r = ops->decode_attr(attr_type, i,
+                                    first_val, attr_length, attr_val);
+                if (r < 0) continue;
+            } else {
+                /* Fallback: increment FirstValue by offset (integer attrs) */
+                if (attr_length <= sizeof(attr_val)) {
+                    memcpy(attr_val, first_val, attr_length);
+                    /* Simple big-endian increment by i */
+                    uint32_t carry = i;
+                    for (int b = attr_length - 1; b >= 0 && carry; b--) {
+                        carry += attr_val[b];
+                        attr_val[b] = (uint8_t)carry;
+                        carry >>= 8;
                     }
                 }
+            }
 
-                if (on_attr) {
-                    on_attr(ctx, attr_type, (enum mrp_attr_event)e[s], attr_val);
+            if (has_subtype) {
+                uint8_t s[4];
+                size_t  vlen = ops->attr_len ? ops->attr_len(attr_type)
+                                             : attr_length;
+                mrp_four_unpack(sub_bytes[i / 4u],
+                                &s[0], &s[1], &s[2], &s[3]);
+                if (vlen < sizeof(attr_val)) {
+                    attr_val[vlen] = s[i % 4u];
                 }
+            }
+
+            if (on_attr) {
+                on_attr(ctx, attr_type, (enum mrp_attr_event)ev, attr_val);
             }
         }
     }

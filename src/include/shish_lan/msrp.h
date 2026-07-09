@@ -17,9 +17,9 @@
  * Protocol version: 0
  * AttributeListLength: PRESENT (unlike MMRP/MVRP — §10.8.2.4)
  *
- * NOTE: Clause 35 was not fully read during initial implementation.
- *       The interface below captures the key attribute types.
- *       FourPackedEvents are used for Listener attributes (§35.2.1.4).
+ * Attribute values are decoded to host endianness by msrp.c
+ * (encode/decode_attr); Listener declarations ride the FourPackedEvents
+ * subtype vector (§35.2.2.7.2) and are delivered through on_listener.
  */
 
 #include <stdint.h>
@@ -43,13 +43,14 @@ enum msrp_listener_decl {
     MSRP_LISTENER_DECL_READY_FAILED  = 3,
 };
 
-/* §35.2.1.3 Talker Advertise attribute value (25 octets) */
+/* §35.2.1.3 Talker Advertise attribute value (25 octets on the wire) */
 struct msrp_talker_adv {
     struct msrp_stream_id stream_id;       /* 8 octets */
-    uint8_t               data_frame_params[2]; /* destination MAC + VLAN priority */
-    uint16_t              max_frame_size;  /* octets */
-    uint16_t              max_interval_frames; /* frames per class interval */
-    uint8_t               priority_and_rank;
+    uint8_t               dest_mac[6];     /* DataFrameParameters: stream DA */
+    uint16_t              vlan_id;         /* DataFrameParameters: VID */
+    uint16_t              max_frame_size;  /* TSpec, octets */
+    uint16_t              max_interval_frames; /* TSpec, frames per interval */
+    uint8_t               priority_and_rank;   /* PCP in bits 7..5, rank bit 4 */
     uint32_t              accumulated_latency; /* ns */
 };
 
