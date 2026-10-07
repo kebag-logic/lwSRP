@@ -118,6 +118,31 @@ Ensure(Receive, withdrawal_does_not_replace_the_registered_declaration)
     assert_that(stored_decl,is_equal_to(2));
     msrp_app_destroy(a);
 }
+static unsigned registered_talkers, registered_type;
+static void talker_status(void *ctx, const struct mrp_attr_status *status)
+{
+    (void)ctx;
+    if (status->reg != MRP_REG_STATE_MT && status->attr_type <= 2) {
+        ++registered_talkers; registered_type=status->attr_type;
+    }
+}
+Ensure(Receive, talker_join_replaces_the_other_type_on_the_same_port)
+{
+    struct msrp_ctx ctx={0}; struct mrp_app *a=msrp_app_create(2,&ctx);
+    uint8_t pdu[44]={0,2,34,0,39,0,1};
+    pdu[14]=1; pdu[40]=3*36;
+    assert_that(mrp_rx(a,0,pdu,sizeof(pdu)),is_equal_to(0));
+    assert_that(mrp_rx(a,1,pdu,sizeof(pdu)),is_equal_to(0));
+    pdu[1]=1; pdu[2]=25; pdu[4]=30; pdu[31]=0; pdu[32]=3*36;
+    assert_that(mrp_rx(a,0,pdu,37),is_equal_to(0));
+    registered_talkers=0; mrp_attr_visit(a,0,talker_status,0);
+    assert_that(registered_talkers,is_equal_to(1));
+    assert_that(registered_type,is_equal_to(1));
+    registered_talkers=0; mrp_attr_visit(a,1,talker_status,0);
+    assert_that(registered_talkers,is_equal_to(1));
+    assert_that(registered_type,is_equal_to(2));
+    msrp_app_destroy(a);
+}
 TestSuite *receive_suite(void)
 {
     TestSuite *s = create_test_suite();
@@ -125,5 +150,6 @@ TestSuite *receive_suite(void)
     add_test_with_context(s, Receive, changed_registered_listener_notifies_without_duplicate_join);
     add_test_with_context(s, Receive, uninteresting_values_do_not_allocate_and_empty_state_is_reclaimed);
     add_test_with_context(s, Receive, withdrawal_does_not_replace_the_registered_declaration);
+    add_test_with_context(s, Receive, talker_join_replaces_the_other_type_on_the_same_port);
     return s;
 }

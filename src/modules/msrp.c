@@ -377,6 +377,14 @@ static int msrp_attr_cmp(uint8_t attr_type, const void *a, const void *b)
     return memcmp(a, b, sizeof(struct msrp_stream_id));
 }
 
+static bool msrp_attr_replaces(uint8_t old_type, const void *old_value,
+                               uint8_t new_type, const void *new_value)
+{
+    return ((old_type == MSRP_ATTR_TYPE_TALKER_ADV && new_type == MSRP_ATTR_TYPE_TALKER_FAILED) ||
+            (old_type == MSRP_ATTR_TYPE_TALKER_FAILED && new_type == MSRP_ATTR_TYPE_TALKER_ADV)) &&
+           memcmp(old_value,new_value,sizeof(struct msrp_stream_id)) == 0;
+}
+
 static const struct mrp_app_ops msrp_ops_tmpl = {
     .join_ind         = msrp_join_ind,
     .leave_ind        = msrp_leave_ind,
@@ -388,6 +396,7 @@ static const struct mrp_app_ops msrp_ops_tmpl = {
     .attr_cmp         = msrp_attr_cmp,
     .attr_has_subtype = msrp_attr_has_subtype,
     .attr_mem_len     = msrp_attr_mem_len,
+    .attr_replaces    = msrp_attr_replaces,
     .ethertype        = MRP_ETHERTYPE_MSRP,
     .proto_version    = MRP_PROTOCOL_VERSION,
     /* IEEE 802.1Q-2018 35.2.2: nearest bridge group address. */
