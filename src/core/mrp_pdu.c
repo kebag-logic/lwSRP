@@ -128,10 +128,7 @@ static int parse_pass(const uint8_t *pdu, size_t len,
                 return -EINVAL;
             }
             off += 2;
-            if (count > len - off) {
-                return -EINVAL;
-            }
-            end = off + count;
+            end = count > len - off ? len : off + count;
         }
         uint8_t expected = ops->attr_len(type);
         if (!expected && msrp) {
@@ -142,6 +139,7 @@ static int parse_pass(const uint8_t *pdu, size_t len,
             return -EINVAL;
         }
         bool ended = false;
+        bool vector_seen = false;
         while (off + 2 <= end) {
             uint16_t vh;
             (void)get_u16be(pdu + off, end - off, &vh);
@@ -163,6 +161,7 @@ static int parse_pass(const uint8_t *pdu, size_t len,
             const uint8_t *ev = fv + alen;
             const uint8_t *sub = ev + events;
             off += need;
+            vector_seen = true;
             for (size_t k = 0; k < events; ++k) {
                 if (ev[k] > 215u) {
                     return -EINVAL;
@@ -192,11 +191,15 @@ static int parse_pass(const uint8_t *pdu, size_t len,
                 }
             }
         }
+        /* 10.8.1.2(f): the actual PDU end is also an EndMark. */
+        if (vector_seen && off == len) {
+            return 0;
+        }
         if (!ended || (msrp && off != end)) {
             return -EINVAL;
         }
     }
-    return -EINVAL; /* Missing PDU EndMark. */
+    return off == len ? 0 : -EINVAL;
 }
 
 int mrpdu_parse(const uint8_t *pdu, size_t len,

@@ -15,7 +15,7 @@ static void la(void *ctx, uint8_t type)
 {
     (void)ctx; (void)type; ++leavealls;
 }
-Ensure(Receive, truncate_every_boundary_before_any_indication)
+Ensure(Receive, truncation_respects_complete_vectors_and_pdu_end)
 {
     struct msrp_ctx ctx = {0};
     struct mrp_app *a = msrp_app_create(1, &ctx);
@@ -23,9 +23,16 @@ Ensure(Receive, truncate_every_boundary_before_any_indication)
     uint8_t pdu[] = {0,3,8,0,14,0x20,1,1,2,3,4,5,6,7,8,0,128,0,0,0,0};
     for (unsigned n = 0; n < sizeof(pdu); ++n) {
         attributes = leavealls = 0;
-        assert_that(mrpdu_parse(pdu,n,a->ops,attr,la,0), is_less_than(0));
-        assert_that(attributes + leavealls, is_equal_to(0));
+        if (n == 17 || n == 19) {
+            assert_that(mrpdu_parse(pdu,n,a->ops,attr,la,0), is_equal_to(0));
+            assert_that(attributes, is_equal_to(1));
+            assert_that(leavealls, is_equal_to(1));
+        } else {
+            assert_that(mrpdu_parse(pdu,n,a->ops,attr,la,0), is_less_than(0));
+            assert_that(attributes + leavealls, is_equal_to(0));
+        }
     }
+    attributes = leavealls = 0;
     assert_that(mrpdu_parse(pdu,sizeof(pdu),a->ops,attr,la,0), is_equal_to(0));
     assert_that(attributes, is_equal_to(1));
     assert_that(leavealls, is_equal_to(1));
@@ -42,6 +49,6 @@ Ensure(Receive, truncate_every_boundary_before_any_indication)
 TestSuite *receive_suite(void)
 {
     TestSuite *s = create_test_suite();
-    add_test_with_context(s, Receive, truncate_every_boundary_before_any_indication);
+    add_test_with_context(s, Receive, truncation_respects_complete_vectors_and_pdu_end);
     return s;
 }
