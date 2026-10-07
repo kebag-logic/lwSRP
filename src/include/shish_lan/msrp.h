@@ -72,8 +72,6 @@ struct msrp_talker_failed {
  * MSRP application context.
  */
 struct msrp_ctx {
-    void (*on_domain)(struct msrp_ctx *ctx, uint8_t port_id,
-                      const struct msrp_domain *domain, bool is_new);
     void (*on_talker_advertise)(struct msrp_ctx *ctx, uint8_t port_id,
                                 const struct msrp_talker_adv *attr, bool is_new);
     void (*on_talker_failed)(struct msrp_ctx *ctx, uint8_t port_id,
@@ -83,6 +81,8 @@ struct msrp_ctx {
                         enum msrp_listener_decl decl, bool is_new);
     void (*on_leave)(struct msrp_ctx *ctx, uint8_t port_id,
                      uint8_t attr_type, const void *attr_val);
+    void (*on_domain)(struct msrp_ctx *ctx, uint8_t port_id,
+                      const struct msrp_domain *domain, bool is_new);
 };
 
 struct mrp_app *msrp_app_create(uint8_t n_ports, struct msrp_ctx *ctx);

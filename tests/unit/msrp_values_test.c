@@ -41,9 +41,15 @@ Ensure(MsrpValues, domain_and_vector_offsets_match_wire_fields)
     assert_that(a->ops->decode_attr(4, 6, domain_wire, 4, &domain), is_less_than(0));
     msrp_app_destroy(a);
 }
+Ensure(MsrpValues, domain_callback_preserves_existing_member_order)
+{
+    assert_that(offsetof(struct msrp_ctx,on_talker_advertise),is_equal_to(0));
+    assert_that(offsetof(struct msrp_ctx,on_domain),is_greater_than(offsetof(struct msrp_ctx,on_leave)));
+}
 TestSuite *msrp_values_suite(void)
 {
     TestSuite *s = create_test_suite();
     add_test_with_context(s, MsrpValues, domain_and_vector_offsets_match_wire_fields);
+    add_test_with_context(s, MsrpValues, domain_callback_preserves_existing_member_order);
     return s;
 }
