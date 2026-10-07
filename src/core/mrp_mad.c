@@ -10,7 +10,7 @@
  *   d) PeriodicTransmission — per-Participant (Table 10-6)
  */
 
-#include <errno.h>
+#include "shish_lan/error.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -797,13 +797,13 @@ int mrp_mad_join(struct mrp_app *app, uint8_t port_id,
                  uint8_t attr_type, const void *attr_val, bool is_new)
 {
     if (!app || port_id >= priv_of(app)->n_ports || priv_of(app)->ports[port_id].in_send) {
-        return -EINVAL;
+        return -SHLAN_ERROR_INVALID;
     }
 
     struct mrp_priv       *priv = priv_of(app);
     struct mrp_port_state *ps   = &priv->ports[port_id];
     struct mrp_attr_inst  *ai   = get_or_create_attr(app, ps, port_id, attr_type, attr_val);
-    if (!ai) return -ENOMEM;
+    if (!ai) return -SHLAN_ERROR_NO_MEMORY;
 
     deliver_event(app, ps, ai, is_new ? MRP_EVENT_NEW : MRP_EVENT_JOIN, port_id);
     ps->tx_pending = true;
@@ -814,7 +814,7 @@ int mrp_mad_leave(struct mrp_app *app, uint8_t port_id,
                   uint8_t attr_type, const void *attr_val)
 {
     if (!app || port_id >= priv_of(app)->n_ports || priv_of(app)->ports[port_id].in_send) {
-        return -EINVAL;
+        return -SHLAN_ERROR_INVALID;
     }
 
     struct mrp_priv       *priv = priv_of(app);
@@ -842,7 +842,7 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
     struct mrp_attr_inst *ai = get_or_create_attr(rc->app, rc->ps,
                                               rc->port_id, attr_type, attr_val);
     if (!ai) {
-        rc->error = -ENOMEM;
+        rc->error = -SHLAN_ERROR_NO_MEMORY;
         return;
     }
 
@@ -875,7 +875,7 @@ int mrp_rx(struct mrp_app *app, uint8_t port_id,
            const uint8_t *pdu, size_t pdu_len)
 {
     if (!app || port_id >= priv_of(app)->n_ports || priv_of(app)->ports[port_id].in_send) {
-        return -EINVAL;
+        return -SHLAN_ERROR_INVALID;
     }
 
     struct mrp_priv       *priv = priv_of(app);
@@ -939,7 +939,7 @@ int mrp_attr_visit(const struct mrp_app *app, uint8_t port_id,
     int count = 0;
 
     if (port_id >= priv->n_ports) {
-        return -EINVAL;
+        return -SHLAN_ERROR_INVALID;
     }
 
     for (const struct mrp_attr_inst *a = priv->ports[port_id].attrs;
@@ -965,7 +965,7 @@ int mrp_port_status(const struct mrp_app *app, uint8_t port_id,
     const struct mrp_priv *priv = priv_of((struct mrp_app *)app);
 
     if (port_id >= priv->n_ports) {
-        return -EINVAL;
+        return -SHLAN_ERROR_INVALID;
     }
     if (la) {
         *la = priv->ports[port_id].la;
@@ -1024,11 +1024,11 @@ int mrp_port_configure(struct mrp_app *app, uint8_t port_id,
     if (!app || port_id >= priv_of(app)->n_ports || join_cs == 0 ||
         leave_cs < join_cs * 2u + 6u || leaveall_cs < 4u ||
         leaveall_cs > 0x7fffffffu || join_cs > 100000u) {
-        return -EINVAL;
+        return -SHLAN_ERROR_INVALID;
     }
     struct mrp_port_state *ps = &priv_of(app)->ports[port_id];
     if (ps->attrs || ps->in_send) {
-        return -EINVAL;
+        return -SHLAN_ERROR_INVALID;
     }
     ps->join_cs = join_cs;
     ps->leave_cs = leave_cs;
@@ -1059,7 +1059,7 @@ static int tx_vector(const struct mrp_app_ops *ops, uint8_t type,
     size_t hdr = msrp ? 4u : 2u;
     size_t list = 2u + len + (empty ? 0u : 1u + subtype) + 2u;
     if (cap < hdr + list || len == 0) {
-        return -ENOBUFS;
+        return -SHLAN_ERROR_NO_BUFFER;
     }
     buf[0] = type; buf[1] = len;
     if (msrp) {
@@ -1072,7 +1072,7 @@ static int tx_vector(const struct mrp_app_ops *ops, uint8_t type,
     } else {
         int r = ops->encode_attr(type, value, v + 2, len);
         if (r != len) {
-            return -EINVAL;
+            return -SHLAN_ERROR_INVALID;
         }
         v[2u + len] = mrp_three_pack((uint8_t)event, 0, 0);
         if (subtype) {
@@ -1088,11 +1088,11 @@ int mrp_transmit(struct mrp_app *app, uint8_t port_id,
                  uint8_t *pdu, size_t capacity, mrp_send_fn send, void *ctx)
 {
     if (!app || port_id >= priv_of(app)->n_ports || !pdu || !send || capacity < 3) {
-        return -EINVAL;
+        return -SHLAN_ERROR_INVALID;
     }
     struct mrp_port_state *ps = &priv_of(app)->ports[port_id];
     if (ps->in_send) {
-        return -EINVAL;
+        return -SHLAN_ERROR_INVALID;
     }
     if (!ps->tx_pending || ps->join_wait) {
         return 0;
