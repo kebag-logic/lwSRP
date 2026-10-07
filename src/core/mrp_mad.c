@@ -641,6 +641,11 @@ static int reg_event(struct mrp_app *app, struct mrp_attr_inst *ai,
                                         join, &reserved) : 0;
     if (mapped < 0) {
         ai->reg = previous;
+        if (ev == MRP_EVENT_FLUSH) {
+            /* The topology API cannot report refusal. Retain its withdrawal. */
+            ai->reg = MRP_REG_STATE_LV;
+            shlan_timer_arm(&ai->leave_timer, 1u);
+        }
         if (ev == MRP_EVENT_LEAVETIMER) {
             shlan_timer_arm(&ai->leave_timer, 1u);
         }
@@ -1005,8 +1010,19 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
         for (struct mrp_attr_inst *old = rc->ps->attrs; old; old = old->next) {
             if (old != ai && old->reg != MRP_REG_STATE_MT &&
                 rc->app->ops->attr_replaces(old->attr_type,old->attr_val,attr_type,attr_val)) {
-                deliver_event(rc->app,rc->ps,old,MRP_EVENT_RLV,rc->port_id);
-                deliver_event(rc->app,rc->ps,old,MRP_EVENT_LEAVETIMER,rc->port_id);
+                int r = deliver_event_changed(rc->app, rc->ps, old,
+                                               MRP_EVENT_RLV, rc->port_id, false);
+                if (r >= 0) {
+                    r = deliver_event_changed(rc->app, rc->ps, old,
+                                              MRP_EVENT_LEAVETIMER, rc->port_id, false);
+                }
+                if (r < 0) {
+                    if (previous) {
+                        memcpy(ai->attr_val, previous_value, sizeof(previous_value));
+                    }
+                    rc->error = r;
+                    return;
+                }
             }
         }
     }

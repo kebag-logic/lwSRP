@@ -158,9 +158,20 @@ CASES = [
     ('changed-value-propagation', 'src/core/mrp_mad.c', '    if (indicated) {\n        map_publish', '    if (indicated && !changed) {\n        map_publish', 'unit'),
     ('replay-error-retention', 'src/core/mrp_mad.c', 'return; /* Retain work if destination allocation is exhausted. */', '/* Plant: discard failed destination work. */', 'unit'),
     ('callback-order', 'src/core/mrp_mad.c', '    switch (e->ind) {\n    case REG_IND_NEW:\n        app->ops->join_ind(app, port_id, ai->attr_type, ai->attr_val, true);\n        break;\n    case REG_IND_JOIN:\n        app->ops->join_ind(app, port_id, ai->attr_type, ai->attr_val, false);\n        break;\n    case REG_IND_LV:\n        app->ops->leave_ind(app, port_id, ai->attr_type, ai->attr_val);\n        break;\n    default:\n        break;\n    }\n    if (indicated) {\n        map_publish(app, port_id, ai->attr_type, ai->attr_val, join, reserved);\n        map_replay_all(app);\n    }\n', '    if (indicated) {\n        map_publish(app, port_id, ai->attr_type, ai->attr_val, join, reserved);\n    }\n    switch (e->ind) {\n    case REG_IND_NEW:\n        app->ops->join_ind(app, port_id, ai->attr_type, ai->attr_val, true);\n        break;\n    case REG_IND_JOIN:\n        app->ops->join_ind(app, port_id, ai->attr_type, ai->attr_val, false);\n        break;\n    case REG_IND_LV:\n        app->ops->leave_ind(app, port_id, ai->attr_type, ai->attr_val);\n        break;\n    default:\n        break;\n    }\n    if (indicated) {\n        map_replay_all(app);\n    }\n', 'unit'),
+    ('flush-retry', 'src/core/mrp_mad.c', '        if (ev == MRP_EVENT_FLUSH) {\n            /* The topology API cannot report refusal. Retain its withdrawal. */\n            ai->reg = MRP_REG_STATE_LV;\n            shlan_timer_arm(&ai->leave_timer, 1u);\n        }\n', '', 'unit'),
+    ('replacement-order', 'src/core/mrp_mad.c', '                if (r < 0) {\n                    if (previous) {', '                if (false && r < 0) {\n                    if (previous) {', 'unit'),
+    ('receive-stop', 'src/core/mrp_mad.c', 'if (rc->error || priv->map_error) {', 'if (rc->error) {', 'unit'),
+    ('policy-mask', 'src/core/mrp_mad.c', '        if (!(ports & (1u << work->port_id))) {', '        if (false && !(ports & (1u << work->port_id))) {', 'unit'),
+    ('no-policy-reservation', 'src/core/mrp_mad.c', '    if (join ? !app->ops->map_join : !app->ops->map_leave) {\n        return 0;\n    }\n', '', 'unit'),
 ]
 
 REQUIRED_FAILURES = {
+    'flush-retry': ['flush_allocation_failures_retry_withdrawal_on_the_next_tick'],
+    'replacement-order': ['replacement_allocation_failures_keep_leave_before_join'],
+    'receive-stop': ['reservation_failure_stops_later_receive_messages'],
+    'policy-mask': ['propagation_obeys_talker_and_listener_policy_masks'],
+    'no-policy-reservation': ['applications_without_policy_do_not_reserve_propagation'],
+
     'changed-in-only': ['changed_values_after_received_leaveall_are_indicated_and_propagated', 'changed_values_after_transmitted_leaveall_are_indicated_and_propagated'],
     'stream-list-boundary': ['unknown_stream_layout_uses_attribute_list_length'],
     'changed-value-rollback': ['changed_value_allocation_failure_preserves_retry'],
