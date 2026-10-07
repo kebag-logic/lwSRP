@@ -869,8 +869,10 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
     struct mrp_attr_inst *previous = find_attr(rc->ps, rc->app->ops, attr_type, attr_val);
     bool changed_in = previous && previous->reg == MRP_REG_STATE_IN &&
         memcmp(previous->attr_val, attr_val, attr_store_len(rc->app->ops, attr_type)) != 0;
-    struct mrp_attr_inst *ai = get_or_create_attr(rc->app, rc->ps,
-                                              rc->port_id, attr_type, attr_val);
+    bool declares = attr_event == MRP_ATTR_EVENT_NEW || attr_event == MRP_ATTR_EVENT_JOININ ||
+                    attr_event == MRP_ATTR_EVENT_JOINMT;
+    struct mrp_attr_inst *ai = previous && !declares ? previous :
+        get_or_create_attr(rc->app, rc->ps, rc->port_id, attr_type, attr_val);
     if (!ai) {
         rc->error = -SHLAN_ERROR_NO_MEMORY;
         return;
