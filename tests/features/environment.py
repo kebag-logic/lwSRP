@@ -6,6 +6,9 @@ import pathlib
 
 def _load_lib():
     """Find and load the compiled shlan shared library."""
+    library = os.environ.get("SHLAN_LIBRARY")
+    if library:
+        return ctypes.CDLL(library)
     candidates = [
         pathlib.Path(__file__).parents[2] / "build" / "libshlan.so",
         pathlib.Path(__file__).parents[2] / "build" / "libshlan.dylib",
@@ -29,8 +32,8 @@ def before_all(context):
     lib.shlan_sim_adapter_destroy.restype = None
     lib.shlan_sim_adapter_destroy.argtypes = [ctypes.c_void_p]
 
-    # switch.h implements these as static inline functions, so ctypes uses
-    # thin C test bindings that call the same public helpers.
+    # Keep the established scenario bindings while the public operations
+    # also provide exported entry points for foreign-function callers.
     for name, restype, argtypes in (
         ("connect", ctypes.c_int, [ctypes.c_void_p]),
         ("disconnect", None, [ctypes.c_void_p]),

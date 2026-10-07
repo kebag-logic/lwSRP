@@ -13,6 +13,7 @@
  *   Type 1: Talker Advertise  — stream parameters from talker
  *   Type 2: Talker Failed     — stream parameters + failure information
  *   Type 3: Listener          — listener declaration (Ready/PartiallyFailed/Failed)
+ *   Type 4: Domain            — class, priority, and VLAN identifier
  *
  * EtherType:       0x22EA (Table 10-2)
  * Protocol version: 0
@@ -30,6 +31,13 @@
 #define MSRP_ATTR_TYPE_TALKER_ADV    1u
 #define MSRP_ATTR_TYPE_TALKER_FAILED 2u
 #define MSRP_ATTR_TYPE_LISTENER      3u
+#define MSRP_ATTR_TYPE_DOMAIN        4u
+
+struct msrp_domain {
+    uint8_t class_id;
+    uint8_t priority;
+    uint16_t vid;
+};
 
 /* Stream ID: 8-octet identifier (§35.2.1) */
 struct msrp_stream_id {
@@ -74,6 +82,8 @@ struct msrp_ctx {
                         enum msrp_listener_decl decl, bool is_new);
     void (*on_leave)(struct msrp_ctx *ctx, uint8_t port_id,
                      uint8_t attr_type, const void *attr_val);
+    void (*on_domain)(struct msrp_ctx *ctx, uint8_t port_id,
+                      const struct msrp_domain *domain, bool is_new);
 };
 
 struct mrp_app *msrp_app_create(uint8_t n_ports, struct msrp_ctx *ctx);
@@ -81,6 +91,8 @@ void        msrp_app_destroy(struct mrp_app *app);
 
 int msrp_declare_talker(struct mrp_app *app, uint8_t port_id,
                         const struct msrp_talker_adv *attr, bool is_new);
+/* Declare a new or changed Listener parameter with New. Call on changes,
+ * not on every poll; an unchanged declaration needs no new request. */
 int msrp_declare_listener(struct mrp_app *app, uint8_t port_id,
                           const struct msrp_stream_id *stream_id,
                           enum msrp_listener_decl decl);

@@ -39,6 +39,9 @@ void shlan_timer_init(struct shlan_timer *t, void (*cb)(void *arg), void *arg);
  */
 void shlan_timer_arm(struct shlan_timer *t, uint32_t centiseconds);
 
+/* Unlink before releasing storage. No timer may be removed during a tick. */
+void shlan_timer_remove(struct shlan_timer *t);
+
 /*
  * shlan_timer_disarm — cancel a running timer.
  * The callback will not fire until the timer is rearmed.

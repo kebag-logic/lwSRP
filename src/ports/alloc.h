@@ -3,7 +3,6 @@
 #define SHLAN_PROTS_ALLOC_H
 
 #include <stddef.h>
-#include <stdio.h>
 
 /*
  * Allocation and I/O abstractions for lwSRP.

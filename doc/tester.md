@@ -7,31 +7,34 @@ Keep each command's exit code in your test report.
 
 ## Run the suites
 
-Install a [C11](https://www.iso.org/standard/57853.html) compiler, [CMake](https://cmake.org/cmake/help/latest/), [cgreen](https://github.com/cgreen-devs/cgreen), and [behave](https://behave.readthedocs.io/en/stable/).
-Make the unit framework's headers and library discoverable by the compiler and build system.
+Install a [C11 draft](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf) compiler, [CMake](https://cmake.org/cmake/help/latest/), [cgreen](https://github.com/cgreen-devs/cgreen), and [behave](https://behave.readthedocs.io/en/stable/).
+Set LWSRP_BUILD to a writable build directory outside the checkout.
+Set CGREEN_PREFIX to the installed unit framework prefix.
+Set CMAKE_PREFIX_PATH to that prefix and LD_LIBRARY_PATH to its library directory.
+For the isolated compiler command, also set CPATH and LIBRARY_PATH to its include and library directories.
 Run these commands from the repository root.
 
 ~~~sh
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-cmake --build build --parallel 2
-ctest --test-dir build --output-on-failure
-./build/unit_tests
-behave
+cmake -S . -B "$LWSRP_BUILD" -DCMAKE_BUILD_TYPE=Debug
+cmake --build "$LWSRP_BUILD" --parallel 2
+ctest --test-dir "$LWSRP_BUILD" --output-on-failure
+"$LWSRP_BUILD/unit_tests"
+SHLAN_LIBRARY="$LWSRP_BUILD/libshlan.so" behave
 behave --dry-run
 ~~~
 
 | Check | Current result | Meaning |
 | --- | --- | --- |
 | Configure and build | Exit 0. | The host library and required unit target compile. |
-| Configured unit target | Exit 0; nine tests and 1690 assertions. | The [runner](../tests/unit/main.c) executes the [codec suite](../tests/unit/mrp_pdu_test.c). |
+| Configured unit target | Exit 0; 37 tests and 2278 assertions. | The [runner](../tests/unit/main.c) executes six suites. |
 | Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c). |
 | Scenario dry run | Validates step matching only. | It does not execute setup or verify behavior. |
 
 The [build definition](../CMakeLists.txt) requires the unit framework's headers and library for host configuration.
 It rejects an empty suite through an output-based failure rule.
-The scenario hook loads the shared library from the root build directory.
-The [switch wrappers](../src/include/shish_lan/switch.h) are static inline functions.
-The [test bindings](../tests/features/switch_bindings.c) expose them through separate dynamic symbols.
+The scenario hook uses SHLAN_LIBRARY when set, with the root build directory as fallback.
+The [switch operations](../src/core/switch.c) are exported symbols.
+The [test bindings](../tests/features/switch_bindings.c) preserve the established scenario entry points.
 
 ## Run the existing codec tests
 
@@ -42,7 +45,7 @@ The [public headers](../src/include/shish_lan/mrp_pdu.h) define the tested helpe
 Use a [C compiler](https://gcc.gnu.org/onlinedocs/gcc/) with the unit dependency available.
 
 ~~~sh
-cc -std=c11 -Isrc/include tests/unit/mrp_pdu_test.c src/core/mrp_pdu.c -xc - -lcgreen -o build/mrp_pdu_tests <<'C'
+cc -std=c11 -Isrc/include tests/unit/mrp_pdu_test.c src/core/mrp_pdu.c -xc - -lcgreen -o "$LWSRP_BUILD/mrp_pdu_tests" <<'C'
 #include <cgreen/cgreen.h>
 TestSuite *mrp_pdu_suite(void);
 int main(void)
@@ -50,7 +53,7 @@ int main(void)
     return run_test_suite(mrp_pdu_suite(), create_text_reporter());
 }
 C
-./build/mrp_pdu_tests
+"$LWSRP_BUILD/mrp_pdu_tests"
 ~~~
 
 The observed result is exit 0, with nine tests and 1690 passing assertions.
@@ -94,8 +97,9 @@ flowchart LR
     Checks[Current checks] --> Codec[Nine codec tests]
     Checks --> Scenarios[Three switch scenarios]
     Scenarios --> Steps[Ten passing steps]
-    Missing[Coverage gaps] --> State[State and timer behavior]
-    Missing --> Wire[Parser and interoperability]
+    Checks --> State[State and timer tests]
+    Missing[Coverage gaps] --> Exhaustive[Exhaustive state paths]
+    Missing --> Wire[Network interoperability]
     Missing --> Target[Hardware and lifecycle]
 ~~~
 
@@ -103,10 +107,10 @@ flowchart LR
 | --- | --- | --- |
 | Packed values and encoding | [Nine codec tests](../tests/unit/mrp_pdu_test.c). | Multi-value encoding and malformed lengths. |
 | Switch operations | [Three passing scenarios](../tests/features/switch.feature); a wrong disable binding also passes all three. | Independent state queries and adapter failures; see [issue #4](https://github.com/kebag-logic/lwSRP/issues/4). |
-| Parser | No parser test in the current suite. | Truncation, version handling, subtype vectors, and list boundaries. |
-| MRP state | No wired state-machine suite. | Event tables, propagation masks, and callback order. |
-| Timers | No timer tests. | Global ticking, expiry, cancellation, and destruction. |
-| Hardware and network | No adapter or interoperability suite. | Target timing and packet captures after transmit implementation. |
+| Parser | [Receive tests](../tests/unit/receive_test.c) and [integration tests](../tests/unit/integration_test.c) cover truncation, packed events, complete ends, and atomic validation. | More unknown-type and version combinations, fuzzing, and allocation exhaustion. |
+| MRP state | [Transmit tests](../tests/unit/transmit_test.c) cover declaration ladders, refusal, retry, segmentation, withdrawal, and redeclaration. | Exhaustive table paths, propagation masks, and callback order. |
+| Timers | [Lifecycle tests](../tests/unit/timer_test.c) and [integration tests](../tests/unit/integration_test.c) cover removal, recreation, aging, periodic timing, and LeaveAll draws. | Target scheduling and long-duration drift. |
+| Hardware and network | No adapter or interoperability suite. | Target timing, frame ownership, and packet captures. |
 
 A [disable binding](../tests/features/switch_bindings.c) redirected to enable still passes all three scenarios.
 The active-state and inactive-state assertions repeat operations; they cannot establish port state.
@@ -115,6 +119,26 @@ The defect is tracked in [issue #4](https://github.com/kebag-logic/lwSRP/issues/
 The [build definition](../CMakeLists.txt) has no coverage target or instrumentation option.
 No line or branch coverage percentage has been measured.
 Passing codec assertions do not demonstrate protocol conformance.
+
+## Planted reversals
+
+The [reversal runner](../tests/check_reversals.py) copies source and tests into a new scratch directory.
+It changes one behavior at a time, builds, and requires the corresponding check to fail.
+It restores each source before continuing and finishes with a passing build and test run.
+A behavioral mutation that only breaks compilation does not count as detected.
+Every command's return code and output are saved in scratch.
+Set REVERSAL_SCRATCH to a new directory outside the checkout.
+
+~~~sh
+python3 tests/check_freestanding.py
+python3 tests/check_reversals.py --work-dir "$REVERSAL_SCRATCH" --prefix "$CGREEN_PREFIX"
+~~~
+
+The [freestanding check](../tests/check_freestanding.py) uses the configured C compiler and rejects hosted allocation, error, and print headers.
+The [reversal cases](../tests/check_reversals.py) cover destination addresses, LeaveAll isolation, validation, offsets, retry, timing, storage, and registration changes.
+They also check callback member order and strict bounded-header initialization.
+Header and warning regressions intentionally fail compilation or dependency checks.
+The checks do not prove target linking or network conformance.
 
 ## Documentation checks
 
