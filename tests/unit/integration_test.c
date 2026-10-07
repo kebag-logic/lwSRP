@@ -347,6 +347,24 @@ Ensure(Integration, applicant_receive_conditions_follow_link_mode)
     }
 }
 
+/* Table 10-3 note 4 covers both VO and VP; the link-mode control must
+ * distinguish ignored rJoinIn from the ordinary VP -> AP transition. */
+Ensure(Integration, pending_applicant_joinin_obeys_note_four)
+{
+    struct mvrp_ctx ctx = {0};
+    for (unsigned p2p = 0; p2p < 2; ++p2p) {
+        struct mrp_app *app = mvrp_app_create(1, &ctx);
+        uint8_t rx[] = {0, 1, 2, 0, 1, 0, 2, 36, 0, 0, 0, 0};
+        assert_that(mrp_port_configure(app, 0, 20, 60, 1000, 1, p2p), is_equal_to(0));
+        assert_that(mvrp_declare(app, 0, 2), is_equal_to(0));
+        check_applicant(app, MRP_APPL_STATE_VP);
+        assert_that(mrp_rx(app, 0, rx, sizeof(rx)), is_equal_to(0));
+        check_applicant(app, p2p ? MRP_APPL_STATE_VP : MRP_APPL_STATE_AP);
+        assert_that(mrp_attr_registered_ports(app, 1, rx + 5), is_equal_to(1));
+        mvrp_app_destroy(app);
+    }
+}
+
 static unsigned leaveall_types;
 static void received_leaveall(void *ctx, uint8_t type)
 {
@@ -403,6 +421,7 @@ TestSuite *integration_suite(void)
     add_test_with_context(suite, Integration, local_withdrawal_keeps_the_registered_listener_value);
     add_test_with_context(suite, Integration, applicant_declaration_recovery_and_withdrawal_follow_the_table);
     add_test_with_context(suite, Integration, applicant_receive_conditions_follow_link_mode);
+    add_test_with_context(suite, Integration, pending_applicant_joinin_obeys_note_four);
     add_test_with_context(suite, Integration, transmitted_leaveall_includes_every_supported_type);
     add_test_with_context(suite, Integration, later_versions_skip_unknown_stream_messages);
     return suite;

@@ -26,7 +26,7 @@ behave --dry-run
 | Check | Current result | Meaning |
 | --- | --- | --- |
 | Configure and build | Exit 0. | The host library and required unit target compile. |
-| Default unit target | Exit 0; 86 tests and 19885 assertions. | The [runner](../tests/unit/main.c) executes eight suites. |
+| Default unit target | Exit 0; 87 tests and 19901 assertions. | The [runner](../tests/unit/main.c) executes eight suites. |
 | Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c). |
 | Scenario dry run | Validates step matching only. | It does not execute setup or verify behavior. |
 
@@ -67,7 +67,7 @@ ctest --test-dir "$LWSRP_MILAN_BUILD" --output-on-failure
 SHLAN_LIBRARY="$LWSRP_MILAN_BUILD/libshlan.so" behave
 ~~~
 
-The enabled build passes 86 tests with 19873 assertions.
+The enabled build passes 87 tests with 19889 assertions.
 It also passes three scenarios and ten steps.
 The [profile suite](../tests/unit/milan_test.c) checks both application options in each build.
 It checks the actual constructor against the build selection.
@@ -190,7 +190,7 @@ Two independent profile reversals delay withdrawal from IN and restart the LV de
 The first must fail both immediate-indication tests while the deadline test still passes.
 The second must fail the deadline test while the immediate-indication tests still pass.
 Additional reversals check build selection and application scope.
-Both profiles run all 93 reversals.
+Both profiles run all 94 reversals.
 They also pin propagation order, recovery indications, extension handling, range errors, and all reported LeaveAll boundaries.
 Each added behavioral reversal must fail its named regression after successful compilation.
 The [embedded check](../tests/check_embedded.py) exercises the actual module source list with a host compiler in both profiles.

@@ -73,6 +73,9 @@ CASES = [
      '#include "shish_lan/error.h"\n#include <errno.h>', "freestanding"),
     ("point-to-point-condition", MAD, "if ((p2p && ev == MRP_EVENT_RJOININ &&",
      "if ((false && p2p && ev == MRP_EVENT_RJOININ &&", "unit"),
+    ("pending-point-to-point-condition", MAD,
+     "ai->appl == MRP_APPL_STATE_VO || ai->appl == MRP_APPL_STATE_VP",
+     "ai->appl == MRP_APPL_STATE_VO", "unit"),
     ("shared-in-condition", MAD, "(!p2p && ev == MRP_EVENT_RIN)",
      "(false && !p2p && ev == MRP_EVENT_RIN)", "unit"),
     ("withdrawal-transition", MAD,
@@ -179,6 +182,10 @@ CASES = [
 ]
 
 REQUIRED_FAILURES = {
+    "point-to-point-condition": ["applicant_receive_conditions_follow_link_mode",
+                                  "pending_applicant_joinin_obeys_note_four"],
+    "pending-point-to-point-condition": ["pending_applicant_joinin_obeys_note_four"],
+    "shared-in-condition": ["applicant_receive_conditions_follow_link_mode"],
     'flush-snapshot-bypass': ['pending_flush_talker_snapshot_survives_cross_port_updates', 'pending_flush_failed_talker_snapshot_survives_cross_port_updates', 'pending_flush_listener_snapshot_survives_cross_port_updates', 'pending_flush_snapshot_survives_local_declarations_and_repeated_failure'],
     'flush-snapshot-replaced': ['pending_flush_snapshot_survives_local_declarations_and_repeated_failure'],
     'flush-snapshot-indication': ['pending_flush_talker_snapshot_survives_cross_port_updates', 'pending_flush_failed_talker_snapshot_survives_cross_port_updates', 'pending_flush_listener_snapshot_survives_cross_port_updates'],
