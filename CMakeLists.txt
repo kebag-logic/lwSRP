@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 if(DEFINED ZEPHYR_BASE)
   if(CONFIG_LWSRP)
     zephyr_library_named(lwsrp)

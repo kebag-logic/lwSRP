@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 #ifndef SHLAN_PROTS_ALLOC_H
 #define SHLAN_PROTS_ALLOC_H
 
