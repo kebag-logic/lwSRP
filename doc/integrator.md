@@ -16,8 +16,8 @@ The [root build definition](../CMakeLists.txt) selects between host and embedded
 | C language | Requires C11. |
 | [CMAKE_BUILD_TYPE](../CMakeLists.txt) set to Debug | Adds compiler debugging information through [CMake](https://cmake.org/cmake/help/latest/). |
 | Export compile commands | Enabled by the [build definition](../CMakeLists.txt). |
-| Unit dependency found | Adds a single [empty test runner](../tests/unit/placeholder.c). |
-| Unit dependency absent | Adds no unit target. Configuration still succeeds. |
+| Unit dependency found | Builds the [codec test runner](../tests/unit/main.c) with nine tests. |
+| Unit dependency absent | Host configuration fails. Headers and library are required. |
 | [ZEPHYR_BASE](../CMakeLists.txt) defined | Selects the module branch and returns before host configuration. |
 | [CONFIG_LWSRP](../Kconfig.zephyr) enabled | Builds protocol sources and default allocation and timer ports. |
 
@@ -130,9 +130,10 @@ Do not call both.
 Do not call the latter once per port or application.
 It ignores its arguments and advances all timers.
 
-The [defaults](../src/include/shish_lan/mrp.h) use 20 centiseconds for periodic events, 60 for Leave, and 1000 for LeaveAll.
-The [implementation](../src/core/mrp_mad.c) uses fixed intervals and does not randomize LeaveAll.
-Reference: [IEEE 802.1Q-2018, clause 10.7.11](https://standards.ieee.org/ieee/802.1Q/6844/).
+The [implementation](../src/core/mrp_mad.c#L639-L700) uses 20 centiseconds for periodic events, 60 for Leave, and 1000 for LeaveAll.
+Periodic timing differs from the one-second interval in [IEEE 802.1Q-2018, clause 10.7.4.4](https://standards.ieee.org/ieee/802.1Q/6844/).
+LeaveAll lacks the randomization required by [IEEE 802.1Q-2018, clause 10.7.4.3](https://standards.ieee.org/ieee/802.1Q/6844/).
+See the [state comparison](developer.md#state-machines) before relying on timer behavior.
 
 Use [mrp_set_periodic](../src/include/shish_lan/mrp.h) to enable or disable periodic events on a port.
 Use [mrp_port_role_change](../src/include/shish_lan/mrp.h) to deliver Flush or Re-declare events.
@@ -182,6 +183,8 @@ Use [shlan_sim_adapter_create](../src/modules/sim_adapter.c) and [shlan_sim_adap
 Call [shlan_connect, shlan_port_enable, shlan_port_disable, and shlan_disconnect](../src/include/shish_lan/switch.h) through the switch handle.
 These wrappers are inline C functions.
 They are not exported entry points for dynamic foreign-function loading.
+The host [scenario bindings](../tests/features/switch_bindings.c) export separate test entry points that call these wrappers.
+The [scenario setup](../tests/features/environment.py) loads those bindings.
 
 | Simulation provides | A real adapter must provide |
 | --- | --- |
@@ -224,9 +227,8 @@ The module builds protocol sources with default platform ports.
 It supplies no application entry point, network driver, or board example.
 Target execution has not been verified here.
 
-A dedicated bare-metal port is planned.
-The [documentation assignment](https://github.com/kebag-logic/lwSRP/issues/1#issuecomment-6030336537) identifies that separate work.
-No dedicated tracking issue or pull request was available during this review.
+Freestanding headers are planned.
+No pull request is available yet.
 For a custom integration, select the protocol sources from the [module source list](../CMakeLists.txt).
 Provide allocation, printing, and serialized timing.
 Resolve the lifetime and transmit gaps before production use.
