@@ -6,6 +6,7 @@ if(DEFINED ZEPHYR_BASE)
     zephyr_library_sources(
       src/core/mrp_mad.c
       src/core/mrp_pdu.c
+      src/core/switch.c
       src/modules/mvrp.c
       src/modules/mmrp.c
       src/modules/msrp.c
@@ -59,6 +60,7 @@ add_executable(unit_tests
     tests/unit/transmit_test.c
     tests/unit/integration_test.c
     tests/unit/milan_test.c
+    tests/unit/review_test.c
 )
 target_include_directories(unit_tests PRIVATE ${CGREEN_INCLUDE} src/include src)
 target_link_libraries(unit_tests PRIVATE shlan ${CGREEN_LIB})

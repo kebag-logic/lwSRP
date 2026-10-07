@@ -288,6 +288,40 @@ Ensure(Milan, local_withdrawal_keeps_the_peer_registered)
     msrp_app_destroy(app);
 }
 
+static int accept(void *ctx, uint8_t port, const uint8_t *pdu, size_t len)
+{
+    (void)ctx; (void)port; (void)pdu; (void)len;
+    return 0;
+}
+
+Ensure(Milan, redeclare_keeps_the_ieee_deadline)
+{
+    struct mrp_app *app = stream_app(true);
+    register_stream(app, MSRP_ATTR_TYPE_LISTENER);
+    mrp_port_role_change(app, 0, false);
+    check_state(app, MRP_REG_STATE_LV);
+    assert_that(leaves, is_equal_to(0));
+    tick(200);
+    mrp_port_role_change(app, 0, false);
+    finish_deadline(app);
+    msrp_app_destroy(app);
+}
+
+Ensure(Milan, transmitted_leaveall_keeps_the_ieee_deadline)
+{
+    struct mrp_app *app = stream_app(true);
+    /* Force the first LeaveAll before registration, keeping one registered value. */
+    tick(15000);
+    register_stream(app, MSRP_ATTR_TYPE_LISTENER);
+    uint8_t tx[256];
+    assert_that(mrp_transmit(app, 0, tx, sizeof(tx), accept, NULL), is_equal_to(1));
+    check_state(app, MRP_REG_STATE_LV);
+    assert_that(leaves, is_equal_to(0));
+    tick(200);
+    finish_deadline(app);
+    msrp_app_destroy(app);
+}
+
 TestSuite *milan_suite(void)
 {
     TestSuite *s = create_test_suite();
@@ -299,5 +333,7 @@ TestSuite *milan_suite(void)
     add_test_with_context(s, Milan, mvrp_keeps_ieee_leave_timing);
     add_test_with_context(s, Milan, mmrp_keeps_ieee_leave_timing);
     add_test_with_context(s, Milan, local_withdrawal_keeps_the_peer_registered);
+    add_test_with_context(s, Milan, redeclare_keeps_the_ieee_deadline);
+    add_test_with_context(s, Milan, transmitted_leaveall_keeps_the_ieee_deadline);
     return s;
 }

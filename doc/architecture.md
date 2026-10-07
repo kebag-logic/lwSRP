@@ -22,7 +22,7 @@ flowchart TD
 
 The [application callbacks](../src/include/shish_lan/mrp.h) connect applications to the [declaration state](../src/core/mrp_mad.c).
 The [codec](../src/core/mrp_pdu.c) validates complete payloads before delivering events.
-The [transmit operation](../src/core/mrp_mad.c#L1175) assembles PDUs and commits state after acceptance.
+The [transmit operation](../src/core/mrp_mad.c#L1258) assembles PDUs and commits state after acceptance.
 The [timer port](../src/ports/timer.h) and [allocation port](../src/ports/alloc.h) isolate platform services.
 
 The [switch operations](../src/include/shish_lan/switch.h) control ports independently of MRP.
@@ -40,9 +40,10 @@ flowchart TD
     Decode --> Filter[Check receive interest]
     Filter --> Allocate[Find or allocate state]
     Allocate --> State[Apply event]
-    State --> Notify[Notify host]
-    Notify --> Policy[Choose propagation ports]
-    Policy --> Declare[Declare on target ports]
+    State --> Policy[Choose propagation ports]
+    Policy --> Queue[Queue owned operations]
+    Queue --> Notify[Notify host]
+    Notify --> Declare[Replay available targets]
 ~~~
 
 The host passes payloads to [mrp_rx](../src/core/mrp_mad.c).
@@ -50,11 +51,15 @@ The [parser](../src/core/mrp_pdu.c) calls the application's [decode callback](..
 The [state engine](../src/core/mrp_mad.c) then delivers indications and applies propagation policy.
 The [application option](integrator.md#milan-received-leave) selects immediate stream withdrawal for a received Leave in IN.
 Its default retains generic timer-based aging.
+Malformed known values reject the complete payload before indications.
+Higher versions skip unknown messages and event vectors, preserving following supported declarations.
 Only the [stream application](../src/modules/msrp.c) currently supplies propagation callbacks.
 
 Propagation updates target Applicants through [mrp_mad_join](../src/core/mrp_mad.c) with the new flag false.
 The Registrar ignores that local Join event.
 This prevents recursive indications on target ports.
+Refused target output defers propagation in an owned FIFO until acceptance.
+The [retention contract](integrator.md#transmit-and-retry) covers ordering, allocation, and lifetime.
 It does not establish network loop safety.
 
 ## Transmit boundary
@@ -71,19 +76,19 @@ flowchart TD
     Retry --> Send
 ~~~
 
-The host calls [mrp_transmit](../src/core/mrp_mad.c#L1175) on each event-loop pass.
+The host calls [mrp_transmit](../src/core/mrp_mad.c#L1258) on each event-loop pass.
 The callback accepts the complete payload or refuses it.
 Refused payloads remain in caller-owned storage until acceptance.
 The [integration contract](integrator.md#transmit-and-retry) defines buffer ownership and deferred input.
 The host adds Ethernet framing and chooses the interface.
-The [bounded assembler](../src/core/mrp_mad.c#L1175) serves omitted attributes before repeating earlier ones.
+The [bounded assembler](../src/core/mrp_mad.c#L1258) serves omitted attributes before repeating earlier ones.
 See the [scope matrix](manager.md#implementation-status) before making interoperability claims.
 
 ## Test layout
 
 | Entry | Purpose |
 | --- | --- |
-| [Unit runner](../tests/unit/main.c) | Seven suites for codecs, timers, values, receive, transmit, integration, and profile withdrawal. |
+| [Unit runner](../tests/unit/main.c) | Eight suites cover codecs, timers, values, receive, transmit, integration, profile withdrawal, and boundary regressions. |
 | [Scenario bindings](../tests/features/switch_bindings.c) | Established scenario bindings around exported switch operations. |
 
 Use the [tester guide](tester.md) to run these checks and interpret their limits.

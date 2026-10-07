@@ -265,6 +265,10 @@ void            mrp_app_destroy(struct mrp_app *app);
  * Keep that buffer alive and unchanged between retries. While retained, RX and
  * local declarations on this port are refused without side effects: queue and
  * retry them after the transmit. Timers still expire, including registrar Leave.
+ * Internal propagation owns copied values in a per-destination FIFO. It replays
+ * after accepted output commits, in event order, before the next PDU is built.
+ * Queued work survives source reclamation and is freed on application destroy.
+ * Destination allocation failures retain queued work for the next poll.
  * The send function must never call back into MRP synchronously.
  */
 /* 10.7 permits limiting state to attributes of immediate interest. A filter

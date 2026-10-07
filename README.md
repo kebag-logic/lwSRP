@@ -42,7 +42,7 @@ ctest --test-dir "$LWSRP_BUILD" --output-on-failure
 SHLAN_LIBRARY="$LWSRP_BUILD/libshlan.so" behave
 ~~~
 
-The default unit target runs 45 tests with 2659 assertions.
+The default unit target runs 60 tests with 3896 assertions.
 The scenario suite passes three scenarios and ten steps.
 The [tester guide](doc/tester.md) explains their coverage and limits.
 An [optional Milan setting](doc/integrator.md#milan-received-leave) enables immediate withdrawal of received stream registrations.

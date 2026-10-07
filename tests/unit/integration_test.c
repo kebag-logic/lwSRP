@@ -201,7 +201,9 @@ Ensure(Integration, leaveall_draws_are_inside_the_required_interval)
 {
     struct mvrp_ctx ctx = {0};
     unsigned previous = 0;
-    for (unsigned seed = 1; seed <= 3; ++seed) {
+    const unsigned seeds[] = {1, 2, 3, 168};
+    for (unsigned index = 0; index < sizeof(seeds) / sizeof(seeds[0]); ++index) {
+        unsigned seed = seeds[index];
         struct mrp_app *app = mvrp_app_create(1, &ctx);
         enum mrp_la_state la;
         assert_that(mrp_port_configure(app, 0, 20, 60, 1000, seed, false), is_equal_to(0));

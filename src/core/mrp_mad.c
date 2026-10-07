@@ -75,6 +75,15 @@ struct mrp_attr_inst {
     struct mrp_attr_timer_arg   leave_timer_arg;
 };
 
+/* Owned FIFO entries survive source value changes and Registrar reclamation. */
+struct mrp_map_work {
+    struct mrp_map_work *next;
+    uint8_t port_id;
+    uint8_t attr_type;
+    bool join;
+    _Alignas(max_align_t) uint8_t value[48];
+};
+
 /* Per-port MRP Participant state */
 struct mrp_port_state {
     enum mrp_la_state    la;          /* LeaveAll SM state (Table 10-5) */
@@ -91,6 +100,8 @@ struct mrp_port_state {
     bool prepared_la;
     uint8_t *prepared_pdu;
     size_t prepared_len;
+    struct mrp_map_work *map_head;
+    struct mrp_map_work *map_tail;
     struct mrp_attr_inst *attrs;      /* linked list of attribute instances */
     /* LeaveAll timer: fires MRP_EVENT_LEAVEALLTIMER on expiry */
     struct shlan_timer          la_timer;
@@ -107,6 +118,7 @@ struct mrp_priv {
     /* Optional transition observer (mrp_set_observer) */
     void               (*obs_fn)(void *ctx, const struct mrp_transition *t);
     void                *obs_ctx;
+    int                  map_error;
     mrp_rx_filter_fn      filter;
     void                *filter_ctx;
     struct mrp_port_state ports[]; /* flexible array */
@@ -338,13 +350,13 @@ static const struct reg_entry reg_table[MRP_EVENT_COUNT][MRP_REG_STATE_COUNT] = 
     /* MRP_EVENT_RJOININ || MRP_EVENT_RJOINMT — Table 10-4 rJoinIn!||rJoinMt! row */
     {
         _RE(REG_IND_NONE, REG_TIMER_NONE, MRP_REG_STATE_IN),  /* IN: stay IN          */
-        _RE(REG_IND_JOIN, REG_TIMER_STOP, MRP_REG_STATE_IN),  /* LV: Stop, Join; IN   */
+        _RE(REG_IND_NONE, REG_TIMER_STOP, MRP_REG_STATE_IN),  /* LV: Stop; IN         */
         _RE(REG_IND_JOIN, REG_TIMER_NONE, MRP_REG_STATE_IN),  /* MT: Join; IN         */
     },
     /* MRP_EVENT_RJOINMT — same entry as RJOININ for Registrar */
     {
         _RE(REG_IND_NONE, REG_TIMER_NONE, MRP_REG_STATE_IN),
-        _RE(REG_IND_JOIN, REG_TIMER_STOP, MRP_REG_STATE_IN),
+        _RE(REG_IND_NONE, REG_TIMER_STOP, MRP_REG_STATE_IN),
         _RE(REG_IND_JOIN, REG_TIMER_NONE, MRP_REG_STATE_IN),
     },
     /* MRP_EVENT_RIN — ignored by Registrar */
@@ -514,39 +526,86 @@ static void appl_event(struct mrp_attr_inst *ai, enum mrp_event ev, bool p2p)
  * ignores MRP_EVENT_JOIN, so no join_ind fires on the target ports and
  * there is no indication loop.
  */
-static void map_apply_join(struct mrp_app *app, uint8_t src_port,
-                           uint8_t attr_type, const void *attr_val)
+/* Reserve every destination before publishing any of this propagation. */
+static int map_queue(struct mrp_app *app, uint32_t ports, uint8_t type,
+                     const void *value, bool join)
 {
-    if (!app->ops->map_join) {
-        return;
-    }
-    uint32_t ports = app->ops->map_join(app, src_port, attr_type, attr_val);
-    if (!ports) {
-        return;
-    }
-    uint8_t n = priv_of(app)->n_ports;
-    for (uint8_t p = 0; p < n && p < 32u; p++) {
-        if (ports & (1u << p)) {
-            mrp_mad_join(app, p, attr_type, attr_val, false);
+    struct mrp_map_work *head = NULL;
+    for (uint8_t p = 0; p < priv_of(app)->n_ports && p < 32u; ++p) {
+        if (!(ports & (1u << p))) {
+            continue;
         }
+        struct mrp_map_work *work = shlan_calloc(1, sizeof(*work));
+        if (!work) {
+            while (head) {
+                struct mrp_map_work *next = head->next;
+                shlan_free(head);
+                head = next;
+            }
+            priv_of(app)->map_error = -SHLAN_ERROR_NO_MEMORY;
+            return -SHLAN_ERROR_NO_MEMORY;
+        }
+        work->port_id = p;
+        work->attr_type = type;
+        work->join = join;
+        memcpy(work->value, value, attr_store_len(app->ops, type));
+        work->next = head;
+        head = work;
     }
+    while (head) {
+        struct mrp_map_work *work = head;
+        head = head->next;
+        work->next = NULL;
+        struct mrp_port_state *ps = &priv_of(app)->ports[work->port_id];
+        if (ps->map_tail) {
+            ps->map_tail->next = work;
+        } else {
+            ps->map_head = work;
+        }
+        ps->map_tail = work;
+    }
+    return 0;
 }
 
-static void map_apply_leave(struct mrp_app *app, uint8_t src_port,
-                            uint8_t attr_type, const void *attr_val)
+static int map_apply_join(struct mrp_app *app, uint8_t src_port,
+                          uint8_t attr_type, const void *attr_val)
 {
-    if (!app->ops->map_leave) {
+    uint32_t ports = app->ops->map_join ?
+        app->ops->map_join(app, src_port, attr_type, attr_val) : 0;
+    return map_queue(app, ports, attr_type, attr_val, true);
+}
+
+static int map_apply_leave(struct mrp_app *app, uint8_t src_port,
+                           uint8_t attr_type, const void *attr_val)
+{
+    uint32_t ports = app->ops->map_leave ?
+        app->ops->map_leave(app, src_port, attr_type, attr_val) : 0;
+    return map_queue(app, ports, attr_type, attr_val, false);
+}
+
+static void map_replay(struct mrp_app *app, uint8_t port_id)
+{
+    struct mrp_port_state *ps = &priv_of(app)->ports[port_id];
+    if (ps->prepared_pdu || ps->in_send) {
         return;
     }
-    uint32_t ports = app->ops->map_leave(app, src_port, attr_type, attr_val);
-    if (!ports) {
-        return;
-    }
-    uint8_t n = priv_of(app)->n_ports;
-    for (uint8_t p = 0; p < n && p < 32u; p++) {
-        if (ports & (1u << p)) {
-            mrp_mad_leave(app, p, attr_type, attr_val);
+    while (ps->map_head) {
+        struct mrp_map_work *work = ps->map_head;
+        int r = work->join ? mrp_mad_join(app, port_id, work->attr_type, work->value, false) :
+                            mrp_mad_leave(app, port_id, work->attr_type, work->value);
+        if (r < 0) {
+            return; /* Retain work if destination allocation is exhausted. */
         }
+        ps->map_head = work->next;
+        shlan_free(work);
+    }
+    ps->map_tail = NULL;
+}
+
+static void map_replay_all(struct mrp_app *app)
+{
+    for (uint8_t p = 0; p < priv_of(app)->n_ports; ++p) {
+        map_replay(app, p);
     }
 }
 
@@ -564,8 +623,22 @@ static void reg_event(struct mrp_app *app, struct mrp_attr_inst *ai,
         e = &milan_leave;
     }
 
+    enum mrp_reg_state previous = ai->reg;
     if (e->ns != MRP_REG_STATE_COUNT) {
         ai->reg = e->ns;
+    }
+    int mapped = 0;
+    if (e->ind == REG_IND_NEW || e->ind == REG_IND_JOIN) {
+        mapped = map_apply_join(app, port_id, ai->attr_type, ai->attr_val);
+    } else if (e->ind == REG_IND_LV) {
+        mapped = map_apply_leave(app, port_id, ai->attr_type, ai->attr_val);
+    }
+    if (mapped < 0) {
+        ai->reg = previous;
+        if (ev == MRP_EVENT_LEAVETIMER) {
+            shlan_timer_arm(&ai->leave_timer, 1u);
+        }
+        return;
     }
 
     switch (e->timer) {
@@ -577,15 +650,15 @@ static void reg_event(struct mrp_app *app, struct mrp_attr_inst *ai,
     switch (e->ind) {
     case REG_IND_NEW:
         app->ops->join_ind(app, port_id, ai->attr_type, ai->attr_val, true);
-        map_apply_join(app, port_id, ai->attr_type, ai->attr_val);
+        map_replay_all(app);
         break;
     case REG_IND_JOIN:
         app->ops->join_ind(app, port_id, ai->attr_type, ai->attr_val, false);
-        map_apply_join(app, port_id, ai->attr_type, ai->attr_val);
+        map_replay_all(app);
         break;
     case REG_IND_LV:
         app->ops->leave_ind(app, port_id, ai->attr_type, ai->attr_val);
-        map_apply_leave(app, port_id, ai->attr_type, ai->attr_val);
+        map_replay_all(app);
         break;
     default:
         break;
@@ -811,6 +884,12 @@ void mrp_app_destroy(struct mrp_app *app)
         shlan_timer_remove(&priv->ports[p].la_timer);
         shlan_timer_remove(&priv->ports[p].pt_timer);
         shlan_timer_remove(&priv->ports[p].join_timer);
+        struct mrp_map_work *work = priv->ports[p].map_head;
+        while (work) {
+            struct mrp_map_work *next = work->next;
+            shlan_free(work);
+            work = next;
+        }
         struct mrp_attr_inst *a = priv->ports[p].attrs;
         while (a) {
             struct mrp_attr_inst *next = a->next;
@@ -834,7 +913,9 @@ int mrp_mad_join(struct mrp_app *app, uint8_t port_id,
     struct mrp_priv       *priv = priv_of(app);
     struct mrp_port_state *ps   = &priv->ports[port_id];
     struct mrp_attr_inst  *ai   = get_or_create_attr(app, ps, port_id, attr_type, attr_val);
-    if (!ai) return -SHLAN_ERROR_NO_MEMORY;
+    if (!ai) {
+        return -SHLAN_ERROR_NO_MEMORY;
+    }
 
     deliver_event(app, ps, ai, is_new ? MRP_EVENT_NEW : MRP_EVENT_JOIN, port_id);
     ps->tx_pending = true;
@@ -915,7 +996,8 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
     deliver_event(rc->app, rc->ps, ai, ev, rc->port_id);
     if (changed_in && (ev == MRP_EVENT_RJOININ || ev == MRP_EVENT_RJOINMT)) {
         rc->app->ops->join_ind(rc->app, rc->port_id, attr_type, ai->attr_val, false);
-        map_apply_join(rc->app, rc->port_id, attr_type, ai->attr_val);
+        (void)map_apply_join(rc->app, rc->port_id, attr_type, ai->attr_val);
+        map_replay_all(rc->app);
     }
 }
 
@@ -940,10 +1022,11 @@ int mrp_rx(struct mrp_app *app, uint8_t port_id,
     struct mrp_priv       *priv = priv_of(app);
     struct mrp_port_state *ps   = &priv->ports[port_id];
 
+    priv->map_error = 0;
     struct rx_ctx ctx = { .app = app, .ps = ps, .port_id = port_id };
     int r = mrpdu_parse(pdu, pdu_len, app->ops,
                         rx_on_attr, rx_on_leaveall, &ctx);
-    return r < 0 ? r : ctx.error;
+    return r < 0 ? r : ctx.error ? ctx.error : priv->map_error;
 }
 
 void mrp_set_rx_filter(struct mrp_app *app, mrp_rx_filter_fn filter, void *ctx)
@@ -1182,6 +1265,7 @@ int mrp_transmit(struct mrp_app *app, uint8_t port_id,
     if (ps->in_send) {
         return -SHLAN_ERROR_INVALID;
     }
+    map_replay(app, port_id);
     if (!ps->prepared_pdu && (!ps->tx_pending || ps->join_wait)) {
         return 0;
     }
@@ -1291,6 +1375,7 @@ int mrp_transmit(struct mrp_app *app, uint8_t port_id,
     if (ps->la == MRP_LA_STATE_ACTIVE) {
         ps->tx_pending = true;
     }
+    map_replay(app, port_id);
     ps->join_wait = ps->join_cs;
     shlan_timer_arm(&ps->join_timer, ps->join_cs);
     return 1;

@@ -9,7 +9,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCES = [
-    "src/core/mrp_mad.c", "src/core/mrp_pdu.c", "src/ports/timer.c",
+    "src/core/mrp_mad.c", "src/core/mrp_pdu.c", "src/core/switch.c", "src/ports/timer.c",
     "src/modules/mmrp.c", "src/modules/mvrp.c", "src/modules/msrp.c",
 ]
 

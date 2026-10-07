@@ -148,12 +148,15 @@ The observer reports changed Applicant or Registrar states only.
 Callbacks run synchronously.
 Copy values that must survive the callback.
 
-The [parser](../src/core/mrp_pdu.c) validates the complete wire structure before delivering state-changing events.
-It checks vector lengths, packed events, and stream message boundaries.
+The [parser](../src/core/mrp_pdu.c) validates the complete wire structure and decoded application ranges before delivering state-changing events.
+It checks vector lengths, packed events, stream message boundaries, and vector arithmetic.
 A complete vector may end at the actual payload boundary without explicit EndMarks.
-Later protocol versions retain common-format handling.
-Unknown stream types are skipped using their advertised message length.
-Invalid application values and ignored Listener subtypes produce no attribute indication.
+Higher protocol versions skip unknown message types in every application, using advertised value lengths and vector boundaries through the EndMark.
+Unrecognized events discard their vector; subsequent supported content still applies.
+This follows [IEEE 802.1Q-2018, clause 10.8.3.5](https://standards.ieee.org/ieee/802.1Q/6844/).
+Current-version unknown types and reserved events reject the complete payload.
+Invalid decoded ranges and overflowing vector increments also reject the complete payload, in both profiles.
+Ignored Listener subtypes produce no attribute indication.
 Allocation errors can still leave earlier valid values applied.
 
 Received LeaveAll reaches only the message's type on the ingress port.
@@ -200,7 +203,29 @@ Defer topology changes, reconfiguration, and destruction until the retained outp
 Continue global ticks; Registrar Leave timers still expire.
 Periodic Applicant work waits until acceptance.
 
-The [assembler](../src/core/mrp_mad.c#L1175) splits populations across Join-spaced opportunities.
+Internal [propagation](../src/core/mrp_mad.c) uses a separate FIFO per destination port.
+Each queued operation owns its value copy, independent of source buffers and reclaimed source registrations.
+The core replays these operations after committing accepted output, before the next transmission.
+This preserves registration and timer-driven withdrawal order while the host continues servicing other ports.
+The queue drains during later polls if destination allocation temporarily fails.
+Size allocation capacity for the propagation accumulated during transport refusal.
+Receive reports allocation failures; a timer withdrawal retries allocation on the next tick.
+Destroying the application releases remaining queued operations.
+
+~~~mermaid
+sequenceDiagram
+    participant Source as Source port
+    participant Queue as Destination queue
+    participant Target as Retained port
+    Source->>Queue: Copy propagated Join
+    Source->>Queue: Copy propagated Leave
+    Target->>Target: Accept retained output
+    Target->>Queue: Replay FIFO
+    Queue->>Target: Apply Join then Leave
+    Target->>Target: Schedule next output
+~~~
+
+The [assembler](../src/core/mrp_mad.c#L1258) splits populations across Join-spaced opportunities.
 Previously omitted attributes precede repeated declarations.
 Size the buffer for the largest single message and the application's LeaveAll preamble.
 Insufficient space for any required value returns the [no-buffer error](../src/include/shish_lan/error.h).
@@ -208,7 +233,7 @@ Do not treat successful local declaration as proof of network transmission.
 
 The host adds Ethernet headers and selects the physical interface.
 Use the application's [group address and EtherType](../src/include/shish_lan/mrp.h).
-The [stream destination](../src/modules/msrp.c#L404) is 01-80-C2-00-00-0E.
+The [stream destination](../src/modules/msrp.c#L415) is 01-80-C2-00-00-0E.
 It matches [IEEE 802.1Q-2018, clause 35.2.2.1 and Table 8-1](https://standards.ieee.org/ieee/802.1Q/6844/).
 The [address regression](../tests/unit/integration_test.c) also pins the MAC and VLAN destinations.
 
@@ -236,7 +261,7 @@ Deliver every elapsed centisecond, including ticks coalesced by the platform.
 The [timer defaults](../src/include/shish_lan/mrp.h) are Join 20, Leave 60, and LeaveAll 1000 centiseconds.
 The Mark II profile uses Leave 500 centiseconds through [mrp_port_configure](../src/include/shish_lan/mrp.h).
 Combine this interval with the [Milan received-Leave option](#milan-received-leave) for immediate explicit withdrawals.
-The [periodic handler](../src/core/mrp_mad.c#L706) uses 100 centiseconds independently of Join spacing.
+The [periodic handler](../src/core/mrp_mad.c#L779) uses 100 centiseconds independently of Join spacing.
 LeaveAll draws lie strictly between its configured interval and 1.5 times that interval.
 The rules are in [IEEE 802.1Q-2018, clauses 10.7.4.3 and 10.7.4.4](https://standards.ieee.org/ieee/802.1Q/6844/).
 Supply different seeds where independent participants need different timing.
@@ -262,7 +287,7 @@ sequenceDiagram
 ~~~
 
 Call the matching [application destroy operation](../src/include/shish_lan/mrp.h) only after all callbacks and accesses have stopped.
-The [destructor](../src/core/mrp_mad.c#L806) unlinks all owned timers before releasing storage.
+The [destructor](../src/core/mrp_mad.c#L879) unlinks all owned timers before releasing storage.
 Other applications may continue ticking afterward.
 Destruction itself does not transmit withdrawals.
 Complete any required network withdrawal before teardown.
@@ -334,17 +359,19 @@ Do not reuse a descriptor until a later dequeue releases its queue link.
 The [Zephyr module](../zephyr/module.yml) points to the [root build definition](../CMakeLists.txt) and [configuration](../Kconfig.zephyr).
 Add the repository through the platform's [module mechanism](https://docs.zephyrproject.org/latest/develop/modules.html).
 Enable [CONFIG_LWSRP](../Kconfig.zephyr) in the application configuration.
-The module builds protocol sources with default platform ports.
+The module builds protocol sources, [switch dispatch](../src/core/switch.c), and default platform ports.
 It supplies no application entry point, network driver, or board example.
 Target execution has not been verified here.
 
 For bare metal, compile the [state engine](../src/core/mrp_mad.c), [codec](../src/core/mrp_pdu.c), and [timer service](../src/ports/timer.c).
+Include the [switch dispatch implementation](../src/core/switch.c) when using the public switch interface.
 Add the selected [stream](../src/modules/msrp.c), [VLAN](../src/modules/mvrp.c), or [MAC](../src/modules/mmrp.c) applications.
 Provide the [allocation and print ports](../src/ports/alloc.h), and omit their hosted implementation and the simulated switch.
 The core uses fixed-width types, alignment, and memory operations.
 It does not require hosted allocation or error headers.
 The [freestanding check](../tests/check_freestanding.py) verifies strict host compilation and header dependencies.
-It does not replace a target build or linker check.
+The [embedded source-list check](../tests/check_embedded.py) links the actual module list and exercises switch dispatch in both profiles.
+These host checks do not replace a target build or linker check.
 
 Read the [serialized lifetime contract](#lifetime-and-concurrency) and [transmit contract](#transmit-and-retry) before connecting interrupts or DMA.
 Schedule receive and timer work onto the same dispatcher.
