@@ -88,7 +88,29 @@ CASES = [
      "if (false && !expected && msrp)", "unit"),
     ("bounded-header-initialization", PDU, "uint16_t vh = 0;",
      "uint16_t vh;", "strict"),
+    ("milan-delayed-in-leave", MAD,
+     "if (app->ops->milan_rapid_leave && ev == MRP_EVENT_RLV &&",
+     "if (false && app->ops->milan_rapid_leave && ev == MRP_EVENT_RLV &&", "unit"),
+    ("milan-restarted-lv-deadline", MAD,
+     "const struct reg_entry *e = &reg_table[ev][ai->reg];",
+     "const struct reg_entry *e = &reg_table[ev][ai->reg];\n"
+     "    if (app->ops->milan_rapid_leave && ev == MRP_EVENT_RLV && ai->reg == MRP_REG_STATE_LV) {\n"
+     "        e = &reg_table[MRP_EVENT_RLV][MRP_REG_STATE_IN];\n    }", "unit"),
+    ("milan-profile-selection", MSRP,
+     ".milan_rapid_leave = LWSRP_MILAN != 0,",
+     ".milan_rapid_leave = LWSRP_MILAN == 0,", "unit"),
+    ("milan-option-scope", MAD,
+     "if (app->ops->milan_rapid_leave && ev == MRP_EVENT_RLV &&",
+     "if (ev == MRP_EVENT_RLV &&", "unit"),
 ]
+
+REQUIRED_FAILURES = {
+    "milan-delayed-in-leave": ["talker_leave_in_is_immediate", "listener_leave_in_is_immediate"],
+    "milan-restarted-lv-deadline": ["leave_in_lv_keeps_the_original_deadline"],
+    "milan-profile-selection": ["msrp_constructor_selects_the_build_profile"],
+    "milan-option-scope": ["mvrp_keeps_ieee_leave_timing", "mmrp_keeps_ieee_leave_timing",
+                           "disabled_application_option_preserves_ieee_timing"],
+}
 
 
 def main():
@@ -147,6 +169,11 @@ def main():
                     continue
                 rc, output = run(label, check_command)
                 killed = rc != 0 and "Failure:" in output
+                killed = killed and all(name in output for name in REQUIRED_FAILURES.get(label, []))
+                if label == "milan-delayed-in-leave":
+                    killed = killed and "leave_in_lv_keeps_the_original_deadline" not in output
+                if label == "milan-restarted-lv-deadline":
+                    killed = killed and "leave_in_is_immediate" not in output
             elif check == "strict":
                 rc, output = run(label, ["cc", "-O2", "-std=c11", "-Wall", "-Wextra", "-Werror",
                                          "-Isrc/include", "-Isrc", "-c", name, "-o", str(work / "strict.o")])

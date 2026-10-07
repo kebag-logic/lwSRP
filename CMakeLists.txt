@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
+option(LWSRP_MILAN "Use Milan rapid MSRP withdrawal" OFF)
 if(DEFINED ZEPHYR_BASE)
   if(CONFIG_LWSRP)
     zephyr_library_named(lwsrp)
@@ -13,6 +14,7 @@ if(DEFINED ZEPHYR_BASE)
     )
     zephyr_include_directories(src/include)
     zephyr_library_include_directories(src)
+    zephyr_library_compile_definitions(LWSRP_MILAN=$<BOOL:${LWSRP_MILAN}>)
   endif()
   return()
 endif()
@@ -41,6 +43,7 @@ add_library(shlan SHARED
     # src/core/hw_adapter.c    (add when hardware driver exists)
 )
 target_include_directories(shlan PUBLIC src/include src/modules src)
+target_compile_definitions(shlan PUBLIC LWSRP_MILAN=$<BOOL:${LWSRP_MILAN}>)
 
 # ---------- unit tests (cgreen, C-only, for core/ internals) ----------
 enable_testing()
@@ -55,6 +58,7 @@ add_executable(unit_tests
     tests/unit/receive_test.c
     tests/unit/transmit_test.c
     tests/unit/integration_test.c
+    tests/unit/milan_test.c
 )
 target_include_directories(unit_tests PRIVATE ${CGREEN_INCLUDE} src/include src)
 target_link_libraries(unit_tests PRIVATE shlan ${CGREEN_LIB})

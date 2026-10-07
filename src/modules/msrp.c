@@ -397,6 +397,7 @@ static const struct mrp_app_ops msrp_ops_tmpl = {
     .attr_has_subtype = msrp_attr_has_subtype,
     .attr_mem_len     = msrp_attr_mem_len,
     .attr_replaces    = msrp_attr_replaces,
+    .milan_rapid_leave = LWSRP_MILAN != 0,
     .ethertype        = MRP_ETHERTYPE_MSRP,
     .proto_version    = MRP_PROTOCOL_VERSION,
     /* IEEE 802.1Q-2018 35.2.2.1, Table 8-1: Nearest Bridge group address. */

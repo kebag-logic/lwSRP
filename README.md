@@ -36,15 +36,16 @@ Set LD_LIBRARY_PATH to its library directory when required by your host loader.
 Run these commands from the repository root.
 
 ~~~sh
-cmake -S . -B "$LWSRP_BUILD" -DCMAKE_BUILD_TYPE=Debug
+cmake -S . -B "$LWSRP_BUILD" -DCMAKE_BUILD_TYPE=Debug -DLWSRP_MILAN=OFF
 cmake --build "$LWSRP_BUILD" --parallel 2
 ctest --test-dir "$LWSRP_BUILD" --output-on-failure
 SHLAN_LIBRARY="$LWSRP_BUILD/libshlan.so" behave
 ~~~
 
-The configured unit target runs 37 tests with 2278 assertions.
+The default unit target runs 45 tests with 2659 assertions.
 The scenario suite passes three scenarios and ten steps.
 The [tester guide](doc/tester.md) explains their coverage and limits.
+An [optional Milan setting](doc/integrator.md#milan-received-leave) enables immediate withdrawal of received stream registrations.
 
 ## Choose your guide
 

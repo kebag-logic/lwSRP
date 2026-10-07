@@ -56,7 +56,7 @@ Withdrawal and aging retain the last registered value.
 
 The [host context](../src/include/shish_lan/mrp.h) remains caller-owned.
 Keep it valid for the application lifetime.
-Use [mrp_reclaim](../src/core/mrp_mad.c#L947) to release undeclared, unregistered, quiescent attributes.
+Use [mrp_reclaim](../src/core/mrp_mad.c#L955) to release undeclared, unregistered, quiescent attributes.
 It unlinks their timers and refuses reclamation during a prepared transmission.
 Read the [lifetime contract](integrator.md#lifetime-and-concurrency) before destroying an application.
 
@@ -96,14 +96,14 @@ VO means Very anxious Observer; VP means Very anxious Passive.
 VN means Very anxious New; AN means Anxious New.
 AA means Anxious Active; QA means Quiet Active.
 Transmit labels describe required protocol actions.
-The [transmit operation](../src/core/mrp_mad.c#L1167) applies these transitions after the host accepts the payload.
+The [transmit operation](../src/core/mrp_mad.c#L1175) applies these transitions after the host accepts the payload.
 
 Comparison: matches the table for the displayed transitions, including the Registrar condition.
 Transmission assumes sufficient frame space, as required by [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3, note 7](https://standards.ieee.org/ieee/802.1Q/6844/).
 
 The [Applicant handler](../src/core/mrp_mad.c#L491) implements the Registrar condition and corrected declaration transitions.
-The [event dispatcher](../src/core/mrp_mad.c#L618) requests transmission for anxious and leaving states.
-The [transactional assembler](../src/core/mrp_mad.c#L1167) preserves state when a required value cannot fit.
+The [event dispatcher](../src/core/mrp_mad.c#L626) requests transmission for anxious and leaving states.
+The [transactional assembler](../src/core/mrp_mad.c#L1175) preserves state when a required value cannot fit.
 Optional packing actions are omitted; each encoded vector carries one value.
 
 ### Applicant observation
@@ -181,7 +181,7 @@ stateDiagram-v2
 
 IN means registered; LV means leaving; MT means empty.
 The prefix r marks reception; Join includes JoinIn and JoinMt.
-Comparison: matches the table for the displayed state transitions.
+Comparison: matches the default table for the displayed state transitions.
 The graph omits indication and timer actions.
 The [Registrar table](../src/core/mrp_mad.c#L310) also enters LV on transmit-with-LeaveAll.
 Its [re-declaration row](../src/core/mrp_mad.c#L372) does the same.
@@ -192,15 +192,39 @@ Received Join in LV still emits an extra Join indication and invokes propagation
 The table stops the Leave timer and enters IN without that indication.
 Evidence: [Registrar Join rows](../src/core/mrp_mad.c#L338).
 
+The optional [milan_rapid_leave](../src/include/shish_lan/mrp.h) changes only received Leave in IN.
+The [Registrar handler](../src/core/mrp_mad.c#L554) selects this transition before applying the normal indication and propagation actions.
+The option is copied at application creation; its default is false.
+The [MSRP build setting](integrator.md#milan-received-leave) enables it for stream applications.
+VLAN and MAC applications retain the default table.
+
+~~~mermaid
+stateDiagram-v2
+    direction LR
+    IN --> MT: rLv / Lv
+    IN --> LV: rLA / start timer
+    LV --> LV: rLv / no restart
+    LV --> MT: timer / Lv
+~~~
+
+Comparison: matches [Milan v1.2, clause 4.2.7.2.2](https://milanav.com/milan-faqs/) for the modified transition.
+The specification link opens the publisher's access guidance.
+This comparison uses consolidated revision 1.2.
+The action Lv means a Leave indication.
+The other displayed transitions follow [IEEE 802.1Q-2018, Table 10-4](https://standards.ieee.org/ieee/802.1Q/6844/).
+No Leave timer starts during the immediate transition.
+An already leaving registration keeps its deadline and produces one indication when that deadline expires.
+The [profile tests](../tests/unit/milan_test.c) check Talker Advertise, Talker Failed, and Listener registrations using a five-second interval.
+
 Received LeaveAll affects only the message's type on its ingress port.
 This matches [IEEE 802.1Q-2018, clause 10.7.5.20](https://standards.ieee.org/ieee/802.1Q/6844/).
-The [receive handler](../src/core/mrp_mad.c#L914) also restarts the shared participant LeaveAll timer.
+The [receive handler](../src/core/mrp_mad.c#L922) also restarts the shared participant LeaveAll timer.
 The [integration tests](../tests/unit/integration_test.c) check both state machines across every supported multi-type application.
 
 ### LeaveAll
 
 Reference: [IEEE 802.1Q-2018, clause 10.7.9, Table 10-5](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [la_event](../src/core/mrp_mad.c#L658).
+Evidence: [la_event](../src/core/mrp_mad.c#L666).
 
 ~~~mermaid
 stateDiagram-v2
@@ -217,17 +241,17 @@ Begin resets either state to Passive.
 Begin, reception, and expiry restart the timer; expiry requests transmission.
 Active transmission requires a LeaveAll message and local LeaveAll processing.
 
-The [transmit operation](../src/core/mrp_mad.c#L1167) emits one LeaveAll vector for each supported attribute type.
+The [transmit operation](../src/core/mrp_mad.c#L1175) emits one LeaveAll vector for each supported attribute type.
 Acceptance makes the participant Passive and delivers local LeaveAll events.
 Refusal preserves the pending payload and does not age registrations through an unsent LeaveAll.
-The [timer draw](../src/core/mrp_mad.c#L652) lies strictly between the configured interval and 1.5 times that interval.
+The [timer draw](../src/core/mrp_mad.c#L660) lies strictly between the configured interval and 1.5 times that interval.
 The interval rule is in [IEEE 802.1Q-2018, clause 10.7.4.3](https://standards.ieee.org/ieee/802.1Q/6844/).
 An active state alone does not prove that a frame was sent.
 
 ### PeriodicTransmission
 
 Reference: [IEEE 802.1Q-2018, clause 10.7.10, Table 10-6](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [pt_event](../src/core/mrp_mad.c#L698) and [mrp_set_periodic](../src/core/mrp_mad.c#L987).
+Evidence: [pt_event](../src/core/mrp_mad.c#L706) and [mrp_set_periodic](../src/core/mrp_mad.c#L995).
 
 ~~~mermaid
 stateDiagram-v2
@@ -242,7 +266,7 @@ Comparison: matches the table for the displayed state transitions.
 Begin activates either state and arms the timer.
 Enable arms the timer when Passive; Active expiry rearms it and generates a periodic event.
 
-The [periodic handler](../src/core/mrp_mad.c#L698) uses 100 centiseconds, independently of Join spacing.
+The [periodic handler](../src/core/mrp_mad.c#L706) uses 100 centiseconds, independently of Join spacing.
 This matches [IEEE 802.1Q-2018, clause 10.7.4.4](https://standards.ieee.org/ieee/802.1Q/6844/).
 Disable additionally disarms the timer; the table only changes state.
 During a refused transmission, periodic work is deferred until acceptance.

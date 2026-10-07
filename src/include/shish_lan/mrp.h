@@ -234,6 +234,11 @@ struct mrp_app_ops {
      */
     bool (*attr_replaces)(uint8_t old_type, const void *old_value,
                           uint8_t new_type, const void *new_value);
+    /* Opt in at creation: received Leave in IN issues Leave and enters MT.
+     * Milan v1.2 4.2.7.2.2; false preserves IEEE 802.1Q Table 10-4.
+     * Other events and the existing LV deadline are unchanged.
+     */
+    bool milan_rapid_leave;
 };
 
 /* Opaque MRP application handle */

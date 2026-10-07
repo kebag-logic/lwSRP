@@ -555,6 +555,14 @@ static void reg_event(struct mrp_app *app, struct mrp_attr_inst *ai,
                       enum mrp_event ev, uint8_t port_id)
 {
     const struct reg_entry *e = &reg_table[ev][ai->reg];
+    /* Milan v1.2 4.2.7.2.2 replaces only the IN / rLv! cell. */
+    static const struct reg_entry milan_leave = {
+        REG_IND_LV, REG_TIMER_NONE, MRP_REG_STATE_MT
+    };
+    if (app->ops->milan_rapid_leave && ev == MRP_EVENT_RLV &&
+        ai->reg == MRP_REG_STATE_IN) {
+        e = &milan_leave;
+    }
 
     if (e->ns != MRP_REG_STATE_COUNT) {
         ai->reg = e->ns;
