@@ -27,6 +27,13 @@
 #include <stdint.h>
 #include "mrp.h"
 
+/* Define as 1 when building MSRP for Milan v1.2 4.2.7.2.2.
+ * The default retains IEEE 802.1Q Table 10-4 received-Leave timing.
+ */
+#ifndef LWSRP_MILAN
+#define LWSRP_MILAN 0
+#endif
+
 /* §35.2.1 MSRP attribute types */
 #define MSRP_ATTR_TYPE_TALKER_ADV    1u
 #define MSRP_ATTR_TYPE_TALKER_FAILED 2u

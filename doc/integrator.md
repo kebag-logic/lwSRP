@@ -16,16 +16,48 @@ The [root build definition](../CMakeLists.txt) selects between host and embedded
 | C language | Requires [C11 draft](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf). |
 | [CMAKE_BUILD_TYPE](https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html) set to Debug | Adds compiler debugging information through [CMake](https://cmake.org/cmake/help/latest/). |
 | Export compile commands | Enabled by the [build definition](../CMakeLists.txt). |
-| Unit dependency found | Builds the [unit runner](../tests/unit/main.c) with six suites. |
+| Unit dependency found | Builds the [unit runner](../tests/unit/main.c) with seven suites. |
 | Unit dependency absent | Host configuration fails. Headers and library are required. |
 | [ZEPHYR_BASE](../CMakeLists.txt) defined | Selects the module branch and returns before host configuration. |
 | [CONFIG_LWSRP](../Kconfig.zephyr) enabled | Builds protocol sources and default allocation and timer ports. |
+| [LWSRP_MILAN](../CMakeLists.txt) enabled | Selects immediate MSRP withdrawal on received Leave in IN. Defaults to OFF. |
 
 There are no project options for hardware selection or coverage.
 The [register queue](../src/core/switch_ctrl.c) is absent from both source lists.
 The [build wrapper](../build.sh) only creates an environment and sets variables inside its process.
 It does not build the library.
 Use the [quick start commands](../README.md#quick-start).
+
+## Milan received Leave
+
+Enable [LWSRP_MILAN](../CMakeLists.txt) when building MSRP for the Milan profile.
+The setting applies to both host and embedded module builds.
+For direct source builds, define [LWSRP_MILAN](../src/include/shish_lan/msrp.h) as 1 when compiling the stream application.
+Rebuild the library and consumers after changing the public [application operations](../src/include/shish_lan/mrp.h) layout.
+Follow the [profile test commands](tester.md#test-both-registrar-profiles) to check the selected behavior.
+
+The [MSRP constructor](../src/modules/msrp.c) copies the selected option into each application.
+Custom applications opt in through [milan_rapid_leave](../src/include/shish_lan/mrp.h) before calling [mrp_app_create](../src/core/mrp_mad.c).
+Zero-initialized operations retain the default [IEEE 802.1Q-2018, Table 10-4](https://standards.ieee.org/ieee/802.1Q/6844/) behavior.
+The standard VLAN and MAC constructors leave the option disabled.
+
+~~~mermaid
+sequenceDiagram
+    participant Host
+    participant Core as MSRP state
+    Host->>Core: Receive Leave while IN
+    Core->>Core: Enter MT
+    Core-->>Host: Leave indication
+    Note over Host,Core: Completed before receive returns
+~~~
+
+This sequence implements [Milan v1.2, clause 4.2.7.2.2](https://milanav.com/milan-faqs/).
+It applies to an explicit received Leave in IN.
+A Leave received in LV preserves the original Leave timer deadline.
+Received LeaveAll still starts normal aging from IN.
+Local withdrawal does not remove a peer registration.
+The option does not select timer values or establish complete Milan conformance.
+Keep indication handlers within the [serialized callback contract](#lifetime-and-concurrency).
 
 ## Port platform services
 
@@ -168,7 +200,7 @@ Defer topology changes, reconfiguration, and destruction until the retained outp
 Continue global ticks; Registrar Leave timers still expire.
 Periodic Applicant work waits until acceptance.
 
-The [assembler](../src/core/mrp_mad.c#L1167) splits populations across Join-spaced opportunities.
+The [assembler](../src/core/mrp_mad.c#L1175) splits populations across Join-spaced opportunities.
 Previously omitted attributes precede repeated declarations.
 Size the buffer for the largest single message and the application's LeaveAll preamble.
 Insufficient space for any required value returns the [no-buffer error](../src/include/shish_lan/error.h).
@@ -176,7 +208,7 @@ Do not treat successful local declaration as proof of network transmission.
 
 The host adds Ethernet headers and selects the physical interface.
 Use the application's [group address and EtherType](../src/include/shish_lan/mrp.h).
-The [stream destination](../src/modules/msrp.c#L403) is 01-80-C2-00-00-0E.
+The [stream destination](../src/modules/msrp.c#L404) is 01-80-C2-00-00-0E.
 It matches [IEEE 802.1Q-2018, clause 35.2.2.1 and Table 8-1](https://standards.ieee.org/ieee/802.1Q/6844/).
 The [address regression](../tests/unit/integration_test.c) also pins the MAC and VLAN destinations.
 
@@ -203,7 +235,8 @@ Deliver every elapsed centisecond, including ticks coalesced by the platform.
 
 The [timer defaults](../src/include/shish_lan/mrp.h) are Join 20, Leave 60, and LeaveAll 1000 centiseconds.
 The Mark II profile uses Leave 500 centiseconds through [mrp_port_configure](../src/include/shish_lan/mrp.h).
-The [periodic handler](../src/core/mrp_mad.c#L698) uses 100 centiseconds independently of Join spacing.
+Combine this interval with the [Milan received-Leave option](#milan-received-leave) for immediate explicit withdrawals.
+The [periodic handler](../src/core/mrp_mad.c#L706) uses 100 centiseconds independently of Join spacing.
 LeaveAll draws lie strictly between its configured interval and 1.5 times that interval.
 The rules are in [IEEE 802.1Q-2018, clauses 10.7.4.3 and 10.7.4.4](https://standards.ieee.org/ieee/802.1Q/6844/).
 Supply different seeds where independent participants need different timing.
@@ -229,7 +262,7 @@ sequenceDiagram
 ~~~
 
 Call the matching [application destroy operation](../src/include/shish_lan/mrp.h) only after all callbacks and accesses have stopped.
-The [destructor](../src/core/mrp_mad.c#L798) unlinks all owned timers before releasing storage.
+The [destructor](../src/core/mrp_mad.c#L806) unlinks all owned timers before releasing storage.
 Other applications may continue ticking afterward.
 Destruction itself does not transmit withdrawals.
 Complete any required network withdrawal before teardown.

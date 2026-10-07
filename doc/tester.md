@@ -15,7 +15,7 @@ For the isolated compiler command, also set CPATH and LIBRARY_PATH to its includ
 Run these commands from the repository root.
 
 ~~~sh
-cmake -S . -B "$LWSRP_BUILD" -DCMAKE_BUILD_TYPE=Debug
+cmake -S . -B "$LWSRP_BUILD" -DCMAKE_BUILD_TYPE=Debug -DLWSRP_MILAN=OFF
 cmake --build "$LWSRP_BUILD" --parallel 2
 ctest --test-dir "$LWSRP_BUILD" --output-on-failure
 "$LWSRP_BUILD/unit_tests"
@@ -26,7 +26,7 @@ behave --dry-run
 | Check | Current result | Meaning |
 | --- | --- | --- |
 | Configure and build | Exit 0. | The host library and required unit target compile. |
-| Configured unit target | Exit 0; 37 tests and 2278 assertions. | The [runner](../tests/unit/main.c) executes six suites. |
+| Default unit target | Exit 0; 45 tests and 2659 assertions. | The [runner](../tests/unit/main.c) executes seven suites. |
 | Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c). |
 | Scenario dry run | Validates step matching only. | It does not execute setup or verify behavior. |
 
@@ -35,6 +35,30 @@ It rejects an empty suite through an output-based failure rule.
 The scenario hook uses SHLAN_LIBRARY when set, with the root build directory as fallback.
 The [switch operations](../src/core/switch.c) are exported symbols.
 The [test bindings](../tests/features/switch_bindings.c) preserve the established scenario entry points.
+
+## Test both Registrar profiles
+
+The commands above explicitly select default [IEEE 802.1Q-2018, Table 10-4](https://standards.ieee.org/ieee/802.1Q/6844/) timing.
+Set LWSRP_MILAN_BUILD to another writable build directory outside the checkout.
+Enable [LWSRP_MILAN](../CMakeLists.txt) for [Milan v1.2, clause 4.2.7.2.2](https://milanav.com/milan-faqs/).
+
+~~~sh
+cmake -S . -B "$LWSRP_MILAN_BUILD" -DCMAKE_BUILD_TYPE=Debug -DLWSRP_MILAN=ON
+cmake --build "$LWSRP_MILAN_BUILD" --parallel 2
+ctest --test-dir "$LWSRP_MILAN_BUILD" --output-on-failure
+"$LWSRP_MILAN_BUILD/unit_tests"
+SHLAN_LIBRARY="$LWSRP_MILAN_BUILD/libshlan.so" behave
+~~~
+
+The enabled build passes 45 tests with 2647 assertions.
+It also passes three scenarios and ten steps.
+The [profile suite](../tests/unit/milan_test.c) checks both application options in each build.
+It checks the actual constructor against the build selection.
+Different constructor paths account for the assertion-count difference.
+Talker and Listener indications must arrive before the receive call returns, without a timer tick.
+Repeated withdrawals produce no duplicate indication.
+A withdrawal after LeaveAll preserves the deadline, checked one centisecond before expiry and at expiry.
+The suite also pins default VLAN and MAC aging and local withdrawal behavior.
 
 ## Run the existing codec tests
 
@@ -110,6 +134,7 @@ flowchart LR
 | Parser | [Receive tests](../tests/unit/receive_test.c) and [integration tests](../tests/unit/integration_test.c) cover truncation, packed events, complete ends, and atomic validation. | More unknown-type and version combinations, fuzzing, and allocation exhaustion. |
 | MRP state | [Transmit tests](../tests/unit/transmit_test.c) cover declaration ladders, refusal, retry, segmentation, withdrawal, and redeclaration. | Exhaustive table paths, propagation masks, and callback order. |
 | Timers | [Lifecycle tests](../tests/unit/timer_test.c) and [integration tests](../tests/unit/integration_test.c) cover removal, recreation, aging, periodic timing, and LeaveAll draws. | Target scheduling and long-duration drift. |
+| Profile withdrawal | [Profile tests](../tests/unit/milan_test.c) cover immediate stream withdrawal, unchanged VLAN/MAC timing, and preserved LV deadlines. | Target callback timing and network interoperability. |
 | Hardware and network | No adapter or interoperability suite. | Target timing, frame ownership, and packet captures. |
 
 A [disable binding](../tests/features/switch_bindings.c) redirected to enable still passes all three scenarios.
@@ -131,12 +156,17 @@ Set REVERSAL_SCRATCH to a new directory outside the checkout.
 
 ~~~sh
 python3 tests/check_freestanding.py
+CC="cc -DLWSRP_MILAN=1" python3 tests/check_freestanding.py
 python3 tests/check_reversals.py --work-dir "$REVERSAL_SCRATCH" --prefix "$CGREEN_PREFIX"
 ~~~
 
 The [freestanding check](../tests/check_freestanding.py) uses the configured C compiler and rejects hosted allocation, error, and print headers.
 The [reversal cases](../tests/check_reversals.py) cover destination addresses, LeaveAll isolation, validation, offsets, retry, timing, storage, and registration changes.
 They also check callback member order and strict bounded-header initialization.
+Two independent profile reversals delay withdrawal from IN and restart the LV deadline.
+The first must fail both immediate-indication tests while the deadline test still passes.
+The second must fail the deadline test while the immediate-indication tests still pass.
+Additional reversals check build selection and application scope.
 Header and warning regressions intentionally fail compilation or dependency checks.
 The checks do not prove target linking or network conformance.
 

@@ -8,6 +8,7 @@ TestSuite *msrp_values_suite(void);
 TestSuite *receive_suite(void);
 TestSuite *transmit_suite(void);
 TestSuite *integration_suite(void);
+TestSuite *milan_suite(void);
 
 int main(void)
 {
@@ -18,6 +19,7 @@ int main(void)
     add_suite(suite, receive_suite());
     add_suite(suite, transmit_suite());
     add_suite(suite, integration_suite());
+    add_suite(suite, milan_suite());
     TestReporter *reporter = create_text_reporter();
     int result = run_test_suite(suite, reporter);
     destroy_test_suite(suite);
