@@ -141,7 +141,7 @@ static int parse_pass(const uint8_t *pdu, size_t len,
         bool ended = false;
         bool vector_seen = false;
         while (off + 2 <= end) {
-            uint16_t vh;
+            uint16_t vh = 0;
             (void)get_u16be(pdu + off, end - off, &vh);
             off += 2;
             if (vh == 0) {
