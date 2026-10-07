@@ -619,6 +619,17 @@ static void deliver_event(struct mrp_app *app, struct mrp_port_state *ps,
 
     appl_event(ai, ev, ps->point_to_point);
     reg_event(app, ai, ev, port_id);
+    // Table 10-3 note 6: receiving an event can request a transmit too.
+    switch (ai->appl) {
+    case MRP_APPL_STATE_VN: case MRP_APPL_STATE_AN:
+    case MRP_APPL_STATE_AA: case MRP_APPL_STATE_LA:
+    case MRP_APPL_STATE_VP: case MRP_APPL_STATE_AP:
+    case MRP_APPL_STATE_LO:
+        ps->tx_pending = true;
+        break;
+    default:
+        break;
+    }
     observe(app, ai, ev, port_id, appl_from, reg_from);
 }
 
@@ -1180,6 +1191,8 @@ int mrp_transmit(struct mrp_app *app, uint8_t port_id,
     }
     if (la) {
         ps->la = MRP_LA_STATE_PASSIVE;
+        // 10.7.6.6: the committed sLA also signals rLA locally.
+        broadcast_event(app, ps, MRP_EVENT_RLA, port_id);
     }
     if (ps->periodic_owed) {
         ps->periodic_owed = false;
