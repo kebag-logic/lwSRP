@@ -244,6 +244,24 @@ struct mrp_app {
 struct mrp_app *mrp_app_create(const struct mrp_app_ops *ops, uint8_t n_ports);
 void            mrp_app_destroy(struct mrp_app *app);
 
+/* Poll one transmit opportunity. The send port returns zero only after it
+ * accepts all bytes; a refusal leaves every applicant and registrar unchanged.
+ * Ports never call back into this application synchronously. Caller storage
+ * must fit the declared attributes; -ENOBUFS changes no state. Returns 1 for
+ * a committed PDU, zero when no opportunity is due, or negative errno. */
+typedef int (*mrp_send_fn)(void *ctx, uint8_t port_id,
+                           const uint8_t *pdu, size_t len);
+int mrp_transmit(struct mrp_app *app, uint8_t port_id,
+                 uint8_t *pdu, size_t capacity, mrp_send_fn send, void *ctx);
+
+/* Set protocol timers before declaring attributes. Units are centiseconds.
+ * A caller supplies a random seed; LeaveAll draws are strictly inside the
+ * IEEE 802.1Q 10.7.4.3 interval. A one-second periodic timer is independent
+ * of JoinTime. No port call can synchronously deliver a tick or RX event. */
+int mrp_port_configure(struct mrp_app *app, uint8_t port_id,
+                        uint32_t join_cs, uint32_t leave_cs,
+                        uint32_t leaveall_cs, uint32_t seed, bool point_to_point);
+
 /* Return the number of ports the application was created with. */
 uint8_t mrp_app_n_ports(const struct mrp_app *app);
 

@@ -56,6 +56,7 @@ struct mrp_attr_timer_arg {
 static void on_la_timer(void *arg);
 static void on_pt_timer(void *arg);
 static void on_leave_timer(void *arg);
+static void on_join_timer(void *arg);
 
 /* Per-attribute instance: one Applicant SM + one Registrar SM */
 struct mrp_attr_inst {
@@ -77,11 +78,19 @@ struct mrp_port_state {
     enum mrp_la_state    la;          /* LeaveAll SM state (Table 10-5) */
     enum mrp_pt_state    pt;          /* PeriodicTransmission SM state  */
     bool                 tx_pending;  /* transmission opportunity needed */
+    uint32_t join_cs;
+    uint32_t leave_cs;
+    uint32_t leaveall_cs;
+    uint32_t join_wait;
+    uint32_t random;
+    bool point_to_point;
+    bool in_send;
     struct mrp_attr_inst *attrs;      /* linked list of attribute instances */
     /* LeaveAll timer: fires MRP_EVENT_LEAVEALLTIMER on expiry */
     struct shlan_timer          la_timer;
     /* PeriodicTransmission timer: fires MRP_EVENT_PERIODICTIMER on expiry */
     struct shlan_timer          pt_timer;
+    struct shlan_timer          join_timer;
     /* Shared callback arg for la_timer and pt_timer (same app + port_id) */
     struct mrp_port_timer_arg   timer_arg;
 };
@@ -115,166 +124,147 @@ struct appl_entry {
  * Columns: VO, VP, VN, AN, AA, QA, LA, AO, QO, AP, QP, LO
  */
 static const struct appl_entry appl_table[MRP_EVENT_COUNT][MRP_APPL_STATE_COUNT] = {
-    /* MRP_EVENT_BEGIN */
-    {
+    /* BEGIN: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_BEGIN] = {
         _S(TX_MSG_NONE, MRP_APPL_STATE_VO), _S(TX_MSG_NONE, MRP_APPL_STATE_VO), _S(TX_MSG_NONE, MRP_APPL_STATE_VO),
         _S(TX_MSG_NONE, MRP_APPL_STATE_VO), _S(TX_MSG_NONE, MRP_APPL_STATE_VO), _S(TX_MSG_NONE, MRP_APPL_STATE_VO),
         _S(TX_MSG_NONE, MRP_APPL_STATE_VO), _S(TX_MSG_NONE, MRP_APPL_STATE_VO), _S(TX_MSG_NONE, MRP_APPL_STATE_VO),
         _S(TX_MSG_NONE, MRP_APPL_STATE_VO), _S(TX_MSG_NONE, MRP_APPL_STATE_VO), _S(TX_MSG_NONE, MRP_APPL_STATE_VO),
     },
-    /* MRP_EVENT_NEW */
-    {   /* VO       VP       VN       AN       AA       QA  */
+    /* NEW: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_NEW] = {
         _S(TX_MSG_NONE, MRP_APPL_STATE_VN), _S(TX_MSG_NONE, MRP_APPL_STATE_VN), _X,
-        _X, _X, _X,
-        /* LA       AO       QO       AP       QP       LO */
         _X, _S(TX_MSG_NONE, MRP_APPL_STATE_VN), _S(TX_MSG_NONE, MRP_APPL_STATE_VN),
         _S(TX_MSG_NONE, MRP_APPL_STATE_VN), _S(TX_MSG_NONE, MRP_APPL_STATE_VN), _S(TX_MSG_NONE, MRP_APPL_STATE_VN),
+        _S(TX_MSG_NONE, MRP_APPL_STATE_VN), _S(TX_MSG_NONE, MRP_APPL_STATE_VN), _S(TX_MSG_NONE, MRP_APPL_STATE_VN),
     },
-    /* MRP_EVENT_JOIN */
-    {   /* VO       VP       VN       AN       AA       QA */
-        _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _X, _X, _X, _X,
-        _S(TX_MSG_NONE, MRP_APPL_STATE_AA),
-        /* LA       AO       QO       AP       QP       LO */
-        _X, _S(TX_MSG_NONE, MRP_APPL_STATE_AP), _S(TX_MSG_NONE, MRP_APPL_STATE_QP),
+    /* JOIN: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_JOIN] = {
+        _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _X, _X,
+        _X, _X, _X,
+        _S(TX_MSG_NONE, MRP_APPL_STATE_AA), _S(TX_MSG_NONE, MRP_APPL_STATE_AP), _S(TX_MSG_NONE, MRP_APPL_STATE_QP),
         _X, _X, _S(TX_MSG_NONE, MRP_APPL_STATE_VP),
     },
-    /* MRP_EVENT_LV */
-    {   /* VO       VP       VN       AN       AA       QA */
+    /* LV: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_LV] = {
         _X, _S(TX_MSG_NONE, MRP_APPL_STATE_VO), _S(TX_MSG_NONE, MRP_APPL_STATE_LA),
         _S(TX_MSG_NONE, MRP_APPL_STATE_LA), _S(TX_MSG_NONE, MRP_APPL_STATE_LA), _S(TX_MSG_NONE, MRP_APPL_STATE_LA),
-        /* LA       AO       QO       AP       QP       LO */
         _X, _X, _X,
         _S(TX_MSG_NONE, MRP_APPL_STATE_AO), _S(TX_MSG_NONE, MRP_APPL_STATE_QO), _X,
     },
-    /* MRP_EVENT_TX — §10.7.5.7 */
-    {   /* VO:  optional In/Mt */
-        _S(TX_MSG_IN,   MRP_APPL_STATE_VO),
-        /* VP: send Join → AA */
-        _S(TX_MSG_JOIN, MRP_APPL_STATE_AA),
-        /* VN: send New → AN */
-        _S(TX_MSG_NEW,  MRP_APPL_STATE_AN),
-        /* AN: send New → QA (§10.7 note 8: QA if Reg=IN, else AA) */
-        _S(TX_MSG_NEW,  MRP_APPL_STATE_QA),
-        /* AA: send Join (optional) — §10.7 note 6 */
-        _S(TX_MSG_JOIN, MRP_APPL_STATE_QA),
-        /* QA: optional In/Mt, stay QA */
-        _S(TX_MSG_IN,   MRP_APPL_STATE_QA),
-        /* LA: send Leave */
-        _S(TX_MSG_LEAVE, MRP_APPL_STATE_LO),
-        /* AO: optional In/Mt */
-        _S(TX_MSG_IN,   MRP_APPL_STATE_AO),
-        /* QO: optional In/Mt */
-        _S(TX_MSG_IN,   MRP_APPL_STATE_QO),
-        /* AP: send Join → QA */
-        _S(TX_MSG_JOIN, MRP_APPL_STATE_QA),
-        /* QP: optional In/Mt */
-        _S(TX_MSG_IN,   MRP_APPL_STATE_QP),
-        /* LO: send In/Mt */
-        _S(TX_MSG_IN,   MRP_APPL_STATE_VO),
+    /* TX: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_TX] = {
+        _X, _S(TX_MSG_JOIN, MRP_APPL_STATE_AA), _S(TX_MSG_NEW, MRP_APPL_STATE_AN),
+        _S(TX_MSG_NEW, MRP_APPL_STATE_QA), _S(TX_MSG_JOIN, MRP_APPL_STATE_QA), _X,
+        _S(TX_MSG_LEAVE, MRP_APPL_STATE_VO), _X, _X,
+        _S(TX_MSG_JOIN, MRP_APPL_STATE_QA), _X, _S(TX_MSG_IN, MRP_APPL_STATE_VO),
     },
-    /* MRP_EVENT_TXLA — §10.7.5.8 (tx with LeaveAll) */
-    {   /* VO: optional → LO */
-        _S(TX_MSG_IN,    MRP_APPL_STATE_LO),
-        /* VP: send something → LO */
-        _S(TX_MSG_JOIN,  MRP_APPL_STATE_LO),
-        /* VN: send New → AN (still need to declare) */
-        _S(TX_MSG_NEW,   MRP_APPL_STATE_AN),
-        /* AN: send New → VP (§10.7 note 9) */
-        _S(TX_MSG_NEW,   MRP_APPL_STATE_VP),
-        /* AA: send Join → VP (§10.7 note 9) */
-        _S(TX_MSG_JOIN,  MRP_APPL_STATE_VP),
-        /* QA: send Join, stay QA */
-        _S(TX_MSG_JOIN,  MRP_APPL_STATE_QA),
-        /* LA: optional → LO */
-        _S(TX_MSG_LEAVE, MRP_APPL_STATE_LO),
-        /* AO: optional → LO */
-        _S(TX_MSG_IN,    MRP_APPL_STATE_LO),
-        /* QO: optional → LO */
-        _S(TX_MSG_IN,    MRP_APPL_STATE_LO),
-        /* AP: send Join → QA */
-        _S(TX_MSG_JOIN,  MRP_APPL_STATE_QA),
-        /* QP: optional → LO */
-        _S(TX_MSG_IN,    MRP_APPL_STATE_LO),
-        /* LO: optional → LO */
-        _S(TX_MSG_IN,    MRP_APPL_STATE_LO),
+    /* TXLA: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_TXLA] = {
+        _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _S(TX_MSG_IN, MRP_APPL_STATE_AA), _S(TX_MSG_NEW, MRP_APPL_STATE_AN),
+        _S(TX_MSG_NEW, MRP_APPL_STATE_QA), _S(TX_MSG_JOIN, MRP_APPL_STATE_QA), _S(TX_MSG_JOIN, MRP_APPL_STATE_QA),
+        _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _S(TX_MSG_NONE, MRP_APPL_STATE_LO),
+        _S(TX_MSG_JOIN, MRP_APPL_STATE_QA), _S(TX_MSG_JOIN, MRP_APPL_STATE_QA), _X,
     },
-    /* MRP_EVENT_TXLAF — §10.7.5.9 (tx, LeaveAll, PDU full — no room) */
-    {   /* VO→LO  VP→VP  VN→VN  AN→VN  AA→VP  QA→VP */
-        _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _S(TX_MSG_NONE, MRP_APPL_STATE_VP),
-        _S(TX_MSG_NONE, MRP_APPL_STATE_VN), _S(TX_MSG_NONE, MRP_APPL_STATE_VN),
-        _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _S(TX_MSG_NONE, MRP_APPL_STATE_VP),
-        /* LA→LO  AO→LO  QO→LO  AP→VP  QP→—  LO→— */
-        _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _S(TX_MSG_NONE, MRP_APPL_STATE_LO),
-        _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _S(TX_MSG_NONE, MRP_APPL_STATE_VP),
-        _X, _X,
-    },
-    /* MRP_EVENT_RNEW */
-    { _X, _X, _X, _X, _X, _X, _X, _X, _X, _X, _X, _X },
-    /* MRP_EVENT_RJOININ */
-    {   /* VO→AO  VP→AP  VN       AN       AA→QA    QA */
-        _S(TX_MSG_NONE, MRP_APPL_STATE_AO), _S(TX_MSG_NONE, MRP_APPL_STATE_AP),
-        _X, _X, _S(TX_MSG_NONE, MRP_APPL_STATE_QA), _X,
-        /* LA→QO  AO→QO  QO       AP→QP    QP       LO */
-        _S(TX_MSG_NONE, MRP_APPL_STATE_QO), _S(TX_MSG_NONE, MRP_APPL_STATE_QO),
-        _X, _S(TX_MSG_NONE, MRP_APPL_STATE_QP), _X, _X,
-    },
-    /* MRP_EVENT_RJOINMT */
-    {   /* VO  VP  VN  AN  AA (stay)  QA→AA */
-        _X, _X, _X, _X, _S(TX_MSG_NONE, MRP_APPL_STATE_AA), _S(TX_MSG_NONE, MRP_APPL_STATE_AA),
-        /* LA  AO (stay)  QO→AO  AP (stay)  QP→AP  LO→VO */
-        _X, _S(TX_MSG_NONE, MRP_APPL_STATE_AO), _S(TX_MSG_NONE, MRP_APPL_STATE_AO),
-        _S(TX_MSG_NONE, MRP_APPL_STATE_AP), _S(TX_MSG_NONE, MRP_APPL_STATE_AP),
-        _S(TX_MSG_NONE, MRP_APPL_STATE_VO),
-    },
-    /* MRP_EVENT_RIN */
-    {   /* VO  VP  VN  AN  AA→QA (§10.7 note 5: only if point-to-point)  QA */
-        _X, _X, _X, _X, _S(TX_MSG_NONE, MRP_APPL_STATE_QA), _X,
-        _X, _X, _X, _X, _X, _X,
-    },
-    /* MRP_EVENT_RMT — same as RJOINMT for Applicant */
-    {   _X, _X, _X, _X, _S(TX_MSG_NONE, MRP_APPL_STATE_AA), _S(TX_MSG_NONE, MRP_APPL_STATE_AA),
-        _X, _S(TX_MSG_NONE, MRP_APPL_STATE_AO), _S(TX_MSG_NONE, MRP_APPL_STATE_AO),
-        _S(TX_MSG_NONE, MRP_APPL_STATE_AP), _S(TX_MSG_NONE, MRP_APPL_STATE_AP),
-        _S(TX_MSG_NONE, MRP_APPL_STATE_VO),
-    },
-    /* MRP_EVENT_RLV — received Leave */
-    {   /* VO→LO  VP  VN→VN  AN→VP  AA→VP  QA (§10.7 note 10) */
-        _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _X, _S(TX_MSG_NONE, MRP_APPL_STATE_VN),
-        _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _X,
-        /* LA→LO  AO→LO  QO→LO  AP→VP  QP→VP  LO */
+    /* TXLAF: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_TXLAF] = {
+        _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _S(TX_MSG_NONE, MRP_APPL_STATE_VN),
+        _S(TX_MSG_NONE, MRP_APPL_STATE_VN), _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _S(TX_MSG_NONE, MRP_APPL_STATE_VP),
         _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _S(TX_MSG_NONE, MRP_APPL_STATE_LO),
         _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _X,
     },
-    /* MRP_EVENT_RLA — received LeaveAll: same as RLV for Applicant */
-    {   _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _X, _S(TX_MSG_NONE, MRP_APPL_STATE_VN),
-        _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _X,
-        _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _S(TX_MSG_NONE, MRP_APPL_STATE_LO),
+    /* RNEW: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_RNEW] = {
+        _X, _X, _X,
+        _X, _X, _X,
+        _X, _X, _X,
+        _X, _X, _X,
+    },
+    /* RJOININ: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_RJOININ] = {
+        _S(TX_MSG_NONE, MRP_APPL_STATE_AO), _S(TX_MSG_NONE, MRP_APPL_STATE_AP), _X,
+        _X, _S(TX_MSG_NONE, MRP_APPL_STATE_QA), _X,
+        _X, _S(TX_MSG_NONE, MRP_APPL_STATE_QO), _X,
+        _S(TX_MSG_NONE, MRP_APPL_STATE_QP), _X, _X,
+    },
+    /* RJOINMT: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_RJOINMT] = {
+        _X, _X, _X,
+        _X, _X, _S(TX_MSG_NONE, MRP_APPL_STATE_AA),
+        _X, _X, _S(TX_MSG_NONE, MRP_APPL_STATE_AO),
+        _X, _S(TX_MSG_NONE, MRP_APPL_STATE_AP), _S(TX_MSG_NONE, MRP_APPL_STATE_VO),
+    },
+    /* RIN: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_RIN] = {
+        _X, _X, _X,
+        _X, _S(TX_MSG_NONE, MRP_APPL_STATE_QA), _X,
+        _X, _X, _X,
+        _X, _X, _X,
+    },
+    /* RMT: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_RMT] = {
+        _X, _X, _X,
+        _X, _X, _S(TX_MSG_NONE, MRP_APPL_STATE_AA),
+        _X, _X, _S(TX_MSG_NONE, MRP_APPL_STATE_AO),
+        _X, _S(TX_MSG_NONE, MRP_APPL_STATE_AP), _S(TX_MSG_NONE, MRP_APPL_STATE_VO),
+    },
+    /* RLV: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_RLV] = {
+        _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _X, _X,
+        _S(TX_MSG_NONE, MRP_APPL_STATE_VN), _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _S(TX_MSG_NONE, MRP_APPL_STATE_VP),
+        _X, _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _S(TX_MSG_NONE, MRP_APPL_STATE_LO),
         _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _X,
     },
-    /* MRP_EVENT_FLUSH — Flush! (Root/Alt → Designated) */
-    { _X, _X, _X, _X, _X, _X, _X, _X, _X, _X, _X, _X },
-    /* MRP_EVENT_REDECLARE — Re-declare! (Designated → Root/Alt) */
-    {   _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _X, _S(TX_MSG_NONE, MRP_APPL_STATE_VN),
-        _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _X,
-        _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _S(TX_MSG_NONE, MRP_APPL_STATE_LO),
+    /* RLA: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_RLA] = {
+        _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _X, _X,
+        _S(TX_MSG_NONE, MRP_APPL_STATE_VN), _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _S(TX_MSG_NONE, MRP_APPL_STATE_VP),
+        _X, _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _S(TX_MSG_NONE, MRP_APPL_STATE_LO),
         _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _X,
     },
-    /* MRP_EVENT_PERIODIC — §10.7.5.10, §10.7.6.7 */
-    {   _X, _X, _X, _X,
-        /* AA: request another tx */
-        _S(TX_MSG_JOIN, MRP_APPL_STATE_AA), _X, _X, _X, _X,
-        /* AP: request another tx */
-        _S(TX_MSG_JOIN, MRP_APPL_STATE_AP),
-        _X, _X,
+    /* FLUSH: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_FLUSH] = {
+        _X, _X, _X,
+        _X, _X, _X,
+        _X, _X, _X,
+        _X, _X, _X,
     },
-    /* MRP_EVENT_LEAVETIMER — handled by Registrar SM only */
-    { _X, _X, _X, _X, _X, _X, _X, _X, _X, _X, _X, _X },
-    /* MRP_EVENT_LEAVEALLTIMER — handled by LeaveAll SM only */
-    { _X, _X, _X, _X, _X, _X, _X, _X, _X, _X, _X, _X },
-    /* MRP_EVENT_PERIODICTIMER — handled by PeriodicTransmission SM only */
-    { _X, _X, _X, _X, _X, _X, _X, _X, _X, _X, _X, _X },
+    /* REDECLARE: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_REDECLARE] = {
+        _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _X, _X,
+        _S(TX_MSG_NONE, MRP_APPL_STATE_VN), _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _S(TX_MSG_NONE, MRP_APPL_STATE_VP),
+        _X, _S(TX_MSG_NONE, MRP_APPL_STATE_LO), _S(TX_MSG_NONE, MRP_APPL_STATE_LO),
+        _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _S(TX_MSG_NONE, MRP_APPL_STATE_VP), _X,
+    },
+    /* PERIODIC: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_PERIODIC] = {
+        _X, _X, _X,
+        _X, _X, _S(TX_MSG_NONE, MRP_APPL_STATE_AA),
+        _X, _X, _X,
+        _X, _S(TX_MSG_NONE, MRP_APPL_STATE_AP), _X,
+    },
+    /* LEAVETIMER: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_LEAVETIMER] = {
+        _X, _X, _X,
+        _X, _X, _X,
+        _X, _X, _X,
+        _X, _X, _X,
+    },
+    /* LEAVEALLTIMER: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_LEAVEALLTIMER] = {
+        _X, _X, _X,
+        _X, _X, _X,
+        _X, _X, _X,
+        _X, _X, _X,
+    },
+    /* PERIODICTIMER: VO VP VN AN AA QA LA AO QO AP QP LO */
+    [MRP_EVENT_PERIODICTIMER] = {
+        _X, _X, _X,
+        _X, _X, _X,
+        _X, _X, _X,
+        _X, _X, _X,
+    },
 };
-
 #undef _X
 #undef _S
 
@@ -316,12 +306,8 @@ static const struct reg_entry reg_table[MRP_EVENT_COUNT][MRP_REG_STATE_COUNT] = 
         _RE(REG_IND_NONE, REG_TIMER_NONE, MRP_REG_STATE_MT),
         _RE(REG_IND_NONE, REG_TIMER_NONE, MRP_REG_STATE_MT),
     },
-    /* MRP_EVENT_NEW — §10.7 Table 10-4 rNew! row */
-    {
-        _RE(REG_IND_NEW,  REG_TIMER_NONE, MRP_REG_STATE_IN),  /* IN: New; IN          */
-        _RE(REG_IND_NEW,  REG_TIMER_STOP, MRP_REG_STATE_IN),  /* LV: New, Stop; IN    */
-        _RE(REG_IND_NEW,  REG_TIMER_NONE, MRP_REG_STATE_IN),  /* MT: New; IN          */
-    },
+    /* Local New never registers a peer. */
+    { _RX, _RX, _RX },
     /* MRP_EVENT_JOIN — ignored by Registrar (handled by Applicant) */
     { _RX, _RX, _RX },
     /* MRP_EVENT_LV — ignored */
@@ -494,10 +480,18 @@ static struct mrp_attr_inst *get_or_create_attr(struct mrp_app *app,
 }
 
 /* Apply one Applicant SM event to an attribute instance. */
-static void appl_event(struct mrp_attr_inst *ai, enum mrp_event ev)
+static void appl_event(struct mrp_attr_inst *ai, enum mrp_event ev, bool p2p)
 {
+    if ((p2p && ev == MRP_EVENT_RJOININ &&
+         (ai->appl == MRP_APPL_STATE_VO || ai->appl == MRP_APPL_STATE_VP)) ||
+        (!p2p && ev == MRP_EVENT_RIN)) {
+        return;
+    }
     const struct appl_entry *e = &appl_table[ev][ai->appl];
-    if (e->ns != MRP_APPL_STATE_COUNT) {
+    if (ev == MRP_EVENT_TX && ai->appl == MRP_APPL_STATE_AN &&
+        ai->reg != MRP_REG_STATE_IN) {
+        ai->appl = MRP_APPL_STATE_AA;
+    } else if (e->ns != MRP_APPL_STATE_COUNT) {
         ai->appl = e->ns;
     }
     if (e->tx != TX_MSG_NONE) {
@@ -559,7 +553,7 @@ static void reg_event(struct mrp_app *app, struct mrp_attr_inst *ai,
     }
 
     switch (e->timer) {
-    case REG_TIMER_START: shlan_timer_arm(&ai->leave_timer, MRP_LEAVE_TIME_CS); break;
+    case REG_TIMER_START: shlan_timer_arm(&ai->leave_timer, priv_of(app)->ports[port_id].leave_cs); break;
     case REG_TIMER_STOP:  shlan_timer_disarm(&ai->leave_timer);                 break;
     default:                                                                     break;
     }
@@ -619,8 +613,7 @@ static void deliver_event(struct mrp_app *app, struct mrp_port_state *ps,
     enum mrp_appl_state appl_from = ai->appl;
     enum mrp_reg_state  reg_from  = ai->reg;
 
-    (void)ps;
-    appl_event(ai, ev);
+    appl_event(ai, ev, ps->point_to_point);
     reg_event(app, ai, ev, port_id);
     observe(app, ai, ev, port_id, appl_from, reg_from);
 }
@@ -637,20 +630,26 @@ static void broadcast_event(struct mrp_app *app, struct mrp_port_state *ps,
 /* LeaveAll state machine — Table 10-5                                 */
 /* ------------------------------------------------------------------ */
 
+static uint32_t leaveall_draw(struct mrp_port_state *ps)
+{
+    ps->random = ps->random * 1664525u + 1013904223u;
+    return ps->leaveall_cs + 1u + ps->random % (ps->leaveall_cs / 2u - 1u);
+}
+
 static void la_event(struct mrp_app *app, struct mrp_port_state *ps,
                      enum mrp_event ev, uint8_t port_id)
 {
     switch (ev) {
     case MRP_EVENT_BEGIN:
         ps->la = MRP_LA_STATE_PASSIVE;
-        shlan_timer_arm(&ps->la_timer, MRP_LEAVEALL_TIME_CS);
+        shlan_timer_arm(&ps->la_timer, leaveall_draw(ps));
         break;
 
     case MRP_EVENT_TX:
         if (ps->la == MRP_LA_STATE_ACTIVE) {
             /* sLA: send LeaveAll, reset timer, go Passive */
             ps->la = MRP_LA_STATE_PASSIVE;
-            shlan_timer_arm(&ps->la_timer, MRP_LEAVEALL_TIME_CS);
+            shlan_timer_arm(&ps->la_timer, leaveall_draw(ps));
             /* Also generate rLA! for all local Applicant/Registrar SMs */
             broadcast_event(app, ps, MRP_EVENT_RLA, port_id);
         }
@@ -658,13 +657,13 @@ static void la_event(struct mrp_app *app, struct mrp_port_state *ps,
 
     case MRP_EVENT_RLA:
         ps->la = MRP_LA_STATE_PASSIVE;
-        shlan_timer_arm(&ps->la_timer, MRP_LEAVEALL_TIME_CS);
+        shlan_timer_arm(&ps->la_timer, leaveall_draw(ps));
         break;
 
     case MRP_EVENT_LEAVEALLTIMER:
         /* Timer expired → Active, request tx so sLA can fire */
         ps->la = MRP_LA_STATE_ACTIVE;
-        shlan_timer_arm(&ps->la_timer, MRP_LEAVEALL_TIME_CS); /* restart for next cycle */
+        shlan_timer_arm(&ps->la_timer, leaveall_draw(ps)); /* restart for next cycle */
         ps->tx_pending = true;
         break;
 
@@ -683,12 +682,12 @@ static void pt_event(struct mrp_app *app, struct mrp_port_state *ps,
     switch (ev) {
     case MRP_EVENT_BEGIN:
         ps->pt = MRP_PT_STATE_ACTIVE;
-        shlan_timer_arm(&ps->pt_timer, MRP_JOIN_TIME_CS);
+        shlan_timer_arm(&ps->pt_timer, 100u);
         break;
 
     case MRP_EVENT_PERIODICTIMER:
         if (ps->pt == MRP_PT_STATE_ACTIVE) {
-            shlan_timer_arm(&ps->pt_timer, MRP_JOIN_TIME_CS); /* restart */
+            shlan_timer_arm(&ps->pt_timer, 100u); /* restart */
             /* Generate periodic! for all Applicant SMs */
             broadcast_event(app, ps, MRP_EVENT_PERIODIC, port_id);
             ps->tx_pending = true;
@@ -703,6 +702,13 @@ static void pt_event(struct mrp_app *app, struct mrp_port_state *ps,
 /* ------------------------------------------------------------------ */
 /* Timer callbacks                                                      */
 /* ------------------------------------------------------------------ */
+
+static void on_join_timer(void *arg)
+{
+    struct mrp_port_timer_arg *a = arg;
+    struct mrp_port_state *ps = &priv_of(a->app)->ports[a->port_id];
+    ps->join_wait = 0;
+}
 
 static void on_la_timer(void *arg)
 {
@@ -751,10 +757,15 @@ struct mrp_app *mrp_app_create(const struct mrp_app_ops *ops, uint8_t n_ports)
     /* Initialise each port's timers and state machines via Begin! */
     for (uint8_t p = 0; p < n_ports; p++) {
         struct mrp_port_state *ps = &priv->ports[p];
+        ps->join_cs = MRP_JOIN_TIME_CS;
+        ps->leave_cs = MRP_LEAVE_TIME_CS;
+        ps->leaveall_cs = MRP_LEAVEALL_TIME_CS;
+        ps->random = 1u + p;
         ps->timer_arg.app     = app;
         ps->timer_arg.port_id = p;
         shlan_timer_init(&ps->la_timer, on_la_timer, &ps->timer_arg);
         shlan_timer_init(&ps->pt_timer, on_pt_timer, &ps->timer_arg);
+        shlan_timer_init(&ps->join_timer, on_join_timer, &ps->timer_arg);
         la_event(app, ps, MRP_EVENT_BEGIN, p);
         pt_event(app, ps, MRP_EVENT_BEGIN, p);
     }
@@ -768,6 +779,7 @@ void mrp_app_destroy(struct mrp_app *app)
     for (uint8_t p = 0; p < priv->n_ports; p++) {
         shlan_timer_remove(&priv->ports[p].la_timer);
         shlan_timer_remove(&priv->ports[p].pt_timer);
+        shlan_timer_remove(&priv->ports[p].join_timer);
         struct mrp_attr_inst *a = priv->ports[p].attrs;
         while (a) {
             struct mrp_attr_inst *next = a->next;
@@ -784,6 +796,10 @@ void mrp_app_destroy(struct mrp_app *app)
 int mrp_mad_join(struct mrp_app *app, uint8_t port_id,
                  uint8_t attr_type, const void *attr_val, bool is_new)
 {
+    if (!app || port_id >= priv_of(app)->n_ports || priv_of(app)->ports[port_id].in_send) {
+        return -EINVAL;
+    }
+
     struct mrp_priv       *priv = priv_of(app);
     struct mrp_port_state *ps   = &priv->ports[port_id];
     struct mrp_attr_inst  *ai   = get_or_create_attr(app, ps, port_id, attr_type, attr_val);
@@ -797,6 +813,10 @@ int mrp_mad_join(struct mrp_app *app, uint8_t port_id,
 int mrp_mad_leave(struct mrp_app *app, uint8_t port_id,
                   uint8_t attr_type, const void *attr_val)
 {
+    if (!app || port_id >= priv_of(app)->n_ports || priv_of(app)->ports[port_id].in_send) {
+        return -EINVAL;
+    }
+
     struct mrp_priv       *priv = priv_of(app);
     struct mrp_port_state *ps   = &priv->ports[port_id];
     struct mrp_attr_inst  *ai   = find_attr(ps, app->ops, attr_type, attr_val);
@@ -854,6 +874,10 @@ static void rx_on_leaveall(void *raw_ctx, uint8_t attr_type)
 int mrp_rx(struct mrp_app *app, uint8_t port_id,
            const uint8_t *pdu, size_t pdu_len)
 {
+    if (!app || port_id >= priv_of(app)->n_ports || priv_of(app)->ports[port_id].in_send) {
+        return -EINVAL;
+    }
+
     struct mrp_priv       *priv = priv_of(app);
     struct mrp_port_state *ps   = &priv->ports[port_id];
 
@@ -886,7 +910,7 @@ void mrp_set_periodic(struct mrp_app *app, uint8_t port_id, bool enable)
     struct mrp_port_state *ps   = &priv->ports[port_id];
     if (enable && ps->pt == MRP_PT_STATE_PASSIVE) {
         ps->pt = MRP_PT_STATE_ACTIVE;
-        shlan_timer_arm(&ps->pt_timer, MRP_JOIN_TIME_CS);
+        shlan_timer_arm(&ps->pt_timer, 100u);
     } else if (!enable && ps->pt == MRP_PT_STATE_ACTIVE) {
         ps->pt = MRP_PT_STATE_PASSIVE;
         shlan_timer_disarm(&ps->pt_timer);
@@ -990,4 +1014,151 @@ const char *mrp_event_name(enum mrp_event ev)
         return "?";
     }
     return event_names[ev];
+}
+
+
+int mrp_port_configure(struct mrp_app *app, uint8_t port_id,
+                        uint32_t join_cs, uint32_t leave_cs,
+                        uint32_t leaveall_cs, uint32_t seed, bool point_to_point)
+{
+    if (!app || port_id >= priv_of(app)->n_ports || join_cs == 0 ||
+        leave_cs < join_cs * 2u + 6u || leaveall_cs < 4u ||
+        leaveall_cs > 0x7fffffffu || join_cs > 100000u) {
+        return -EINVAL;
+    }
+    struct mrp_port_state *ps = &priv_of(app)->ports[port_id];
+    if (ps->attrs || ps->in_send) {
+        return -EINVAL;
+    }
+    ps->join_cs = join_cs;
+    ps->leave_cs = leave_cs;
+    ps->leaveall_cs = leaveall_cs;
+    ps->random = seed;
+    ps->point_to_point = point_to_point;
+    shlan_timer_arm(&ps->la_timer, leaveall_draw(ps));
+    return 0;
+}
+
+static enum mrp_attr_event wire_event(enum tx_msg msg, enum mrp_reg_state reg)
+{
+    switch (msg) {
+    case TX_MSG_NEW: return MRP_ATTR_EVENT_NEW;
+    case TX_MSG_LEAVE: return MRP_ATTR_EVENT_LV;
+    case TX_MSG_JOIN: return reg == MRP_REG_STATE_IN ? MRP_ATTR_EVENT_JOININ : MRP_ATTR_EVENT_JOINMT;
+    default: return reg == MRP_REG_STATE_IN ? MRP_ATTR_EVENT_IN : MRP_ATTR_EVENT_MT;
+    }
+}
+
+static int tx_vector(const struct mrp_app_ops *ops, uint8_t type,
+                      const void *value, enum mrp_attr_event event, bool la,
+                      bool empty, uint8_t *buf, size_t cap)
+{
+    uint8_t len = ops->attr_len(type);
+    bool msrp = ops->ethertype == MRP_ETHERTYPE_MSRP;
+    bool subtype = ops->attr_has_subtype && ops->attr_has_subtype(type);
+    size_t hdr = msrp ? 4u : 2u;
+    size_t list = 2u + len + (empty ? 0u : 1u + subtype) + 2u;
+    if (cap < hdr + list || len == 0) {
+        return -ENOBUFS;
+    }
+    buf[0] = type; buf[1] = len;
+    if (msrp) {
+        buf[2] = (uint8_t)(list >> 8); buf[3] = (uint8_t)list;
+    }
+    uint8_t *v = buf + hdr;
+    v[0] = la ? 0x20 : 0; v[1] = empty ? 0 : 1;
+    if (empty) {
+        memset(v + 2, 0, len);
+    } else {
+        int r = ops->encode_attr(type, value, v + 2, len);
+        if (r != len) {
+            return -EINVAL;
+        }
+        v[2u + len] = mrp_three_pack((uint8_t)event, 0, 0);
+        if (subtype) {
+            const uint8_t *bytes = value;
+            v[3u + len] = mrp_four_pack(bytes[len], 0, 0, 0);
+        }
+    }
+    buf[hdr + list - 2] = 0; buf[hdr + list - 1] = 0;
+    return (int)(hdr + list);
+}
+
+int mrp_transmit(struct mrp_app *app, uint8_t port_id,
+                 uint8_t *pdu, size_t capacity, mrp_send_fn send, void *ctx)
+{
+    if (!app || port_id >= priv_of(app)->n_ports || !pdu || !send || capacity < 3) {
+        return -EINVAL;
+    }
+    struct mrp_port_state *ps = &priv_of(app)->ports[port_id];
+    if (ps->in_send) {
+        return -EINVAL;
+    }
+    if (!ps->tx_pending || ps->join_wait) {
+        return 0;
+    }
+    bool la = ps->la == MRP_LA_STATE_ACTIVE;
+    enum mrp_event event = la ? MRP_EVENT_TXLA : MRP_EVENT_TX;
+    size_t off = 1;
+    unsigned flagged = 0;
+    pdu[0] = app->ops->proto_version;
+    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
+        const struct appl_entry *e = &appl_table[event][a->appl];
+        if (e->tx == TX_MSG_NONE) {
+            continue;
+        }
+        bool flag = la && !(flagged & (1u << a->attr_type));
+        int n = tx_vector(app->ops, a->attr_type, a->attr_val,
+                          wire_event(e->tx, a->reg), flag, false,
+                          pdu + off, capacity - off - 2u);
+        if (n < 0) {
+            return n;
+        }
+        off += (size_t)n;
+        flagged |= 1u << a->attr_type;
+    }
+    if (la) {
+        unsigned last = app->ops->ethertype == MRP_ETHERTYPE_MSRP ? 4u : 1u;
+        for (unsigned type = 1; type <= last; ++type) {
+            if (!(flagged & (1u << type))) {
+                int n = tx_vector(app->ops, (uint8_t)type, NULL, MRP_ATTR_EVENT_MT,
+                                  true, true, pdu + off, capacity - off - 2u);
+                if (n < 0) {
+                    return n;
+                }
+                off += (size_t)n;
+            }
+        }
+    }
+    if (off == 1) {
+        ps->tx_pending = false;
+        return 0;
+    }
+    pdu[off++] = 0; pdu[off++] = 0;
+    ps->in_send = true;
+    int r = send(ctx, port_id, pdu, off);
+    ps->in_send = false;
+    if (r != 0) {
+        return r;
+    }
+    ps->tx_pending = false;
+    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
+        deliver_event(app, ps, a, event, port_id);
+        switch (a->appl) {
+        case MRP_APPL_STATE_VN: case MRP_APPL_STATE_AN:
+        case MRP_APPL_STATE_AA: case MRP_APPL_STATE_LA:
+        case MRP_APPL_STATE_VP: case MRP_APPL_STATE_AP:
+        case MRP_APPL_STATE_LO:
+            ps->tx_pending = true;
+            break;
+        default:
+            break;
+        }
+    }
+    if (la) {
+        ps->la = MRP_LA_STATE_PASSIVE;
+    }
+    ps->join_wait = ps->join_cs;
+    shlan_timer_arm(&ps->join_timer, ps->join_cs);
+    return 1;
 }
