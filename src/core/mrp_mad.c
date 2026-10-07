@@ -67,6 +67,8 @@ struct mrp_attr_inst {
     enum mrp_appl_state  appl;         /* Applicant state          */
     enum mrp_reg_state   reg;          /* Registrar state          */
     bool                 flush_pending; /* Withdrawal precedes re-registration. */
+    /* Owned pending-withdrawal value; Applicant refreshes use attr_val. */
+    _Alignas(max_align_t) uint8_t flush_value[48];
     bool                 tx_selected;
     bool                 tx_deferred;
     enum tx_msg          pending_tx;   /* message scheduled for next tx */
@@ -637,13 +639,18 @@ static int reg_event(struct mrp_app *app, struct mrp_attr_inst *ai,
     }
     bool indicated = e->ind != REG_IND_NONE;
     bool join = e->ind == REG_IND_NEW || e->ind == REG_IND_JOIN;
+    const void *ind_value = e->ind == REG_IND_LV && ai->flush_pending ?
+        ai->flush_value : ai->attr_val;
     struct mrp_map_work *reserved = NULL;
-    int mapped = indicated ? map_reserve(app, ai->attr_type, ai->attr_val,
+    int mapped = indicated ? map_reserve(app, ai->attr_type, ind_value,
                                         join, &reserved) : 0;
     if (mapped < 0) {
         ai->reg = previous;
         if (ev == MRP_EVENT_FLUSH) {
             /* The topology API cannot report refusal. Retain its withdrawal. */
+            if (!ai->flush_pending) {
+                memcpy(ai->flush_value, ai->attr_val, attr_store_len(app->ops, ai->attr_type));
+            }
             ai->flush_pending = true;
             ai->reg = MRP_REG_STATE_LV;
             shlan_timer_arm(&ai->leave_timer, 1u);
@@ -671,13 +678,13 @@ static int reg_event(struct mrp_app *app, struct mrp_attr_inst *ai,
         app->ops->join_ind(app, port_id, ai->attr_type, ai->attr_val, false);
         break;
     case REG_IND_LV:
-        app->ops->leave_ind(app, port_id, ai->attr_type, ai->attr_val);
+        app->ops->leave_ind(app, port_id, ai->attr_type, ind_value);
         break;
     default:
         break;
     }
     if (indicated) {
-        map_publish(app, port_id, ai->attr_type, ai->attr_val, join, reserved);
+        map_publish(app, port_id, ai->attr_type, ind_value, join, reserved);
         map_replay_all(app);
     }
     return 0;

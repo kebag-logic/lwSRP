@@ -846,6 +846,204 @@ static unsigned stored_value(struct mrp_app *a, uint8_t port, unsigned type)
     mrp_attr_visit(a, port, value_snapshot, &q);
     return q.value;
 }
+/* Production propagation remains active while the focused source owes Leave. */
+static unsigned withdrawal_type, withdrawal_maps, withdrawal_map_value;
+static uint32_t (*production_leave)(const struct mrp_app *, uint8_t, uint8_t, const void *);
+static void focused_join(struct mrp_app *a, uint8_t p, uint8_t t, const void *v, bool n)
+{
+    if (p == 0 && t == withdrawal_type) {
+        ordered_join(a, p, t, v, n);
+    }
+}
+static void focused_leave(struct mrp_app *a, uint8_t p, uint8_t t, const void *v)
+{
+    if (p == 0 && t == withdrawal_type) {
+        ordered_leave(a, p, t, v);
+    }
+}
+static uint32_t focused_map_leave(const struct mrp_app *a, uint8_t p, uint8_t t, const void *v)
+{
+    if (p == 0 && t == withdrawal_type) {
+        ++withdrawal_maps;
+        withdrawal_map_value = registration_value(t, v);
+    }
+    return production_leave(a, p, t, v);
+}
+static struct mrp_app *snapshot_bridge(unsigned type)
+{
+    struct mrp_app *base = application(2, 3, true);
+    struct mrp_app_ops ops = *base->ops;
+    production_leave = ops.map_leave;
+    ops.join_ind = focused_join; ops.leave_ind = focused_leave;
+    ops.map_leave = focused_map_leave;
+    mrp_app_destroy(base);
+    struct mrp_app *a = mrp_app_create(&ops, 3);
+    assert_that(a, is_non_null);
+    withdrawal_type = type;
+    joins = leaves = indication_count = withdrawal_maps = 0;
+    for (uint8_t p = 0; p < 3; ++p) {
+        assert_that(mrp_port_configure(a, p, 20, 60, 10000, 1, true), is_equal_to(0));
+        mrp_set_periodic(a, p, false);
+    }
+    if (type == MSRP_ATTR_TYPE_LISTENER) {
+        /* Real Listener routing requires registered Talkers on both ports. */
+        uint8_t pdu[64];
+        size_t len = registration_pdu(pdu, MSRP_ATTR_TYPE_TALKER_ADV, 100, 1, false);
+        assert_that(mrp_rx(a, 1, pdu, len), is_equal_to(0));
+        assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+    }
+    return a;
+}
+static void pending_snapshot(unsigned type, bool local)
+{
+    for (unsigned fault = 0; fault <= 3; ++fault) {
+        for (unsigned lv = 0; lv < 2; ++lv) {
+            for (unsigned receive = 0; receive < 2; ++receive) {
+                struct mrp_app *a = snapshot_bridge(type);
+                uint8_t pdu[64];
+                unsigned old = type == MSRP_ATTR_TYPE_LISTENER ? 2 : 100;
+                unsigned other = type == MSRP_ATTR_TYPE_LISTENER ? 1 : 200;
+                unsigned next = type == MSRP_ATTR_TYPE_LISTENER ? 3 : 300;
+                size_t len = registration_pdu(pdu, type, old, 1, false);
+                assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+                assert_that(indication_values[0], is_equal_to(old));
+                if (lv) {
+                    len = registration_pdu(pdu, type, old, 4, true);
+                    assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+                }
+                indication_count = 0;
+                allocation_fail_after(fault);
+                mrp_port_role_change(a, 0, true);
+                assert_that(allocation_failures(), is_equal_to(fault ? 1 : 0));
+                assert_that(indication_count, is_equal_to(fault ? 0 : 1));
+                allocation_fail_after(0);
+                if (type == MSRP_ATTR_TYPE_LISTENER) {
+                    len = registration_pdu(pdu, MSRP_ATTR_TYPE_TALKER_ADV, 100, 1, false);
+                    assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+                }
+                len = registration_pdu(pdu, type, other, 1, false);
+                if (local) {
+                    _Alignas(max_align_t) uint8_t value[48] = {0};
+                    assert_that(a->ops->decode_attr((uint8_t)type, 0, pdu + 7, pdu[2], value), is_equal_to(pdu[2]));
+                    if (type == MSRP_ATTR_TYPE_LISTENER) {
+                        value[8] = (uint8_t)other;
+                    }
+                    assert_that(mrp_mad_join(a, 0, (uint8_t)type, value, false), is_equal_to(0));
+                    assert_that(mrp_mad_join(a, 0, (uint8_t)type, value, true), is_equal_to(0));
+                } else {
+                    assert_that(mrp_rx(a, 1, pdu, len), is_equal_to(0));
+                }
+                /* Later Applicant updates must remain visible before and after Leave. */
+                assert_that(stored_value(a, 0, type), is_equal_to(other));
+                assert_that(indication_count, is_equal_to(fault ? 0 : 1));
+                if (local && fault) {
+                    /* A second failed Flush must not replace the owed snapshot. */
+                    allocation_fail_after(fault);
+                    mrp_port_role_change(a, 0, true);
+                    assert_that(allocation_failures(), is_equal_to(1));
+                    assert_that(indication_count, is_equal_to(0));
+                    allocation_fail_after(fault);
+                    tick(1);
+                    assert_that(allocation_failures(), is_equal_to(1));
+                    assert_that(indication_count, is_equal_to(0));
+                    allocation_fail_after(0);
+                }
+                if (receive) {
+                    len = registration_pdu(pdu, type, next, 1, false);
+                    assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+                } else {
+                    tick(1);
+                }
+                assert_that(indication_count, is_equal_to(1u + receive));
+                assert_that(indication_order[0], is_equal_to(10u + type));
+                assert_that(indication_values[0], is_equal_to(old));
+                assert_that(withdrawal_maps, is_equal_to(1));
+                assert_that(withdrawal_map_value, is_equal_to(old));
+                assert_that(stored_value(a, 0, type), is_equal_to(receive ? next : other));
+                if (receive) {
+                    assert_that(indication_order[1], is_equal_to(type));
+                    assert_that(indication_values[1], is_equal_to(next));
+                }
+                /* Clear completion on both routes; unchanged refreshes stay quiet. */
+                len = registration_pdu(pdu, type, next, 1, false);
+                for (unsigned refresh = 0; refresh < 3; ++refresh) {
+                    assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+                }
+                tick(61);
+                assert_that(indication_count, is_equal_to(2));
+                assert_that(withdrawal_maps, is_equal_to(1));
+                /* A new failed Flush must snapshot this later registration. */
+                allocation_fail_after(1);
+                mrp_port_role_change(a, 0, true);
+                assert_that(allocation_failures(), is_equal_to(1));
+                allocation_fail_after(0);
+                tick(1);
+                assert_that(indication_count, is_equal_to(3));
+                assert_that(indication_values[2], is_equal_to(next));
+                assert_that(withdrawal_map_value, is_equal_to(next));
+                mrp_app_destroy(a);
+                assert_that(allocation_live(), is_equal_to(0));
+            }
+        }
+    }
+}
+Ensure(Boundaries, pending_flush_talker_snapshot_survives_cross_port_updates)
+{
+    pending_snapshot(MSRP_ATTR_TYPE_TALKER_ADV, false);
+}
+Ensure(Boundaries, pending_flush_failed_talker_snapshot_survives_cross_port_updates)
+{
+    pending_snapshot(MSRP_ATTR_TYPE_TALKER_FAILED, false);
+}
+Ensure(Boundaries, pending_flush_listener_snapshot_survives_cross_port_updates)
+{
+    pending_snapshot(MSRP_ATTR_TYPE_LISTENER, false);
+}
+Ensure(Boundaries, pending_flush_snapshot_survives_local_declarations_and_repeated_failure)
+{
+    for (unsigned type = 1; type <= 3; ++type) {
+        pending_snapshot(type, true);
+    }
+}
+Ensure(Boundaries, timer_completed_flush_keeps_unchanged_registrations_quiet)
+{
+    for (unsigned type = 1; type <= 3; ++type) {
+        for (unsigned lv = 0; lv < 2; ++lv) {
+            for (unsigned fault = 1; fault <= 3; ++fault) {
+                struct mrp_app *a = ordered_bridge();
+                uint8_t pdu[64];
+                unsigned old = type == MSRP_ATTR_TYPE_LISTENER ? 2 : 100;
+                size_t len = registration_pdu(pdu, type, old, 1, false);
+                assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+                if (lv) {
+                    len = registration_pdu(pdu, type, old, 4, true);
+                    assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+                }
+                indication_count = maps = 0;
+                allocation_fail_after(fault);
+                mrp_port_role_change(a, 0, true);
+                assert_that(allocation_failures(), is_equal_to(1));
+                allocation_fail_after(0);
+                tick(1);
+                assert_that(indication_count, is_equal_to(1));
+                len = registration_pdu(pdu, type, old, 1, false);
+                for (unsigned refresh = 0; refresh < 3; ++refresh) {
+                    assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+                    assert_that(indication_count, is_equal_to(2));
+                    assert_that(maps, is_equal_to(2));
+                }
+                assert_that(indication_order[0], is_equal_to(10u + type));
+                assert_that(indication_order[1], is_equal_to(type));
+                assert_that(indication_values[0], is_equal_to(old));
+                assert_that(indication_values[1], is_equal_to(old));
+                tick(61);
+                assert_that(indication_count, is_equal_to(2));
+                mrp_app_destroy(a);
+                assert_that(allocation_live(), is_equal_to(0));
+            }
+        }
+    }
+}
 static void flush_before_receive(unsigned retry_faults, unsigned first_type, unsigned last_type)
 {
     for (unsigned type = first_type; type <= last_type; ++type) {
@@ -1083,5 +1281,10 @@ TestSuite *boundaries_suite(void)
     add_test_with_context(s, Boundaries, pending_flush_failed_talker_receive_failures_preserve_order_and_values);
     add_test_with_context(s, Boundaries, pending_flush_listener_receive_failures_preserve_order_and_values);
     add_test_with_context(s, Boundaries, failed_flush_reports_continuous_observer_transitions);
+    add_test_with_context(s, Boundaries, pending_flush_talker_snapshot_survives_cross_port_updates);
+    add_test_with_context(s, Boundaries, pending_flush_failed_talker_snapshot_survives_cross_port_updates);
+    add_test_with_context(s, Boundaries, pending_flush_listener_snapshot_survives_cross_port_updates);
+    add_test_with_context(s, Boundaries, pending_flush_snapshot_survives_local_declarations_and_repeated_failure);
+    add_test_with_context(s, Boundaries, timer_completed_flush_keeps_unchanged_registrations_quiet);
     return s;
 }
