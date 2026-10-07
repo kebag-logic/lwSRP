@@ -222,10 +222,14 @@ LeaveAll events can still apply during the failed payload; identical replay rest
 A failed replacement stops before indicating the new Join, preserving the old Leave before the new Join.
 Receive reports allocation failures; a timer withdrawal retries allocation on the next tick.
 The [topology interface](../src/include/shish_lan/mrp.h) retains a failed Flush withdrawal in LV with a one-centisecond Leave timer.
-A pending flag preserves that withdrawal if a received registration arrives before the next tick.
+A pending flag and owned snapshot preserve the value owed by that withdrawal.
+The first failure captures the snapshot; repeated failures leave it unchanged.
+Local declarations and cross-port propagation still update Applicant storage.
+Those updates cannot change the saved Leave indication or its propagation value.
 Receive first retries the saved-value Leave; it applies the incoming value only after that withdrawal succeeds.
 Another allocation failure returns the [no-memory error](../src/include/shish_lan/error.h); retry the payload after recovery.
 The completed Leave precedes the new registration indication.
+Timer and receive completion both clear pending state; subsequent unchanged registrations remain quiet.
 Ordinary LV recovery without pending Flush still suppresses duplicate Join indications.
 Observers receive the retained IN-to-LV transition during the failed Flush call.
 Continue global ticks and destination polls; repeated reservation failures retry on subsequent ticks.
@@ -244,7 +248,7 @@ sequenceDiagram
     Target->>Target: Schedule next output
 ~~~
 
-The [assembler](../src/core/mrp_mad.c#L1316) splits populations across Join-spaced opportunities.
+The [assembler](../src/core/mrp_mad.c#L1323) splits populations across Join-spaced opportunities.
 Previously omitted attributes precede repeated declarations.
 Size the buffer for the largest single message and the application's LeaveAll preamble.
 Insufficient space for any required value returns the [no-buffer error](../src/include/shish_lan/error.h).
@@ -280,7 +284,7 @@ Deliver every elapsed centisecond, including ticks coalesced by the platform.
 The [timer defaults](../src/include/shish_lan/mrp.h) are Join 20, Leave 60, and LeaveAll 1000 centiseconds.
 The Mark II profile uses Leave 500 centiseconds through [mrp_port_configure](../src/include/shish_lan/mrp.h).
 Combine this interval with the [Milan received-Leave option](#milan-received-leave) for immediate explicit withdrawals.
-The [periodic handler](../src/core/mrp_mad.c#L812) uses 100 centiseconds independently of Join spacing.
+The [periodic handler](../src/core/mrp_mad.c#L819) uses 100 centiseconds independently of Join spacing.
 LeaveAll draws lie strictly between its configured interval and 1.5 times that interval.
 The rules are in [IEEE 802.1Q-2018, clauses 10.7.4.3 and 10.7.4.4](https://standards.ieee.org/ieee/802.1Q/6844/).
 Supply different seeds where independent participants need different timing.
@@ -306,7 +310,7 @@ sequenceDiagram
 ~~~
 
 Call the matching [application destroy operation](../src/include/shish_lan/mrp.h) only after all callbacks and accesses have stopped.
-The [destructor](../src/core/mrp_mad.c#L912) unlinks all owned timers before releasing storage.
+The [destructor](../src/core/mrp_mad.c#L919) unlinks all owned timers before releasing storage.
 Other applications may continue ticking afterward.
 Destruction itself does not transmit withdrawals.
 Complete any required network withdrawal before teardown.

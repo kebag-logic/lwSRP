@@ -275,7 +275,10 @@ void            mrp_app_destroy(struct mrp_app *app);
  * remain applied. Later attributes wait for that retry. Replacement failures
  * stop before the new Join, preserving old Leave before new Join.
  * Timer withdrawal retries reservation on the next tick. Failed topology
- * Flush enters LV, marks withdrawal pending, and arms a 1 cs Leave timer.
+ * Flush enters LV, snapshots its value, marks withdrawal pending, and arms a
+ * 1 cs Leave timer. The snapshot belongs to the attribute until Leave succeeds.
+ * Local declarations and cross-port propagation can update Applicant storage
+ * without changing this snapshot. Leave indication and policy use the snapshot.
  * Receive retries that withdrawal with the saved value before refreshing the
  * attribute. A failed retry returns NO_MEMORY and stops later attributes.
  * Once Leave succeeds, the new registration can issue its own indication.
@@ -349,7 +352,10 @@ void mrp_tick(struct mrp_app *app, uint8_t port_id);
  * flush=true  → §10.7.5.2 Flush! (Root/Alt → Designated).
  * flush=false → §10.7.5.3 Re-declare! (Designated → Root/Alt).
  * If Flush cannot reserve propagation, retain the withdrawal in LV with a
- * 1 cs Leave timer and a pending flag. Receive cannot cancel that withdrawal:
+ * 1 cs Leave timer, pending flag, and owned value snapshot. Further failed
+ * retries preserve that snapshot. Local declarations and cross-port propagation
+ * still update Applicant values. Leave indication and propagation use the
+ * snapshot. Receive cannot cancel that withdrawal:
  * it retries the saved-value Leave before applying the received attribute.
  * A failed receive retry returns NO_MEMORY. Retry that payload after recovery.
  * Observers report the retained IN-to-LV transition even when allocation fails.
