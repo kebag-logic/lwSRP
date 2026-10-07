@@ -90,6 +90,8 @@ void        msrp_app_destroy(struct mrp_app *app);
 
 int msrp_declare_talker(struct mrp_app *app, uint8_t port_id,
                         const struct msrp_talker_adv *attr, bool is_new);
+/* Declare a new or changed Listener parameter with New. Call on changes,
+ * not on every poll; an unchanged declaration needs no new request. */
 int msrp_declare_listener(struct mrp_app *app, uint8_t port_id,
                           const struct msrp_stream_id *stream_id,
                           enum msrp_listener_decl decl);

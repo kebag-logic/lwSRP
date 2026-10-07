@@ -434,7 +434,7 @@ int msrp_declare_listener(struct mrp_app *app, uint8_t port_id,
     uint8_t val[9];
     memcpy(val, stream_id->bytes, 8);
     val[8] = (uint8_t)decl;
-    return mrp_mad_join(app, port_id, MSRP_ATTR_TYPE_LISTENER, val, false);
+    return mrp_mad_join(app, port_id, MSRP_ATTR_TYPE_LISTENER, val, true);
 }
 
 int msrp_withdraw_talker(struct mrp_app *app, uint8_t port_id,
