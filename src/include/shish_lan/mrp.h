@@ -275,7 +275,11 @@ void            mrp_app_destroy(struct mrp_app *app);
  * remain applied. Later attributes wait for that retry. Replacement failures
  * stop before the new Join, preserving old Leave before new Join.
  * Timer withdrawal retries reservation on the next tick. Failed topology
- * Flush enters LV and arms a 1 cs Leave timer for the same withdrawal retry.
+ * Flush enters LV, marks withdrawal pending, and arms a 1 cs Leave timer.
+ * Receive retries that withdrawal with the saved value before refreshing the
+ * attribute. A failed retry returns NO_MEMORY and stops later attributes.
+ * Once Leave succeeds, the new registration can issue its own indication.
+ * Ordinary LV recovery without pending Flush retains the table behavior.
  * The send function must never call back into MRP synchronously.
  */
 /* 10.7 permits limiting state to attributes of immediate interest. A filter
@@ -345,7 +349,11 @@ void mrp_tick(struct mrp_app *app, uint8_t port_id);
  * flush=true  → §10.7.5.2 Flush! (Root/Alt → Designated).
  * flush=false → §10.7.5.3 Re-declare! (Designated → Root/Alt).
  * If Flush cannot reserve propagation, retain the withdrawal in LV with a
- * 1 cs Leave timer. Continue global ticks and destination polls for replay.
+ * 1 cs Leave timer and a pending flag. Receive cannot cancel that withdrawal:
+ * it retries the saved-value Leave before applying the received attribute.
+ * A failed receive retry returns NO_MEMORY. Retry that payload after recovery.
+ * Observers report the retained IN-to-LV transition even when allocation fails.
+ * Continue global ticks and destination polls for replay.
  */
 void mrp_port_role_change(struct mrp_app *app, uint8_t port_id, bool flush);
 

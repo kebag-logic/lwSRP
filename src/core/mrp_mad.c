@@ -66,6 +66,7 @@ struct mrp_attr_inst {
     _Alignas(max_align_t) uint8_t attr_val[48];
     enum mrp_appl_state  appl;         /* Applicant state          */
     enum mrp_reg_state   reg;          /* Registrar state          */
+    bool                 flush_pending; /* Withdrawal precedes re-registration. */
     bool                 tx_selected;
     bool                 tx_deferred;
     enum tx_msg          pending_tx;   /* message scheduled for next tx */
@@ -643,6 +644,7 @@ static int reg_event(struct mrp_app *app, struct mrp_attr_inst *ai,
         ai->reg = previous;
         if (ev == MRP_EVENT_FLUSH) {
             /* The topology API cannot report refusal. Retain its withdrawal. */
+            ai->flush_pending = true;
             ai->reg = MRP_REG_STATE_LV;
             shlan_timer_arm(&ai->leave_timer, 1u);
         }
@@ -658,6 +660,9 @@ static int reg_event(struct mrp_app *app, struct mrp_attr_inst *ai,
     default:                                                                     break;
     }
 
+    if (e->ind == REG_IND_LV) {
+        ai->flush_pending = false;
+    }
     switch (e->ind) {
     case REG_IND_NEW:
         app->ops->join_ind(app, port_id, ai->attr_type, ai->attr_val, true);
@@ -722,6 +727,7 @@ static int deliver_event_changed(struct mrp_app *app, struct mrp_port_state *ps,
     if (r < 0) {
         ai->appl = appl_from;
         ai->pending_tx = pending_from;
+        observe(app, ai, ev, port_id, appl_from, reg_from);
         return r;
     }
     // Table 10-3 note 6: receiving an event can request a transmit too.
@@ -986,6 +992,15 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
         return;
     }
     struct mrp_attr_inst *previous = find_attr(rc->ps, rc->app->ops, attr_type, attr_val);
+    if (previous && previous->flush_pending) {
+        /* Withdraw the saved value before any receive can refresh it. */
+        int r = deliver_event_changed(rc->app, rc->ps, previous,
+                                      MRP_EVENT_FLUSH, rc->port_id, false);
+        if (r < 0) {
+            rc->error = r;
+            return;
+        }
+    }
     bool changed_in = previous && previous->reg != MRP_REG_STATE_MT &&
         memcmp(previous->attr_val, attr_val, attr_store_len(rc->app->ops, attr_type)) != 0;
     uint8_t previous_value[sizeof(((struct mrp_attr_inst *)0)->attr_val)];
