@@ -228,6 +228,12 @@ struct mrp_app_ops {
     uint8_t  proto_version;  /* §10.8.2.1        */
     uint8_t  group_addr[6];  /* §10.5 Table 10-1 */
     void    *ctx;            /* opaque application context passed back in callbacks */
+    /* Optional application encoding rule for a received JoinIn/JoinMt:
+     * true withdraws a different registered attribute before registering this
+     * one (MSRP 35.2.6). Values use the application's in-memory representation.
+     */
+    bool (*attr_replaces)(uint8_t old_type, const void *old_value,
+                          uint8_t new_type, const void *new_value);
 };
 
 /* Opaque MRP application handle */

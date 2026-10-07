@@ -878,6 +878,21 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
         return;
     }
 
+    /* 35.2.6 changes a registration atomically in event order. Allocate the
+     * new instance first, so exhaustion cannot discard the old reservation.
+     * New conflicts are left to the application's declared precedence rule.
+     */
+    if ((attr_event == MRP_ATTR_EVENT_JOININ || attr_event == MRP_ATTR_EVENT_JOINMT) &&
+        rc->app->ops->attr_replaces) {
+        for (struct mrp_attr_inst *old = rc->ps->attrs; old; old = old->next) {
+            if (old != ai && old->reg != MRP_REG_STATE_MT &&
+                rc->app->ops->attr_replaces(old->attr_type,old->attr_val,attr_type,attr_val)) {
+                deliver_event(rc->app,rc->ps,old,MRP_EVENT_RLV,rc->port_id);
+                deliver_event(rc->app,rc->ps,old,MRP_EVENT_LEAVETIMER,rc->port_id);
+            }
+        }
+    }
+
     /* Map wire AttributeEvent → internal MRP event */
     enum mrp_event ev;
     switch (attr_event) {
