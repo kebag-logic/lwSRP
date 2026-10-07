@@ -5,10 +5,16 @@
 #include "fault_alloc.h"
 
 static unsigned remaining;
+static unsigned failures;
 static size_t live;
 void allocation_fail_after(unsigned count)
 {
     remaining = count;
+    failures = 0;
+}
+unsigned allocation_failures(void)
+{
+    return failures;
 }
 size_t allocation_live(void)
 {
@@ -16,7 +22,11 @@ size_t allocation_live(void)
 }
 static int fail_now(void)
 {
-    return remaining && --remaining == 0;
+    if (remaining && --remaining == 0) {
+        ++failures;
+        return 1;
+    }
+    return 0;
 }
 void *shlan_malloc(size_t size)
 {

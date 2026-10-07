@@ -645,53 +645,65 @@ Ensure(Boundaries, propagation_policy_observes_completed_host_indications)
 }
 Ensure(Boundaries, flush_allocation_failures_retry_withdrawal_on_the_next_tick)
 {
-    for (unsigned lv = 0; lv < 2; ++lv) {
-        for (unsigned fault = 0; fault <= 3; ++fault) {
-            struct mrp_app *a = stream_bridge();
-            uint8_t pdu[64];
-            size_t len = stream_pdu(pdu, false, 100, 1, false);
-            joins = leaves = maps = 0;
-            assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
-            if (lv) {
-                stream_pdu(pdu, false, 100, 4, true);
+    for (unsigned repeats = 0; repeats <= 2; ++repeats) {
+        for (unsigned lv = 0; lv < 2; ++lv) {
+            for (unsigned fault = 0; fault <= 3; ++fault) {
+                struct mrp_app *a = stream_bridge();
+                uint8_t pdu[64];
+                size_t len = stream_pdu(pdu, false, 100, 1, false);
+                joins = leaves = maps = 0;
                 assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
-            }
-            allocation_fail_after(fault);
-            mrp_port_role_change(a, 0, true);
-            assert_that(leaves, is_equal_to(fault ? 0 : 1));
-            assert_that(stream_state(a, 0).reg,
-                        is_equal_to(fault ? MRP_REG_STATE_LV : MRP_REG_STATE_MT));
-            if (fault) {
-                /* Exhaustion on a second dispatch must retain the withdrawal. */
+                if (lv) {
+                    stream_pdu(pdu, false, 100, 4, true);
+                    assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+                }
                 allocation_fail_after(fault);
+                mrp_port_role_change(a, 0, true);
+                assert_that(leaves, is_equal_to(fault ? 0 : 1));
+                assert_that(stream_state(a, 0).reg,
+                            is_equal_to(fault ? MRP_REG_STATE_LV : MRP_REG_STATE_MT));
+                assert_that(allocation_failures(), is_equal_to(fault ? 1 : 0));
+                for (unsigned retry = 0; fault && retry < repeats; ++retry) {
+                    /* Each failed tick must actually attempt the reservation. */
+                    allocation_fail_after(fault);
+                    tick(1);
+                    assert_that(allocation_failures(), is_equal_to(1));
+                    assert_that(leaves, is_equal_to(0));
+                    assert_that(stream_state(a, 0).reg, is_equal_to(MRP_REG_STATE_LV));
+                }
+                allocation_fail_after(0);
                 tick(1);
-                assert_that(leaves, is_equal_to(0));
-                assert_that(stream_state(a, 0).reg, is_equal_to(MRP_REG_STATE_LV));
+                assert_that(leaves, is_equal_to(1));
+                assert_that(maps, is_equal_to(2));
+                assert_that(stream_state(a, 0).reg, is_equal_to(MRP_REG_STATE_MT));
+                assert_that(stream_state(a, 1).appl, is_equal_to(MRP_APPL_STATE_VO));
+                assert_that(stream_state(a, 2).appl, is_equal_to(MRP_APPL_STATE_VO));
+                len = stream_pdu(pdu, false, 100, 1, false);
+                assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+                tick(2);
+                assert_that(joins, is_equal_to(2));
+                assert_that(leaves, is_equal_to(1));
+                assert_that(stream_state(a, 0).reg, is_equal_to(MRP_REG_STATE_IN));
+                mrp_app_destroy(a);
+                assert_that(allocation_live(), is_equal_to(0));
             }
-            allocation_fail_after(0);
-            tick(1);
-            assert_that(leaves, is_equal_to(1));
-            assert_that(maps, is_equal_to(2));
-            assert_that(stream_state(a, 0).reg, is_equal_to(MRP_REG_STATE_MT));
-            assert_that(stream_state(a, 1).appl, is_equal_to(MRP_APPL_STATE_VO));
-            assert_that(stream_state(a, 2).appl, is_equal_to(MRP_APPL_STATE_VO));
-            len = stream_pdu(pdu, false, 100, 1, false);
-            assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
-            tick(2);
-            assert_that(joins, is_equal_to(2));
-            assert_that(leaves, is_equal_to(1));
-            assert_that(stream_state(a, 0).reg, is_equal_to(MRP_REG_STATE_IN));
-            mrp_app_destroy(a);
-            assert_that(allocation_live(), is_equal_to(0));
         }
     }
 }
 
-static unsigned indication_order[8], indication_count;
+static unsigned indication_order[8], indication_values[8], indication_count;
+static unsigned registration_value(uint8_t type, const void *value)
+{
+    if (type == MSRP_ATTR_TYPE_LISTENER) {
+        return ((const uint8_t *)value)[8];
+    }
+    return ((const struct msrp_talker_adv *)value)->max_frame_size;
+}
 static void ordered_join(struct mrp_app *a, uint8_t p, uint8_t t, const void *v, bool n)
 {
     joined(a, p, t, v, n);
     if (indication_count < 8) {
+        indication_values[indication_count] = registration_value(t, v);
         indication_order[indication_count++] = t;
     }
 }
@@ -699,6 +711,7 @@ static void ordered_leave(struct mrp_app *a, uint8_t p, uint8_t t, const void *v
 {
     left(a, p, t, v);
     if (indication_count < 8) {
+        indication_values[indication_count] = registration_value(t, v);
         indication_order[indication_count++] = 10u + t;
     }
 }
@@ -733,7 +746,7 @@ static size_t talker_pdu(uint8_t *pdu, unsigned type)
     }
     return len;
 }
-Ensure(Boundaries, replacement_allocation_failures_keep_leave_before_join)
+static void replacement_failures(bool lv)
 {
     for (unsigned old_type = 1; old_type <= 2; ++old_type) {
         for (unsigned fault = 0; fault <= 9; ++fault) {
@@ -745,6 +758,13 @@ Ensure(Boundaries, replacement_allocation_failures_keep_leave_before_join)
             uint8_t pdu[64], tx[256];
             size_t len = talker_pdu(pdu, old_type);
             assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+            if (lv) {
+                pdu[5] = 0x20;
+                pdu[7 + pdu[2]] = 144; /* LeaveAll with Mt enters LV. */
+                assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+                assert_that(typed_state(a, 0, (uint8_t)old_type, 1).reg,
+                            is_equal_to(MRP_REG_STATE_LV));
+            }
             indication_count = 0;
             unsigned next_type = 3u - old_type;
             len = talker_pdu(pdu, next_type);
@@ -752,6 +772,7 @@ Ensure(Boundaries, replacement_allocation_failures_keep_leave_before_join)
              * and two destination instances: sweep every allocation. */
             allocation_fail_after(fault);
             int r = mrp_rx(a, 0, pdu, len);
+            assert_that(allocation_failures(), is_equal_to(fault ? 1 : 0));
             allocation_fail_after(0);
             assert_that(r, is_equal_to(fault > 0 && fault <= 7 ? -SHLAN_ERROR_NO_MEMORY : 0));
             if (fault > 0 && fault <= 4) {
@@ -775,9 +796,197 @@ Ensure(Boundaries, replacement_allocation_failures_keep_leave_before_join)
         }
     }
 }
+Ensure(Boundaries, replacement_allocation_failures_keep_leave_before_join)
+{
+    replacement_failures(false);
+}
+Ensure(Boundaries, replacement_from_lv_keeps_leave_before_join_at_every_allocation)
+{
+    replacement_failures(true);
+}
+static struct mrp_app *ordered_bridge(void)
+{
+    struct mrp_app *base = stream_bridge();
+    struct mrp_app_ops ops = *base->ops;
+    ops.join_ind = ordered_join; ops.leave_ind = ordered_leave;
+    mrp_app_destroy(base);
+    struct mrp_app *a = mrp_app_create(&ops, 3);
+    for (uint8_t p = 0; p < 3; ++p) {
+        assert_that(mrp_port_configure(a, p, 20, 60, 10000, 1, true), is_equal_to(0));
+        mrp_set_periodic(a, p, false);
+    }
+    return a;
+}
+static size_t registration_pdu(uint8_t *pdu, unsigned type, unsigned value,
+                               unsigned event, bool la)
+{
+    size_t len = type == MSRP_ATTR_TYPE_LISTENER ?
+        stream_pdu(pdu, true, value, event, la) : talker_pdu(pdu, type);
+    pdu[5] = la ? 0x20 : 0;
+    pdu[7 + pdu[2]] = (uint8_t)(36 * event);
+    if (type != MSRP_ATTR_TYPE_LISTENER) {
+        pdu[23] = (uint8_t)(value >> 8); pdu[24] = (uint8_t)value;
+    }
+    return len;
+}
+struct value_query {
+    unsigned type;
+    unsigned value;
+};
+static void value_snapshot(void *ctx, const struct mrp_attr_status *s)
+{
+    struct value_query *q = ctx;
+    if (s->attr_type == q->type) {
+        q->value = registration_value(s->attr_type, s->attr_val);
+    }
+}
+static unsigned stored_value(struct mrp_app *a, uint8_t port, unsigned type)
+{
+    struct value_query q = {.type = type};
+    mrp_attr_visit(a, port, value_snapshot, &q);
+    return q.value;
+}
+static void flush_before_receive(unsigned retry_faults, unsigned first_type, unsigned last_type)
+{
+    for (unsigned type = first_type; type <= last_type; ++type) {
+        for (unsigned lv = 0; lv < 2; ++lv) {
+            for (unsigned changed = 0; changed < 2; ++changed) {
+                const unsigned events[] = {0, 1, 3};
+                for (unsigned event = retry_faults ? 1 : 0; event < (retry_faults ? 2u : 3u); ++event) {
+                    for (unsigned fault = retry_faults ? 1 : 0; fault <= 3; ++fault) {
+                        for (unsigned retry = retry_faults ? 1 : 0; retry <= retry_faults; ++retry) {
+                            struct mrp_app *a = ordered_bridge();
+                            uint8_t pdu[64];
+                            unsigned old = type == MSRP_ATTR_TYPE_LISTENER ? 2 : 100;
+                            unsigned next = changed ? old + 1 : old;
+                            size_t len = registration_pdu(pdu, type, old, 1, false);
+                            joins = leaves = maps = indication_count = 0;
+                            assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+                            if (lv) {
+                                len = registration_pdu(pdu, type, old, 4, true);
+                                assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+                            }
+                            indication_count = 0;
+                            allocation_fail_after(fault);
+                            mrp_port_role_change(a, 0, true);
+                            assert_that(allocation_failures(), is_equal_to(fault ? 1 : 0));
+                            assert_that(leaves, is_equal_to(fault ? 0 : 1));
+                            len = registration_pdu(pdu, type, next, events[event], false);
+                            allocation_fail_after(retry);
+                            int r = mrp_rx(a, 0, pdu, len);
+                            assert_that(allocation_failures(), is_equal_to(retry ? 1 : 0));
+                            assert_that(r, is_equal_to(retry ? -SHLAN_ERROR_NO_MEMORY : 0));
+                            if (retry) {
+                                assert_that(indication_count, is_equal_to(retry <= 3 ? 0 : 1));
+                                assert_that(stored_value(a, 0, type), is_equal_to(old));
+                                assert_that(typed_state(a, 0, (uint8_t)type, 1).reg,
+                                            is_equal_to(retry <= 3 ? MRP_REG_STATE_LV : MRP_REG_STATE_MT));
+                                /* A further failed receive must still refuse the new value. */
+                                allocation_fail_after(1);
+                                assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(-SHLAN_ERROR_NO_MEMORY));
+                                assert_that(allocation_failures(), is_equal_to(1));
+                                assert_that(indication_count, is_equal_to(retry <= 3 ? 0 : 1));
+                                allocation_fail_after(0);
+                                assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+                            }
+                            assert_that(indication_count, is_equal_to(2));
+                            assert_that(indication_order[0], is_equal_to(10u + type));
+                            assert_that(indication_values[0], is_equal_to(old));
+                            assert_that(indication_order[1], is_equal_to(type));
+                            assert_that(indication_values[1], is_equal_to(next));
+                            assert_that(typed_state(a, 0, (uint8_t)type, 1).reg, is_equal_to(MRP_REG_STATE_IN));
+                            for (uint8_t port = 0; port < 3; ++port) {
+                                assert_that(stored_value(a, port, type), is_equal_to(next));
+                            }
+                            tick(61);
+                            len = registration_pdu(pdu, type, next, 1, false);
+                            assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+                            assert_that(indication_count, is_equal_to(2));
+                            assert_that(leaves, is_equal_to(1));
+                            assert_that(joins, is_equal_to(2));
+                            mrp_app_destroy(a);
+                            assert_that(allocation_live(), is_equal_to(0));
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+Ensure(Boundaries, pending_flush_precedes_received_registration)
+{
+    flush_before_receive(0, 1, 3);
+}
+Ensure(Boundaries, pending_flush_talker_receive_failures_preserve_order_and_values)
+{
+    /* Three withdrawal reservations, then three fresh registration reservations. */
+    flush_before_receive(6, MSRP_ATTR_TYPE_TALKER_ADV, MSRP_ATTR_TYPE_TALKER_ADV);
+}
+Ensure(Boundaries, pending_flush_failed_talker_receive_failures_preserve_order_and_values)
+{
+    flush_before_receive(6, MSRP_ATTR_TYPE_TALKER_FAILED, MSRP_ATTR_TYPE_TALKER_FAILED);
+}
+Ensure(Boundaries, pending_flush_listener_receive_failures_preserve_order_and_values)
+{
+    flush_before_receive(6, MSRP_ATTR_TYPE_LISTENER, MSRP_ATTR_TYPE_LISTENER);
+}
+struct continuity {
+    enum mrp_reg_state reg;
+    enum mrp_appl_state appl;
+    unsigned retained;
+    unsigned withdrawn;
+};
+static void continuous_transition(void *ctx, const struct mrp_transition *t)
+{
+    struct continuity *seen = ctx;
+    if (t->port_id != 0) {
+        return;
+    }
+    assert_that(t->reg_from, is_equal_to(seen->reg));
+    assert_that(t->appl_from, is_equal_to(seen->appl));
+    seen->reg = t->reg_to; seen->appl = t->appl_to;
+    if (t->event == MRP_EVENT_FLUSH && t->reg_to == MRP_REG_STATE_LV) {
+        ++seen->retained;
+    }
+    if (t->reg_from == MRP_REG_STATE_LV && t->reg_to == MRP_REG_STATE_MT) {
+        ++seen->withdrawn;
+    }
+}
+Ensure(Boundaries, failed_flush_reports_continuous_observer_transitions)
+{
+    for (unsigned receive = 0; receive < 2; ++receive) {
+        for (unsigned fault = 1; fault <= 3; ++fault) {
+            struct mrp_app *a = stream_bridge();
+            struct continuity seen = {.reg = MRP_REG_STATE_MT, .appl = MRP_APPL_STATE_VO};
+            mrp_set_observer(a, continuous_transition, &seen);
+            uint8_t pdu[64];
+            size_t len = stream_pdu(pdu, false, 100, 1, false);
+            assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+            allocation_fail_after(fault);
+            mrp_port_role_change(a, 0, true);
+            assert_that(allocation_failures(), is_equal_to(1));
+            assert_that(seen.reg, is_equal_to(MRP_REG_STATE_LV));
+            assert_that(seen.retained, is_equal_to(1));
+            allocation_fail_after(fault);
+            tick(1);
+            assert_that(allocation_failures(), is_equal_to(1));
+            assert_that(seen.retained, is_equal_to(1));
+            allocation_fail_after(0);
+            if (receive) {
+                assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+            } else {
+                tick(1);
+            }
+            assert_that(seen.withdrawn, is_equal_to(1));
+            assert_that(seen.reg, is_equal_to(receive ? MRP_REG_STATE_IN : MRP_REG_STATE_MT));
+            mrp_app_destroy(a);
+            assert_that(allocation_live(), is_equal_to(0));
+        }
+    }
+}
 Ensure(Boundaries, reservation_failure_stops_later_receive_messages)
 {
-    for (unsigned fault = 2; fault <= 4; ++fault) {
+    for (unsigned fault = 1; fault <= 4; ++fault) {
         struct mrp_app *a = stream_bridge();
         uint8_t pdu[80], second[64];
         size_t len = stream_pdu(pdu, false, 100, 1, false);
@@ -789,6 +998,7 @@ Ensure(Boundaries, reservation_failure_stops_later_receive_messages)
         allocation_fail_after(fault);
         assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(-SHLAN_ERROR_NO_MEMORY));
         assert_that(joins, is_equal_to(0));
+        assert_that(allocation_failures(), is_equal_to(1));
         for (uint8_t p = 0; p < 3; ++p) {
             assert_that(typed_state(a, p, 1, 2).count, is_equal_to(0));
         }
@@ -864,8 +1074,14 @@ TestSuite *boundaries_suite(void)
     add_test_with_context(s, Boundaries, propagation_policy_observes_completed_host_indications);
     add_test_with_context(s, Boundaries, flush_allocation_failures_retry_withdrawal_on_the_next_tick);
     add_test_with_context(s, Boundaries, replacement_allocation_failures_keep_leave_before_join);
+    add_test_with_context(s, Boundaries, replacement_from_lv_keeps_leave_before_join_at_every_allocation);
     add_test_with_context(s, Boundaries, reservation_failure_stops_later_receive_messages);
     add_test_with_context(s, Boundaries, propagation_obeys_talker_and_listener_policy_masks);
     add_test_with_context(s, Boundaries, applications_without_policy_do_not_reserve_propagation);
+    add_test_with_context(s, Boundaries, pending_flush_precedes_received_registration);
+    add_test_with_context(s, Boundaries, pending_flush_talker_receive_failures_preserve_order_and_values);
+    add_test_with_context(s, Boundaries, pending_flush_failed_talker_receive_failures_preserve_order_and_values);
+    add_test_with_context(s, Boundaries, pending_flush_listener_receive_failures_preserve_order_and_values);
+    add_test_with_context(s, Boundaries, failed_flush_reports_continuous_observer_transitions);
     return s;
 }
