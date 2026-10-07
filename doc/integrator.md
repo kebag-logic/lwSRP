@@ -13,8 +13,8 @@ The [root build definition](../CMakeLists.txt) selects between host and embedded
 | Setting | Current behavior |
 | --- | --- |
 | Host build | Produces a shared library with applications, ports, and simulation. |
-| C language | Requires C11. |
-| [CMAKE_BUILD_TYPE](../CMakeLists.txt) set to Debug | Adds compiler debugging information through [CMake](https://cmake.org/cmake/help/latest/). |
+| C language | Requires [C11](https://www.iso.org/standard/57853.html). |
+| [CMAKE_BUILD_TYPE](https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html) set to Debug | Adds compiler debugging information through [CMake](https://cmake.org/cmake/help/latest/). |
 | Export compile commands | Enabled by the [build definition](../CMakeLists.txt). |
 | Unit dependency found | Builds the [codec test runner](../tests/unit/main.c) with nine tests. |
 | Unit dependency absent | Host configuration fails. Headers and library are required. |
@@ -98,6 +98,11 @@ Strip Ethernet framing and select the matching application first.
 The [application interface](../src/include/shish_lan/mrp.h) supplies protocol identifiers.
 The library does not receive network frames itself.
 
+For transmit integration, the [stream destination constant](../src/modules/msrp.c#L352-L353) is currently 91-E0-F0-00-0E-80.
+MSRPDUs require 01-80-C2-00-00-0E under [IEEE 802.1Q-2018, clause 35.2.2.1 and Table 8-1](https://standards.ieee.org/ieee/802.1Q/6844/).
+Do not use the current constant for conforming transmission.
+Track the correction in [issue #6](https://github.com/kebag-logic/lwSRP/issues/6).
+
 Register [mrp_set_observer](../src/include/shish_lan/mrp.h) before events when transition records are needed.
 Use [mrp_attr_visit](../src/include/shish_lan/mrp.h) for current attribute state.
 Use [mrp_port_status](../src/include/shish_lan/mrp.h) for LeaveAll and periodic state.
@@ -109,6 +114,13 @@ The [parser](../src/core/mrp_pdu.c) can deliver earlier events before rejecting 
 A negative return does not roll back state.
 The parser ignores protocol version differences and does not enforce the stream attribute-list length.
 Validate untrusted inputs and review the [coverage gaps](tester.md#coverage).
+
+The [LeaveAll handler](../src/core/mrp_mad.c#L835-L841) ignores attribute type and delivers rLA! to every attribute instance on the port.
+This affects both Applicants and Registrars, including unrelated types.
+A Listener LeaveAll can therefore move Talker registrations from IN to LV.
+The [parser](../src/core/mrp_pdu.c#L154-L155) invokes that handler once per marked vector.
+The standard requires type-specific delivery: [IEEE 802.1Q-2018, clause 10.7.5.20](https://standards.ieee.org/ieee/802.1Q/6844/).
+Track this receive-path limitation in [issue #7](https://github.com/kebag-logic/lwSRP/issues/7).
 
 ## Drive time
 
@@ -127,10 +139,12 @@ sequenceDiagram
 Call [shlan_timer_tick](../src/ports/timer.c) once per centisecond for the whole library.
 Alternatively, one call to [mrp_tick](../src/core/mrp_mad.c) advances that same global list.
 Do not call both.
+The [module help text](../Kconfig.zephyr#L5-L6) conflicts with this requirement by requesting both calls.
 Do not call the latter once per port or application.
 It ignores its arguments and advances all timers.
 
-The [implementation](../src/core/mrp_mad.c#L639-L700) uses 20 centiseconds for periodic events, 60 for Leave, and 1000 for LeaveAll.
+The [port timer handlers](../src/core/mrp_mad.c#L639-L700) use 20 centiseconds for periodic events and 1000 for LeaveAll.
+The [Registrar timer action](../src/core/mrp_mad.c#L560-L564) arms Leave for 60 centiseconds using the [Leave interval](../src/include/shish_lan/mrp.h#L118).
 Periodic timing differs from the one-second interval in [IEEE 802.1Q-2018, clause 10.7.4.4](https://standards.ieee.org/ieee/802.1Q/6844/).
 LeaveAll lacks the randomization required by [IEEE 802.1Q-2018, clause 10.7.4.3](https://standards.ieee.org/ieee/802.1Q/6844/).
 See the [state comparison](developer.md#state-machines) before relying on timer behavior.
