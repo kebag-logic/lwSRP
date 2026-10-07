@@ -18,6 +18,7 @@ Their displayed transitions match the tables; the implementation differences bel
 | [IEEE 802.1Q-2018, clause 10.2](https://standards.ieee.org/ieee/802.1Q/6844/) | Declaration requests and registration indications. | No complete network transmit path. | [State engine](../src/core/mrp_mad.c). |
 | [IEEE 802.1Q-2018, clause 10.3](https://standards.ieee.org/ieee/802.1Q/6844/) | Optional propagation callbacks and 32-bit port masks. | No topology gating; VLAN and MAC callbacks are unset. | [Core](../src/core/mrp_mad.c), [VLAN](../src/modules/mvrp.c), [MAC](../src/modules/mmrp.c). |
 | [IEEE 802.1Q-2018, clause 10.5](https://standards.ieee.org/ieee/802.1Q/6844/) | Protocol identifiers and group addresses. | No link-layer send or receive adapter. | [Application interface](../src/include/shish_lan/mrp.h). |
+| [IEEE 802.1Q-2018, clause 10.7.5.20](https://standards.ieee.org/ieee/802.1Q/6844/) | Received LeaveAll dispatches rLA! to Applicants and Registrars. | Delivery crosses all attribute types on the port; the standard limits it to the message's type. | [Receive handler](../src/core/mrp_mad.c#L835-L841), [parser callback](../src/core/mrp_pdu.c#L154-L155), [issue #7](https://github.com/kebag-logic/lwSRP/issues/7). |
 | [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3](https://standards.ieee.org/ieee/802.1Q/6844/) | Three graphs match the selected table paths. | Implementation differs on declaration, receive, withdrawal, recovery, and periodic events. Conditions and transmit scheduling are incomplete. | [Comparison](developer.md#applicant-declarations), [table](../src/core/mrp_mad.c#L116-L275), [handler](../src/core/mrp_mad.c#L495-L505). |
 | [IEEE 802.1Q-2018, clause 10.7.8, Table 10-4](https://standards.ieee.org/ieee/802.1Q/6844/) | Graph matches the displayed state transitions. | Local New registers; received Join in LV emits an extra indication. | [Comparison](developer.md#registrar), [New row](../src/core/mrp_mad.c#L318-L323), [Join rows](../src/core/mrp_mad.c#L343-L354). |
 | [IEEE 802.1Q-2018, clause 10.7.9, Table 10-5](https://standards.ieee.org/ieee/802.1Q/6844/) | Graph matches the displayed state transitions. | Transmit additionally restarts the timer. No LeaveAll frame is emitted. | [Comparison](developer.md#leaveall), [handler](../src/core/mrp_mad.c#L639-L673). |
@@ -27,9 +28,11 @@ Their displayed transitions match the tables; the implementation differences bel
 | [IEEE 802.1Q-2018, clause 10.8.3](https://standards.ieee.org/ieee/802.1Q/6844/) | Length checks for several input fields. | Version and stream attribute-list length are ignored; callbacks can precede a later error. | [Parser](../src/core/mrp_pdu.c). |
 | [IEEE 802.1Q-2018, clauses 10.9–10.12](https://standards.ieee.org/ieee/802.1Q/6844/) | MAC and service codecs with host callbacks. | No filtering database, mode enforcement, or propagation policy. | [MAC adapter](../src/modules/mmrp.c). |
 | [IEEE 802.1Q-2018, clause 11.2](https://standards.ieee.org/ieee/802.1Q/6844/) | VLAN codec and registration callbacks. | No VLAN table, database flush, or propagation policy. | [VLAN adapter](../src/modules/mvrp.c). |
-| [IEEE 802.1Q-2018, clause 35.2.1](https://standards.ieee.org/ieee/802.1Q/6844/) | Talker Advertise, Talker Failed, and Listener values. | Domain attributes and resource admission are absent. | [Stream adapter](../src/modules/msrp.c). |
+| [IEEE 802.1Q-2018, clauses 35.2.1.3, 35.2.2.4, and 35.2.2.8](https://standards.ieee.org/ieee/802.1Q/6844/) | Talker Advertise, Talker Failed, and Listener values. | Domain attributes and resource admission are absent. | [Stream adapter](../src/modules/msrp.c). |
+| [IEEE 802.1Q-2018, clause 35.2.2.1 and Table 8-1](https://standards.ieee.org/ieee/802.1Q/6844/) | Stream destination constant is 91-E0-F0-00-0E-80. | MSRPDUs require 01-80-C2-00-00-0E. The current constant deviates from the standard. | [Destination constant](../src/modules/msrp.c#L352-L353), [issue #6](https://github.com/kebag-logic/lwSRP/issues/6). |
 | [IEEE 802.1Q-2018, clause 35.2.2.7.2](https://standards.ieee.org/ieee/802.1Q/6844/) | Listener subtype decoding after event vectors. | Stream decoding ignores vector offsets; subtype encoding is absent. | [Codec](../src/core/mrp_pdu.c), [stream adapter](../src/modules/msrp.c). |
-| [IEEE 802.1Q-2018, clause 35.2.3](https://standards.ieee.org/ieee/802.1Q/6844/) | Talker flooding and Listener propagation toward registered Talkers. | No topology gating, bandwidth checks, or hardware reservation. | [Stream propagation policy](../src/modules/msrp.c). |
+| [IEEE 802.1Q-2018, clause 35.2.3](https://standards.ieee.org/ieee/802.1Q/6844/) | Local declaration wrappers only. | Stream registration and attachment service primitives are absent. | [Public stream interface](../src/include/shish_lan/msrp.h#L78-L89). |
+| [IEEE 802.1Q-2018, clause 35.2.4](https://standards.ieee.org/ieee/802.1Q/6844/) | Talker flooding and Listener propagation toward registered Talkers. | No topology gating, bandwidth checks, or hardware reservation. | [Stream propagation policy](../src/modules/msrp.c#L132-L185). |
 
 No broader conformance claim follows from these rows.
 The [MAC interface comments](../src/include/shish_lan/mmrp.h) disagree with its constants about attribute type numbers.
@@ -50,6 +53,10 @@ flowchart TD
 The [host build](../CMakeLists.txt) succeeds.
 Its configured [unit runner](../tests/unit/main.c) passes nine codec tests with 1690 assertions.
 The [scenario harness](../tests/features/environment.py) passes three scenarios and ten steps through [test bindings](../tests/features/switch_bindings.c).
+Both [active-state and inactive-state assertions](../tests/features/steps/switch_steps.py#L26-L36) only repeat the operation and check its return code.
+Neither independently reads port state.
+A wrong disable binding that calls enable still passes all three scenarios.
+Track the coverage defect in [issue #4](https://github.com/kebag-logic/lwSRP/issues/4).
 The [tester guide](tester.md#coverage) describes what those checks cover.
 There is no measured coverage percentage.
 

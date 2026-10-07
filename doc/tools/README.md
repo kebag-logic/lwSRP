@@ -13,6 +13,7 @@ Keep generated images and dependency installations there.
 ~~~sh
 python3 doc/tools/check_sentences.py
 python3 doc/tools/check_references.py
+python3 doc/tools/check_references.py --self-test
 python3 doc/tools/check_links.py --github-auth
 python3 doc/tools/render_mermaid.py --output "$DOC_SCRATCH/graphs"
 ~~~
@@ -41,12 +42,13 @@ After publication, omit the authentication option to verify anonymous access.
 The sentence and reference checks list every fenced block as a syntax exception.
 Commands, graph labels, and code need literal syntax.
 Their file, API, standard, and tool references belong in nearby links.
-SPDX comments are metadata.
+[SPDX](https://spdx.dev/) comments are metadata.
 There are no prose sentence exemptions.
 
 The parser supports the inline links and fences used by these pages.
 It does not implement every Markdown extension.
 The reference finder is a heuristic; reviewers must also read the prose.
+Its self-test checks bare standard names, inline code, linked references, and identifier boundaries.
 The graph counter supports these pages' explicit nodes and participants.
 Rendering checks syntax.
 Review the resulting images for readable labels and clear layout.
