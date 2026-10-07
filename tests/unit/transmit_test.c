@@ -160,6 +160,22 @@ Ensure(Transmit, a_full_pdu_retries_omitted_attributes_before_repeats)
     }
     msrp_app_destroy(a);
 }
+Ensure(Transmit, changed_listener_redeclares_from_a_quiet_applicant)
+{
+    struct msrp_ctx ctx={0}; struct mrp_app *a=msrp_app_create(1,&ctx);
+    struct msrp_stream_id sid={{1,2,3,4,5,6,7,8}};
+    uint8_t buffer[1500]; refuse=0;
+    assert_that(msrp_declare_listener(a,0,&sid,MSRP_LISTENER_DECL_READY),is_equal_to(0));
+    for (unsigned n=0;n<3;++n) {
+        (void)mrp_transmit(a,0,buffer,sizeof(buffer),send_pdu,0); tick(20);
+    }
+    assert_that(msrp_declare_listener(a,0,&sid,MSRP_LISTENER_DECL_ASKING_FAILED),is_equal_to(0));
+    assert_that(mrp_transmit(a,0,buffer,sizeof(buffer),send_pdu,0),is_equal_to(1));
+    event_value=99;
+    assert_that(mrpdu_parse(frame,frame_len,a->ops,decoded,0,0),is_equal_to(0));
+    assert_that(event_value,is_equal_to(MRP_ATTR_EVENT_NEW));
+    msrp_app_destroy(a);
+}
 TestSuite *transmit_suite(void)
 {
     TestSuite *s = create_test_suite();
@@ -168,5 +184,6 @@ TestSuite *transmit_suite(void)
     add_test_with_context(s, Transmit, refused_pdu_survives_timers_without_aging_unsent_leaveall);
     add_test_with_context(s, Transmit, receive_redeclare_requests_transmission_without_periodic_wait);
     add_test_with_context(s, Transmit, a_full_pdu_retries_omitted_attributes_before_repeats);
+    add_test_with_context(s, Transmit, changed_listener_redeclares_from_a_quiet_applicant);
     return s;
 }
