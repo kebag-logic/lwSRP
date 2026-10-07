@@ -73,6 +73,9 @@ CASES = [
      '#include "shish_lan/error.h"\n#include <errno.h>', "freestanding"),
     ("point-to-point-condition", MAD, "if ((p2p && ev == MRP_EVENT_RJOININ &&",
      "if ((false && p2p && ev == MRP_EVENT_RJOININ &&", "unit"),
+    ("pending-point-to-point-condition", MAD,
+     "ai->appl == MRP_APPL_STATE_VO || ai->appl == MRP_APPL_STATE_VP",
+     "ai->appl == MRP_APPL_STATE_VO", "unit"),
     ("shared-in-condition", MAD, "(!p2p && ev == MRP_EVENT_RIN)",
      "(false && !p2p && ev == MRP_EVENT_RIN)", "unit"),
     ("withdrawal-transition", MAD,
@@ -105,6 +108,10 @@ CASES = [
 ]
 
 REQUIRED_FAILURES = {
+    "point-to-point-condition": ["applicant_receive_conditions_follow_link_mode",
+                                  "pending_applicant_joinin_obeys_note_four"],
+    "pending-point-to-point-condition": ["pending_applicant_joinin_obeys_note_four"],
+    "shared-in-condition": ["applicant_receive_conditions_follow_link_mode"],
     "milan-delayed-in-leave": ["talker_leave_in_is_immediate", "listener_leave_in_is_immediate"],
     "milan-restarted-lv-deadline": ["leave_in_lv_keeps_the_original_deadline"],
     "milan-profile-selection": ["msrp_constructor_selects_the_build_profile"],
