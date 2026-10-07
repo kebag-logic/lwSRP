@@ -1,68 +1,58 @@
-# Shish Lan soft
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+# lwSRP
 
-Tools and functionalities to leverage switch capabilities, built around two "-ilities": testability and flexibility.
+lwSRP is a C library for Multiple Registration Protocol state and attribute handling.
+It includes VLAN, MAC, and stream registration applications.
+Its reference is [IEEE 802.1Q-2018, clauses 10, 11.2, and 35](https://standards.ieee.org/ieee/802.1Q/6844/).
 
+The library is an early integration base.
+It has no complete transmit path or hardware adapter.
+Read the [implementation status](doc/manager.md#implementation-status) before planning deployment.
 
-## Dependencies
+## Architecture
 
-- C11 compiler, CMake >= 3.20
-- [cgreen](https://github.com/cgreen-devs/cgreen) — C unit test framework (`apt install libcgreen-dev`)
-- [behave](https://behave.readthedocs.io) — Gherkin BDD runner (`pip install behave`)
+~~~mermaid
+flowchart TD
+    Host[Host application] --> Apps[VLAN / MAC / stream applications]
+    Apps --> Core[MRP state and codec]
+    Core --> Ports[Allocation and timers]
+    Host --> Switch[Switch interface]
+    Switch --> Sim[Port simulation]
+~~~
 
+The [protocol core](src/core/mrp_mad.c) and [switch interface](src/include/shish_lan/switch.h) are separate integration surfaces.
+The [simulation adapter](src/modules/sim_adapter.c) models port enablement only.
+See the [architecture guide](doc/architecture.md) for the boundaries.
 
-## Build
+## Quick start
 
-```sh
-cmake -B build -DCMAKE_BUILD_TYPE=Debug
-cmake --build build
-```
+Use a [C11](https://www.iso.org/standard/57853.html) compiler and [CMake](https://cmake.org/cmake/help/latest/) version 3.20 or newer.
+Install [cgreen](https://github.com/cgreen-devs/cgreen) headers and libraries for the required host unit target.
+Install [behave](https://behave.readthedocs.io/en/stable/) for scenarios.
+Run these commands from the repository root.
 
-
-## Testing
-
-BDD scenarios (natural language, Gherkin):
-```sh
-behave
-```
-
-C unit tests:
-```sh
+~~~sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure
-```
+behave
+~~~
 
+The configured unit target runs nine codec tests with 1690 assertions.
+The scenario suite passes three scenarios and ten steps.
+The [tester guide](doc/tester.md) explains their coverage and limits.
 
-# Architecture
+## Choose your guide
 
-The project follows a **Ports & Adapters** pattern. The public C headers define abstract interfaces ("ports"); concrete adapters plug in underneath without changing the interface or the tests above it.
+| Reader | Start here |
+| --- | --- |
+| Developer | [Understand the code and extend an application](doc/developer.md). |
+| Integrator | [Connect platform services and plan an adapter](doc/integrator.md). |
+| Manager | [Assess scope, gaps, and release readiness](doc/manager.md). |
+| Tester | [Run checks and understand coverage](doc/tester.md). |
 
-```
-src/
-  include/shish_lan/   # public API — abstract switch interface
-  core/                # low-level hardware drivers ("the metal")
-  modules/             # high-level adapters (sim, hw, ...)
-tests/
-  features/            # Gherkin scenarios + Python/ctypes harness
-  unit/                # C unit tests (cgreen)
-```
-
-
-## Testability
-
-Scenarios are written in plain English using Gherkin (`tests/features/*.feature`) so that non-developers can read and write them. The `behave` runner loads the compiled C library at runtime via `ctypes` and maps each GIVEN / WHEN / THEN step to a call into the public C API — no test code knows about internals.
-
-A software simulation adapter (`sim_adapter`) implements the full switch interface in memory, so all scenarios run without physical hardware attached.
-
-C unit tests (`tests/unit/`, cgreen) cover isolated `core/` logic that does not need a full switch context. These are compiled by CMake and run via `ctest`.
-
-
-## Flexibility
-
-The switch interface (`shlan_switch_t`) is a vtable struct. Swapping from the simulation adapter to a real hardware driver requires no changes to the public API or any test. New capabilities are added by extending the vtable and implementing the new operation in each adapter.
-
+See the [contribution guide](CONTRIBUTING.md) before submitting changes.
 
 ## Licence
 
-lwSRP is licensed under the [Apache License, Version 2.0](LICENSE).
-Copyright 2026 kebag-logic. See [NOTICE](NOTICE).
-
-Individuals and companies may contribute under the same licence.
+lwSRP is licensed under the [Apache License, Version 2.0](LICENSE). Copyright 2026 kebag-logic. See [NOTICE](NOTICE). Individuals and companies may contribute under the same licence.
