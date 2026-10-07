@@ -26,9 +26,14 @@ behave --dry-run
 | Check | Current result | Meaning |
 | --- | --- | --- |
 | Configure and build | Exit 0. | The host library and required unit target compile. |
-| Default unit target | Exit 0; 60 tests and 3896 assertions. | The [runner](../tests/unit/main.c) executes eight suites. |
+| Default unit target | Exit 0; 70 tests and 4215 assertions. | The [runner](../tests/unit/main.c) executes eight suites. |
 | Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c). |
 | Scenario dry run | Validates step matching only. | It does not execute setup or verify behavior. |
+
+The [fault-injecting allocation port](../tests/unit/fault_alloc.c) replaces hosted allocation symbols in the unit executable.
+The [boundary suite](../tests/unit/review_test.c) fails selected allocations and checks the count of live allocations after teardown.
+It also checks changed Listener and Talker values after both received and transmitted LeaveAll.
+Named reversals must fail these regressions after compiling successfully.
 
 The [build definition](../CMakeLists.txt) requires the unit framework's headers and library for host configuration.
 It rejects an empty suite through an output-based failure rule.
@@ -50,7 +55,7 @@ ctest --test-dir "$LWSRP_MILAN_BUILD" --output-on-failure
 SHLAN_LIBRARY="$LWSRP_MILAN_BUILD/libshlan.so" behave
 ~~~
 
-The enabled build passes 60 tests with 3884 assertions.
+The enabled build passes 70 tests with 4203 assertions.
 It also passes three scenarios and ten steps.
 The [profile suite](../tests/unit/milan_test.c) checks both application options in each build.
 It checks the actual constructor against the build selection.
@@ -134,8 +139,8 @@ flowchart LR
 | Switch operations | [Three passing scenarios](../tests/features/switch.feature); a wrong disable binding also passes all three. | Independent state queries and adapter failures; see [issue #4](https://github.com/kebag-logic/lwSRP/issues/4). |
 | Parser | [Receive tests](../tests/unit/receive_test.c) and [integration tests](../tests/unit/integration_test.c) cover truncation, packed events, complete ends, and atomic validation. | Fuzzing and allocation exhaustion. |
 | Receive boundaries | [Boundary tests](../tests/unit/review_test.c) cover range rejection, overflow, legal maxima, unknown types, and unknown events across every application. | Randomized mixed-message input. |
-| Deferred propagation | [Multiport tests](../tests/unit/review_test.c) cover refused targets, copied values, source reclamation, and ordered Join/Leave replay. | Exhaustion under prolonged refusal. |
-| MRP state | [Transmit tests](../tests/unit/transmit_test.c) cover declaration ladders, refusal, retry, segmentation, withdrawal, and redeclaration. | Exhaustive table paths, propagation masks, and callback order. |
+| Deferred propagation | [Multiport tests](../tests/unit/review_test.c) cover refused targets, copied values, source reclamation, allocation rollback, callback order, retry, and teardown. | Exhaustion under prolonged refusal. |
+| MRP state | [Transmit tests](../tests/unit/transmit_test.c) cover declaration ladders, refusal, retry, segmentation, withdrawal, and redeclaration. | Exhaustive table paths and topology-dependent propagation masks. |
 | Timers | [Lifecycle tests](../tests/unit/timer_test.c) and [integration tests](../tests/unit/integration_test.c) cover removal, recreation, aging, periodic timing, and LeaveAll draws. | Target scheduling and long-duration drift. |
 | Profile withdrawal | [Profile tests](../tests/unit/milan_test.c) cover immediate stream withdrawal, unchanged VLAN/MAC timing, and preserved LV deadlines. | Target callback timing and network interoperability. |
 | Hardware and network | No adapter or interoperability suite. | Target timing, frame ownership, and packet captures. |
@@ -172,7 +177,7 @@ Two independent profile reversals delay withdrawal from IN and restart the LV de
 The first must fail both immediate-indication tests while the deadline test still passes.
 The second must fail the deadline test while the immediate-indication tests still pass.
 Additional reversals check build selection and application scope.
-Both profiles run all 60 reversals.
+Both profiles run all 75 reversals.
 They also pin propagation order, recovery indications, extension handling, range errors, and all reported LeaveAll boundaries.
 Each added behavioral reversal must fail its named regression after successful compilation.
 The [embedded check](../tests/check_embedded.py) exercises the actual module source list with a host compiler in both profiles.

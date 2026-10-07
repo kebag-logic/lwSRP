@@ -53,6 +53,7 @@ find_path(CGREEN_INCLUDE cgreen/cgreen.h REQUIRED)
 
 add_executable(unit_tests
     tests/unit/main.c
+    tests/unit/fault_alloc.c
     tests/unit/mrp_pdu_test.c
     tests/unit/timer_test.c
     tests/unit/msrp_values_test.c
