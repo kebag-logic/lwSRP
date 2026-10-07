@@ -47,7 +47,7 @@ find_library(CGREEN_LIB cgreen)
 find_path(CGREEN_INCLUDE cgreen/cgreen.h)
 
 if(CGREEN_LIB AND CGREEN_INCLUDE)
-    add_executable(unit_tests tests/unit/placeholder.c tests/unit/mrp_pdu_test.c tests/unit/timer_test.c)
+    add_executable(unit_tests tests/unit/placeholder.c tests/unit/mrp_pdu_test.c tests/unit/timer_test.c tests/unit/msrp_values_test.c)
     target_include_directories(unit_tests PRIVATE ${CGREEN_INCLUDE} src/include src)
     target_link_libraries(unit_tests PRIVATE shlan ${CGREEN_LIB})
     add_test(NAME unit COMMAND unit_tests)

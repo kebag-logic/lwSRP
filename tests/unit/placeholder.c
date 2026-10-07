@@ -3,11 +3,13 @@
 
 TestSuite *mrp_pdu_suite(void);
 TestSuite *timer_suite(void);
+TestSuite *msrp_values_suite(void);
 
 int main(void)
 {
     TestSuite *suite = create_test_suite();
     add_suite(suite, mrp_pdu_suite());
     add_suite(suite, timer_suite());
+    add_suite(suite, msrp_values_suite());
     return run_test_suite(suite, create_text_reporter());
 }

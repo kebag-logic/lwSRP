@@ -30,6 +30,13 @@
 #define MSRP_ATTR_TYPE_TALKER_ADV    1u
 #define MSRP_ATTR_TYPE_TALKER_FAILED 2u
 #define MSRP_ATTR_TYPE_LISTENER      3u
+#define MSRP_ATTR_TYPE_DOMAIN        4u
+
+struct msrp_domain {
+    uint8_t class_id;
+    uint8_t priority;
+    uint16_t vid;
+};
 
 /* Stream ID: 8-octet identifier (§35.2.1) */
 struct msrp_stream_id {
@@ -65,6 +72,8 @@ struct msrp_talker_failed {
  * MSRP application context.
  */
 struct msrp_ctx {
+    void (*on_domain)(struct msrp_ctx *ctx, uint8_t port_id,
+                      const struct msrp_domain *domain, bool is_new);
     void (*on_talker_advertise)(struct msrp_ctx *ctx, uint8_t port_id,
                                 const struct msrp_talker_adv *attr, bool is_new);
     void (*on_talker_failed)(struct msrp_ctx *ctx, uint8_t port_id,

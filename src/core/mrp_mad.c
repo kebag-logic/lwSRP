@@ -62,7 +62,7 @@ struct mrp_attr_inst {
     uint8_t              attr_type;
     /* Largest in-memory value (struct msrp_talker_failed) with margin;
      * see attr_store_len(). */
-    uint8_t              attr_val[48];
+    _Alignas(max_align_t) uint8_t attr_val[48];
     enum mrp_appl_state  appl;         /* Applicant state          */
     enum mrp_reg_state   reg;          /* Registrar state          */
     enum tx_msg          pending_tx;   /* message scheduled for next tx */
