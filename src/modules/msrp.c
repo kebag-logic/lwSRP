@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * MSRP application adapter — IEEE 802.1Q-2018, §35.
  *

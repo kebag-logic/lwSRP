@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 #ifndef SHISH_LAN_SWITCH_H
 #define SHISH_LAN_SWITCH_H
 

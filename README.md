@@ -58,3 +58,11 @@ C unit tests (`tests/unit/`, cgreen) cover isolated `core/` logic that does not 
 ## Flexibility
 
 The switch interface (`shlan_switch_t`) is a vtable struct. Swapping from the simulation adapter to a real hardware driver requires no changes to the public API or any test. New capabilities are added by extending the vtable and implementing the new operation in each adapter.
+
+
+## Licence
+
+lwSRP is licensed under the [Apache License, Version 2.0](LICENSE).
+Copyright 2026 kebag-logic. See [NOTICE](NOTICE).
+
+Individuals and companies may contribute under the same licence.
