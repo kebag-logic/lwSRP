@@ -24,14 +24,18 @@
 
 static int put_u8(uint8_t *buf, size_t len, uint8_t v)
 {
-    if (len < 1) return -SHLAN_ERROR_NO_BUFFER;
+    if (len < 1) {
+        return -SHLAN_ERROR_NO_BUFFER;
+    }
     buf[0] = v;
     return 1;
 }
 
 static int put_u16be(uint8_t *buf, size_t len, uint16_t v)
 {
-    if (len < 2) return -SHLAN_ERROR_NO_BUFFER;
+    if (len < 2) {
+        return -SHLAN_ERROR_NO_BUFFER;
+    }
     buf[0] = (uint8_t)(v >> 8);
     buf[1] = (uint8_t)(v & 0xFF);
     return 2;
@@ -39,7 +43,9 @@ static int put_u16be(uint8_t *buf, size_t len, uint16_t v)
 
 static int get_u16be(const uint8_t *buf, size_t len, uint16_t *out)
 {
-    if (len < 2) return -SHLAN_ERROR_INVALID;
+    if (len < 2) {
+        return -SHLAN_ERROR_INVALID;
+    }
     *out = (uint16_t)((buf[0] << 8) | buf[1]);
     return 2;
 }
@@ -71,12 +77,16 @@ int mrpdu_encode_vector(uint8_t *buf, size_t buf_len,
                         enum mrp_attr_event attr_event,
                         const uint8_t *first_value, uint8_t fv_len)
 {
-    if (fv_len == 0 || !first_value) return -SHLAN_ERROR_INVALID;
+    if (fv_len == 0 || !first_value) {
+        return -SHLAN_ERROR_INVALID;
+    }
 
     /* VectorHeader: 2 octets */
     uint16_t vh = mrp_vh_encode(la_event, 1u);
     size_t need = 2u /* VH */ + fv_len + 1u /* one ThreePacked byte */;
-    if (buf_len < need) return -SHLAN_ERROR_NO_BUFFER;
+    if (buf_len < need) {
+        return -SHLAN_ERROR_NO_BUFFER;
+    }
 
     int off = 0;
     int r;
@@ -103,8 +113,8 @@ int mrpdu_encode_vector(uint8_t *buf, size_t buf_len,
 /* ------------------------------------------------------------------ */
 
 /* Validate the complete PDU before delivering any event. IEEE 802.1Q
- * 10.8.3 supplies the length and vector rules; unknown MSRP messages use
- * AttributeListLength to preserve forward compatibility. */
+ * 10.8.3 supplies the length and vector rules. Higher-version extensions
+ * are skipped at their Message or VectorAttribute boundary (10.8.3.5). */
 static int parse_pass(const uint8_t *pdu, size_t len,
                       const struct mrp_app_ops *ops,
                       mrpdu_on_attr_fn on_attr,
@@ -113,6 +123,7 @@ static int parse_pass(const uint8_t *pdu, size_t len,
     if (!pdu || len < 3 || !ops || !ops->attr_len || !ops->decode_attr) {
         return -SHLAN_ERROR_INVALID;
     }
+    bool later = pdu[0] > ops->proto_version;
     size_t off = 1; /* Later versions retain the common message format. */
     while (off + 2 <= len) {
         uint8_t type = pdu[off++];
@@ -131,11 +142,13 @@ static int parse_pass(const uint8_t *pdu, size_t len,
             end = count > len - off ? len : off + count;
         }
         uint8_t expected = ops->attr_len(type);
-        if (!expected && msrp) {
+        bool unknown = !expected && later;
+        /* MSRP supplies the boundary even when its future vector layout is unknown. */
+        if (unknown && msrp) {
             off = end;
             continue;
         }
-        if (!expected || expected != alen) {
+        if ((!expected && !unknown) || !alen || (expected && expected != alen)) {
             return -SHLAN_ERROR_INVALID;
         }
         bool ended = false;
@@ -150,11 +163,11 @@ static int parse_pass(const uint8_t *pdu, size_t len,
             }
             unsigned la = mrp_vh_la(vh);
             unsigned count = mrp_vh_nv(vh);
-            bool subtype = ops->attr_has_subtype && ops->attr_has_subtype(type);
+            bool subtype = !unknown && ops->attr_has_subtype && ops->attr_has_subtype(type);
             size_t events = (count + 2u) / 3u;
             size_t subtypes = subtype ? (count + 3u) / 4u : 0;
             size_t need = alen + events + subtypes;
-            if (la > MRP_LA_ALL || need > end - off) {
+            if (need > end - off) {
                 return -SHLAN_ERROR_INVALID;
             }
             const uint8_t *fv = pdu + off;
@@ -162,10 +175,15 @@ static int parse_pass(const uint8_t *pdu, size_t len,
             const uint8_t *sub = ev + events;
             off += need;
             vector_seen = true;
+            bool unknown_event = la > MRP_LA_ALL;
             for (size_t k = 0; k < events; ++k) {
-                if (ev[k] > 215u) {
-                    return -SHLAN_ERROR_INVALID;
-                }
+                unknown_event = unknown_event || ev[k] > 215u;
+            }
+            if (unknown || (later && unknown_event)) {
+                continue;
+            }
+            if (unknown_event) {
+                return -SHLAN_ERROR_INVALID;
             }
             if (la && on_leaveall) {
                 on_leaveall(ctx, type);
@@ -176,7 +194,7 @@ static int parse_pass(const uint8_t *pdu, size_t len,
                 mrp_three_unpack(ev[k / 3u], &e[0], &e[1], &e[2]);
                 int r = ops->decode_attr(type, k, fv, alen, value);
                 if (r < 0) {
-                    continue; /* Invalid application values have no indication. */
+                    return r; /* The validation pass rejects the complete PDU. */
                 }
                 if (subtype) {
                     uint8_t decl[4];

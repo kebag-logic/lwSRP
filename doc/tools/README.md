@@ -28,7 +28,7 @@ python3 doc/tools/render_mermaid.py --output "$DOC_SCRATCH/graphs"
 
 All checks return zero on success and nonzero on failure.
 No broken link is silently exempted.
-The combined tree includes the required [licence](../../LICENSE) and [notice](../../NOTICE).
+The [licence](../../LICENSE) and [notice](../../NOTICE) links are required and must resolve.
 External access failures remain failures.
 
 While the repository is private, the link command uses authenticated access for repository URLs only.

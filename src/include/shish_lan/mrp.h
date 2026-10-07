@@ -265,6 +265,24 @@ void            mrp_app_destroy(struct mrp_app *app);
  * Keep that buffer alive and unchanged between retries. While retained, RX and
  * local declarations on this port are refused without side effects: queue and
  * retry them after the transmit. Timers still expire, including registrar Leave.
+ * Internal propagation owns copied values in a per-destination FIFO. It replays
+ * after accepted output commits, in event order, before the next PDU is built.
+ * Queued work survives source reclamation and is freed on application destroy.
+ * Destination allocation failures retain queued work for the next poll.
+ * Each indication with policy reserves up to 32 entries before notifying the
+ * host, then calls policy and frees unselected entries. Reservation failure
+ * preserves the prior value and state for receive retry; earlier events may
+ * remain applied. Later attributes wait for that retry. Replacement failures
+ * stop before the new Join, preserving old Leave before new Join.
+ * Timer withdrawal retries reservation on the next tick. Failed topology
+ * Flush enters LV, snapshots its value, marks withdrawal pending, and arms a
+ * 1 cs Leave timer. The snapshot belongs to the attribute until Leave succeeds.
+ * Local declarations and cross-port propagation can update Applicant storage
+ * without changing this snapshot. Leave indication and policy use the snapshot.
+ * Receive retries that withdrawal with the saved value before refreshing the
+ * attribute. A failed retry returns NO_MEMORY and stops later attributes.
+ * Once Leave succeeds, the new registration can issue its own indication.
+ * Ordinary LV recovery without pending Flush retains the table behavior.
  * The send function must never call back into MRP synchronously.
  */
 /* 10.7 permits limiting state to attributes of immediate interest. A filter
@@ -333,6 +351,15 @@ void mrp_tick(struct mrp_app *app, uint8_t port_id);
  * Port topology event — drive Flush!/Re-declare! into state machines.
  * flush=true  → §10.7.5.2 Flush! (Root/Alt → Designated).
  * flush=false → §10.7.5.3 Re-declare! (Designated → Root/Alt).
+ * If Flush cannot reserve propagation, retain the withdrawal in LV with a
+ * 1 cs Leave timer, pending flag, and owned value snapshot. Further failed
+ * retries preserve that snapshot. Local declarations and cross-port propagation
+ * still update Applicant values. Leave indication and propagation use the
+ * snapshot. Receive cannot cancel that withdrawal:
+ * it retries the saved-value Leave before applying the received attribute.
+ * A failed receive retry returns NO_MEMORY. Retry that payload after recovery.
+ * Observers report the retained IN-to-LV transition even when allocation fails.
+ * Continue global ticks and destination polls for replay.
  */
 void mrp_port_role_change(struct mrp_app *app, uint8_t port_id, bool flush);
 

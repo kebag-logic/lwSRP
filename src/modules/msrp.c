@@ -259,20 +259,26 @@ static int msrp_encode_attr(uint8_t attr_type, const void *attr_val,
         return MSRP_ATTR_LEN_DOMAIN;
     }
     case MSRP_ATTR_TYPE_TALKER_ADV:
-        if (buf_len < MSRP_ATTR_LEN_TALKER_ADV) return -SHLAN_ERROR_NO_BUFFER;
+        if (buf_len < MSRP_ATTR_LEN_TALKER_ADV) {
+            return -SHLAN_ERROR_NO_BUFFER;
+        }
         talker_to_wire((const struct msrp_talker_adv *)attr_val, buf);
         return MSRP_ATTR_LEN_TALKER_ADV;
 
     case MSRP_ATTR_TYPE_TALKER_FAILED: {
         const struct msrp_talker_failed *tf = attr_val;
-        if (buf_len < MSRP_ATTR_LEN_TALKER_FAILED) return -SHLAN_ERROR_NO_BUFFER;
+        if (buf_len < MSRP_ATTR_LEN_TALKER_FAILED) {
+            return -SHLAN_ERROR_NO_BUFFER;
+        }
         talker_to_wire(&tf->talker, buf);
         memcpy(buf + MSRP_ATTR_LEN_TALKER_ADV, tf->failure_info, 9);
         return MSRP_ATTR_LEN_TALKER_FAILED;
     }
 
     case MSRP_ATTR_TYPE_LISTENER:
-        if (buf_len < MSRP_ATTR_LEN_LISTENER) return -SHLAN_ERROR_NO_BUFFER;
+        if (buf_len < MSRP_ATTR_LEN_LISTENER) {
+            return -SHLAN_ERROR_NO_BUFFER;
+        }
         memcpy(buf, attr_val, MSRP_ATTR_LEN_LISTENER);
         return MSRP_ATTR_LEN_LISTENER;
 
@@ -282,13 +288,14 @@ static int msrp_encode_attr(uint8_t attr_type, const void *attr_val,
 }
 
 /* IEEE 802.1Q-2018 35.2.2.8: increment Unique ID and destination MAC. */
-static void increment_stream(uint8_t *b, unsigned count, uint32_t offset)
+static int increment_stream(uint8_t *b, unsigned count, uint32_t offset)
 {
     for (unsigned n = count; n > 0; --n) {
         offset += b[n - 1];
         b[n - 1] = (uint8_t)offset;
         offset >>= 8;
     }
+    return offset ? -SHLAN_ERROR_RANGE : 0;
 }
 
 static int msrp_decode_attr(uint8_t attr_type, uint32_t offset,
@@ -316,8 +323,10 @@ static int msrp_decode_attr(uint8_t attr_type, uint32_t offset,
             return -SHLAN_ERROR_INVALID;
         }
         talker_from_wire(buf, t);
-        increment_stream(t->stream_id.bytes + 6, 2, offset);
-        increment_stream(t->dest_mac, 6, offset);
+        if (increment_stream(t->stream_id.bytes + 6, 2, offset) < 0 ||
+            increment_stream(t->dest_mac, 6, offset) < 0) {
+            return -SHLAN_ERROR_RANGE;
+        }
         if (attr_type == MSRP_ATTR_TYPE_TALKER_FAILED) {
             struct msrp_talker_failed *tf = attr_val_out;
             memcpy(tf->failure_info, buf + MSRP_ATTR_LEN_TALKER_ADV, 9);
@@ -329,7 +338,9 @@ static int msrp_decode_attr(uint8_t attr_type, uint32_t offset,
             return -SHLAN_ERROR_INVALID;
         }
         memcpy(attr_val_out, buf, MSRP_ATTR_LEN_LISTENER);
-        increment_stream((uint8_t *)attr_val_out + 6, 2, offset);
+        if (increment_stream((uint8_t *)attr_val_out + 6, 2, offset) < 0) {
+            return -SHLAN_ERROR_RANGE;
+        }
         return MSRP_ATTR_LEN_LISTENER;
     default:
         return -SHLAN_ERROR_INVALID;

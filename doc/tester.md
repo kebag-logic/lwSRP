@@ -26,9 +26,26 @@ behave --dry-run
 | Check | Current result | Meaning |
 | --- | --- | --- |
 | Configure and build | Exit 0. | The host library and required unit target compile. |
-| Default unit target | Exit 0; 45 tests and 2659 assertions. | The [runner](../tests/unit/main.c) executes seven suites. |
+| Default unit target | Exit 0; 87 tests and 19901 assertions. | The [runner](../tests/unit/main.c) executes eight suites. |
 | Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c). |
 | Scenario dry run | Validates step matching only. | It does not execute setup or verify behavior. |
+
+The [fault-injecting allocation port](../tests/unit/fault_alloc.c) replaces hosted allocation symbols in the unit executable.
+The [boundary suite](../tests/unit/review_test.c) fails selected allocations and checks the count of live allocations after teardown.
+It also checks changed Listener and Talker values after both received and transmitted LeaveAll.
+Flush tests fail every reservation from IN and LV, then verify successful recovery on the first tick.
+Separate cases repeat failures on successive ticks and assert that each injected fault was reached.
+Receive interleavings cover all three stream registrations, both initial states, changed and unchanged values, and New or Join events.
+Receive fault sweeps cover all six Leave and Join reservations, repeated refusal, saved values, ordered indications, and teardown.
+Cross-port tests run 48 cases with production propagation policy in each profile.
+They cover all three stream types, IN and LV, three reservation faults, no-fault controls, and timer or receive completion.
+Leave indication and policy must receive the original value while Applicant updates remain visible.
+Another 48 cases cover local declarations, repeated failure, and fresh snapshots for later Flush operations.
+Timer-completion tests receive three unchanged registrations and require exactly one Leave and one Join.
+Observer tests require continuous transitions through the failed Flush and its timer or receive recovery.
+Replacement tests start in IN and received-LeaveAll LV, sweep every allocation in both directions, and require Leave before Join.
+Additional tests pin receive stopping at source and reservation allocations, policy masks, and allocation-free registration without propagation policy.
+Named reversals must fail these regressions after compiling successfully.
 
 The [build definition](../CMakeLists.txt) requires the unit framework's headers and library for host configuration.
 It rejects an empty suite through an output-based failure rule.
@@ -50,7 +67,7 @@ ctest --test-dir "$LWSRP_MILAN_BUILD" --output-on-failure
 SHLAN_LIBRARY="$LWSRP_MILAN_BUILD/libshlan.so" behave
 ~~~
 
-The enabled build passes 45 tests with 2647 assertions.
+The enabled build passes 87 tests with 19889 assertions.
 It also passes three scenarios and ten steps.
 The [profile suite](../tests/unit/milan_test.c) checks both application options in each build.
 It checks the actual constructor against the build selection.
@@ -59,6 +76,7 @@ Talker and Listener indications must arrive before the receive call returns, wit
 Repeated withdrawals produce no duplicate indication.
 A withdrawal after LeaveAll preserves the deadline, checked one centisecond before expiry and at expiry.
 The suite also pins default VLAN and MAC aging and local withdrawal behavior.
+Re-declare and transmitted LeaveAll retain their timed transitions when rapid withdrawal is enabled.
 
 ## Run the existing codec tests
 
@@ -131,8 +149,11 @@ flowchart LR
 | --- | --- | --- |
 | Packed values and encoding | [Nine codec tests](../tests/unit/mrp_pdu_test.c). | Multi-value encoding and malformed lengths. |
 | Switch operations | [Three passing scenarios](../tests/features/switch.feature); a wrong disable binding also passes all three. | Independent state queries and adapter failures; see [issue #4](https://github.com/kebag-logic/lwSRP/issues/4). |
-| Parser | [Receive tests](../tests/unit/receive_test.c) and [integration tests](../tests/unit/integration_test.c) cover truncation, packed events, complete ends, and atomic validation. | More unknown-type and version combinations, fuzzing, and allocation exhaustion. |
-| MRP state | [Transmit tests](../tests/unit/transmit_test.c) cover declaration ladders, refusal, retry, segmentation, withdrawal, and redeclaration. | Exhaustive table paths, propagation masks, and callback order. |
+| Parser | [Receive tests](../tests/unit/receive_test.c) and [integration tests](../tests/unit/integration_test.c) cover truncation, packed events, complete ends, and atomic validation. | Fuzzing and allocation exhaustion. |
+| Receive boundaries | [Boundary tests](../tests/unit/review_test.c) cover range rejection, overflow, legal maxima, unknown types, and unknown events across every application. | Randomized mixed-message input. |
+| Deferred propagation | [Multiport tests](../tests/unit/review_test.c) cover refused targets, copied values, source reclamation, allocation rollback, ordered replacement, Flush snapshots, timer completion, receive interleaving, observer continuity, and teardown. | Exhaustion under prolonged refusal. |
+| Propagation policy | [Boundary tests](../tests/unit/review_test.c) pin selected destinations, excluded source ports, Listener routing, receive stopping, and allocation-free operation without policy. | Future spanning-tree role filtering. |
+| MRP state | [Transmit tests](../tests/unit/transmit_test.c) cover declaration ladders, refusal, retry, segmentation, withdrawal, and redeclaration. | Exhaustive table paths. |
 | Timers | [Lifecycle tests](../tests/unit/timer_test.c) and [integration tests](../tests/unit/integration_test.c) cover removal, recreation, aging, periodic timing, and LeaveAll draws. | Target scheduling and long-duration drift. |
 | Profile withdrawal | [Profile tests](../tests/unit/milan_test.c) cover immediate stream withdrawal, unchanged VLAN/MAC timing, and preserved LV deadlines. | Target callback timing and network interoperability. |
 | Hardware and network | No adapter or interoperability suite. | Target timing, frame ownership, and packet captures. |
@@ -152,12 +173,14 @@ It changes one behavior at a time, builds, and requires the corresponding check 
 It restores each source before continuing and finishes with a passing build and test run.
 A behavioral mutation that only breaks compilation does not count as detected.
 Every command's return code and output are saved in scratch.
-Set REVERSAL_SCRATCH to a new directory outside the checkout.
+Set REVERSAL_SCRATCH, MILAN_REVERSAL_SCRATCH, and EMBEDDED_SCRATCH to separate new directories outside the checkout.
 
 ~~~sh
+python3 tests/check_embedded.py --work-dir "$EMBEDDED_SCRATCH"
 python3 tests/check_freestanding.py
 CC="cc -DLWSRP_MILAN=1" python3 tests/check_freestanding.py
 python3 tests/check_reversals.py --work-dir "$REVERSAL_SCRATCH" --prefix "$CGREEN_PREFIX"
+python3 tests/check_reversals.py --work-dir "$MILAN_REVERSAL_SCRATCH" --prefix "$CGREEN_PREFIX" --milan ON
 ~~~
 
 The [freestanding check](../tests/check_freestanding.py) uses the configured C compiler and rejects hosted allocation, error, and print headers.
@@ -167,6 +190,11 @@ Two independent profile reversals delay withdrawal from IN and restart the LV de
 The first must fail both immediate-indication tests while the deadline test still passes.
 The second must fail the deadline test while the immediate-indication tests still pass.
 Additional reversals check build selection and application scope.
+Both profiles run all 93 reversals.
+They also pin propagation order, recovery indications, extension handling, range errors, and all reported LeaveAll boundaries.
+Each added behavioral reversal must fail its named regression after successful compilation.
+The [embedded check](../tests/check_embedded.py) exercises the actual module source list with a host compiler in both profiles.
+Removing switch dispatch must fail its link with the missing public symbols.
 Header and warning regressions intentionally fail compilation or dependency checks.
 The checks do not prove target linking or network conformance.
 
