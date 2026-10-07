@@ -128,6 +128,38 @@ Ensure(Transmit, receive_redeclare_requests_transmission_without_periodic_wait)
     assert_that(mrp_transmit(a,0,buffer,sizeof(buffer),send_pdu,0),is_equal_to(1));
     mvrp_app_destroy(a);
 }
+static unsigned seen[10];
+static void segmented(void *ctx, uint8_t type, enum mrp_attr_event ev, const void *value)
+{
+    (void)ctx;
+    const struct msrp_talker_adv *talker=value;
+    assert_that(type,is_equal_to(1));
+    unsigned n=talker->stream_id.bytes[7];
+    assert_that(n,is_less_than(10));
+    if (n<10 && ev==MRP_ATTR_EVENT_NEW) {
+        ++seen[n];
+    }
+}
+Ensure(Transmit, a_full_pdu_retries_omitted_attributes_before_repeats)
+{
+    struct msrp_ctx ctx = {0};
+    struct mrp_app *a = msrp_app_create(1,&ctx);
+    for (unsigned n=0;n<10;++n) {
+        struct msrp_talker_adv t={0}; t.stream_id.bytes[7]=(uint8_t)n;
+        assert_that(msrp_declare_talker(a,0,&t,true),is_equal_to(0));
+        seen[n]=0;
+    }
+    uint8_t buffer[80]; refuse=0;
+    for (unsigned n=0;n<5;++n) {
+        assert_that(mrp_transmit(a,0,buffer,sizeof(buffer),send_pdu,0),is_equal_to(1));
+        assert_that(mrpdu_parse(frame,frame_len,a->ops,segmented,0,0),is_equal_to(0));
+        tick(20);
+    }
+    for (unsigned n=0;n<10;++n) {
+        assert_that(seen[n],is_equal_to(1));
+    }
+    msrp_app_destroy(a);
+}
 TestSuite *transmit_suite(void)
 {
     TestSuite *s = create_test_suite();
@@ -135,5 +167,6 @@ TestSuite *transmit_suite(void)
     add_test_with_context(s, Transmit, leaveall_then_withdrawal_retains_until_leave_expiry);
     add_test_with_context(s, Transmit, refused_pdu_survives_timers_without_aging_unsent_leaveall);
     add_test_with_context(s, Transmit, receive_redeclare_requests_transmission_without_periodic_wait);
+    add_test_with_context(s, Transmit, a_full_pdu_retries_omitted_attributes_before_repeats);
     return s;
 }

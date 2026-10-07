@@ -66,6 +66,8 @@ struct mrp_attr_inst {
     _Alignas(max_align_t) uint8_t attr_val[48];
     enum mrp_appl_state  appl;         /* Applicant state          */
     enum mrp_reg_state   reg;          /* Registrar state          */
+    bool                 tx_selected;
+    bool                 tx_deferred;
     enum tx_msg          pending_tx;   /* message scheduled for next tx */
     struct mrp_attr_inst *next;
     /* Leave timer: fires MRP_EVENT_LEAVETIMER into the Registrar SM on expiry */
@@ -1163,37 +1165,56 @@ int mrp_transmit(struct mrp_app *app, uint8_t port_id,
     size_t off = ps->prepared_len;
     if (!ps->prepared_pdu) {
         off = 1;
-        unsigned flagged = 0;
         pdu[0] = app->ops->proto_version;
-        for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
-            const struct appl_entry *e = &appl_table[event][a->appl];
-            if (e->tx == TX_MSG_NONE) {
-                continue;
-            }
-            bool flag = la && !(flagged & (1u << a->attr_type));
-            int n = tx_vector(app->ops, a->attr_type, a->attr_val,
-                              wire_event(e->tx, a->reg), flag, false,
-                              pdu + off, capacity - off - 2u);
-            if (n < 0) {
-                return n;
-            }
-            off += (size_t)n;
-            flagged |= 1u << a->attr_type;
-        }
         if (la) {
-            unsigned last = app->ops->ethertype == MRP_ETHERTYPE_MSRP ? 4u : 1u;
+            unsigned last = app->ops->ethertype == MRP_ETHERTYPE_MSRP ? 4u :
+                            app->ops->ethertype == MRP_ETHERTYPE_MMRP ? 2u : 1u;
             for (unsigned type = 1; type <= last; ++type) {
-                if (!(flagged & (1u << type))) {
-                    int n = tx_vector(app->ops, (uint8_t)type, NULL, MRP_ATTR_EVENT_MT,
-                                      true, true, pdu + off, capacity - off - 2u);
-                    if (n < 0) {
-                        return n;
-                    }
-                    off += (size_t)n;
+                int n = tx_vector(app->ops, (uint8_t)type, NULL, MRP_ATTR_EVENT_MT,
+                                  true, true, pdu + off, capacity - off - 2u);
+                if (n < 0) {
+                    return n;
                 }
+                off += (size_t)n;
+            }
+        }
+        for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
+            a->tx_selected = false;
+        }
+        bool full = false;
+        // Carry attributes omitted by a full earlier PDU ahead of repeats.
+        for (unsigned priority = 0; priority < 2; ++priority) {
+            if (priority && full) {
+                break;
+            }
+            for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
+                if (a->tx_selected || a->tx_deferred != (priority == 0)) {
+                    continue;
+                }
+                const struct appl_entry *e = &appl_table[event][a->appl];
+                if (e->tx == TX_MSG_NONE) {
+                    a->tx_selected = true;
+                    continue;
+                }
+                int n = tx_vector(app->ops, a->attr_type, a->attr_val,
+                                  wire_event(e->tx, a->reg), false, false,
+                                  pdu + off, capacity - off - 2u);
+                if (n == -SHLAN_ERROR_NO_BUFFER) {
+                    a->tx_deferred = true;
+                    full = true;
+                    continue;
+                }
+                if (n < 0) {
+                    return n;
+                }
+                a->tx_selected = true;
+                off += (size_t)n;
             }
         }
         if (off == 1) {
+            if (full) {
+                return -SHLAN_ERROR_NO_BUFFER;
+            }
             ps->tx_pending = false;
             return 0;
         }
@@ -1212,7 +1233,15 @@ int mrp_transmit(struct mrp_app *app, uint8_t port_id,
     ps->prepared_len = 0;
     ps->tx_pending = false;
     for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
-        deliver_event(app, ps, a, event, port_id);
+        if (a->tx_selected) {
+            a->tx_deferred = false;
+            deliver_event(app, ps, a, event, port_id);
+        } else if (la) {
+            deliver_event(app, ps, a, MRP_EVENT_TXLAF, port_id);
+        }
+        if (a->tx_deferred) {
+            ps->tx_pending = true;
+        }
         switch (a->appl) {
         case MRP_APPL_STATE_VN: case MRP_APPL_STATE_AN:
         case MRP_APPL_STATE_AA: case MRP_APPL_STATE_LA:
