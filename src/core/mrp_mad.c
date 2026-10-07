@@ -766,9 +766,12 @@ void mrp_app_destroy(struct mrp_app *app)
     if (!app) return;
     struct mrp_priv *priv = priv_of(app);
     for (uint8_t p = 0; p < priv->n_ports; p++) {
+        shlan_timer_remove(&priv->ports[p].la_timer);
+        shlan_timer_remove(&priv->ports[p].pt_timer);
         struct mrp_attr_inst *a = priv->ports[p].attrs;
         while (a) {
             struct mrp_attr_inst *next = a->next;
+            shlan_timer_remove(&a->leave_timer);
             shlan_free(a);
             a = next;
         }
