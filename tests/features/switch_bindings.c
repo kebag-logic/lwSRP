@@ -2,7 +2,7 @@
 
 #include "shish_lan/switch.h"
 
-/* ctypes needs external symbols for the public header's inline helpers. */
+/* Preserve the scenario harness entry points for the public operations. */
 int shlan_test_connect(struct shlan_switch *sw)
 {
     return shlan_connect(sw);

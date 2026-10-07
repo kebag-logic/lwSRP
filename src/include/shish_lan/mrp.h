@@ -228,6 +228,12 @@ struct mrp_app_ops {
     uint8_t  proto_version;  /* §10.8.2.1        */
     uint8_t  group_addr[6];  /* §10.5 Table 10-1 */
     void    *ctx;            /* opaque application context passed back in callbacks */
+    /* Optional application encoding rule for a received JoinIn/JoinMt:
+     * true withdraws a different registered attribute before registering this
+     * one (MSRP 35.2.6). Values use the application's in-memory representation.
+     */
+    bool (*attr_replaces)(uint8_t old_type, const void *old_value,
+                          uint8_t new_type, const void *new_value);
 };
 
 /* Opaque MRP application handle */
@@ -243,6 +249,41 @@ struct mrp_app {
 /* Create/destroy an MRP application instance (all ports share one). */
 struct mrp_app *mrp_app_create(const struct mrp_app_ops *ops, uint8_t n_ports);
 void            mrp_app_destroy(struct mrp_app *app);
+
+/* Poll one transmit opportunity. The send port returns zero only after it
+ * accepts all bytes; a refusal leaves every applicant and registrar unchanged.
+ * Ports never call back into this application synchronously. Caller storage
+ * must fit one message and any LeaveAll preamble; larger populations split
+ * across opportunities. A no-buffer result commits no state. Returns 1 for
+ * a committed PDU, zero when no opportunity is due, or negative errno. */
+/* A refused send retains the exact PDU in the caller's buffer until accepted.
+ * Keep that buffer alive and unchanged between retries. While retained, RX and
+ * local declarations on this port are refused without side effects: queue and
+ * retry them after the transmit. Timers still expire, including registrar Leave.
+ * The send function must never call back into MRP synchronously.
+ */
+/* 10.7 permits limiting state to attributes of immediate interest. A filter
+ * runs after complete wire validation, before any allocation. LeaveAll remains
+ * applicable to retained attributes. It must not re-enter MRP.
+ */
+typedef bool (*mrp_rx_filter_fn)(void *ctx, uint8_t port, uint8_t type, const void *value);
+void mrp_set_rx_filter(struct mrp_app *app, mrp_rx_filter_fn filter, void *ctx);
+/* Reclaim only unregistered, undeclared attributes (Table 10-3 note 11).
+ * Call outside callbacks; a prepared transmission prevents reclamation.
+ */
+unsigned mrp_reclaim(struct mrp_app *app, uint8_t port_id);
+typedef int (*mrp_send_fn)(void *ctx, uint8_t port_id,
+                           const uint8_t *pdu, size_t len);
+int mrp_transmit(struct mrp_app *app, uint8_t port_id,
+                 uint8_t *pdu, size_t capacity, mrp_send_fn send, void *ctx);
+
+/* Set protocol timers before declaring attributes. Units are centiseconds.
+ * A caller supplies a random seed; LeaveAll draws are strictly inside the
+ * IEEE 802.1Q 10.7.4.3 interval. A one-second periodic timer is independent
+ * of JoinTime. No port call can synchronously deliver a tick or RX event. */
+int mrp_port_configure(struct mrp_app *app, uint8_t port_id,
+                        uint32_t join_cs, uint32_t leave_cs,
+                        uint32_t leaveall_cs, uint32_t seed, bool point_to_point);
 
 /* Return the number of ports the application was created with. */
 uint8_t mrp_app_n_ports(const struct mrp_app *app);

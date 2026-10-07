@@ -21,7 +21,8 @@ flowchart TD
 ~~~
 
 The [application callbacks](../src/include/shish_lan/mrp.h) connect applications to the [declaration state](../src/core/mrp_mad.c).
-The [codec](../src/core/mrp_pdu.c) parses payloads and provides encoding helpers.
+The [codec](../src/core/mrp_pdu.c) validates complete payloads before delivering events.
+The [transmit operation](../src/core/mrp_mad.c#L1167) assembles PDUs and commits state after acceptance.
 The [timer port](../src/ports/timer.h) and [allocation port](../src/ports/alloc.h) isolate platform services.
 
 The [switch operations](../src/include/shish_lan/switch.h) control ports independently of MRP.
@@ -33,9 +34,12 @@ No hardware driver connects these pieces yet.
 
 ~~~mermaid
 flowchart TD
-    Payload[MRP payload] --> Parse[Parse vectors]
+    Payload[MRP payload] --> Validate[Validate complete payload]
+    Validate --> Parse[Parse vectors]
     Parse --> Decode[Decode value]
-    Decode --> State[Apply event]
+    Decode --> Filter[Check receive interest]
+    Filter --> Allocate[Find or allocate state]
+    Allocate --> State[Apply event]
     State --> Notify[Notify host]
     Notify --> Policy[Choose propagation ports]
     Policy --> Declare[Declare on target ports]
@@ -51,25 +55,33 @@ The Registrar ignores that local Join event.
 This prevents recursive indications on target ports.
 It does not establish network loop safety.
 
-## Missing boundary
+## Transmit boundary
 
 ~~~mermaid
-flowchart LR
-    Declare[Local declaration] --> Pending[Pending state]
-    Pending -.-> Assembly[Missing transmit assembly]
-    Assembly -.-> Frame[Missing frame transport]
+flowchart TD
+    Declare[Local or received event] --> Pending[Request transmission]
+    Pending --> Poll[Poll after Join delay]
+    Poll --> Assemble[Assemble bounded PDU]
+    Assemble --> Send[Host send callback]
+    Send --> Accept[Accepted: commit states]
+    Send --> Refuse[Refused: retain exact bytes]
+    Refuse --> Retry[Retry same buffer]
+    Retry --> Send
 ~~~
 
-The [state engine](../src/core/mrp_mad.c) stores pending transmit actions.
-No public API drains them into frames.
-The [encoding helpers](../src/include/shish_lan/mrp_pdu.h) do not complete this boundary.
+The host calls [mrp_transmit](../src/core/mrp_mad.c#L1167) on each event-loop pass.
+The callback accepts the complete payload or refuses it.
+Refused payloads remain in caller-owned storage until acceptance.
+The [integration contract](integrator.md#transmit-and-retry) defines buffer ownership and deferred input.
+The host adds Ethernet framing and chooses the interface.
+The [bounded assembler](../src/core/mrp_mad.c#L1167) serves omitted attributes before repeating earlier ones.
 See the [scope matrix](manager.md#implementation-status) before making interoperability claims.
 
 ## Test layout
 
 | Entry | Purpose |
 | --- | --- |
-| [Unit runner](../tests/unit/main.c) | Codec suite runner. |
-| [Scenario bindings](../tests/features/switch_bindings.c) | Switch wrapper bindings. |
+| [Unit runner](../tests/unit/main.c) | Six suites for codecs, timers, values, receive, transmit, and integration. |
+| [Scenario bindings](../tests/features/switch_bindings.c) | Established scenario bindings around exported switch operations. |
 
 Use the [tester guide](tester.md) to run these checks and interpret their limits.

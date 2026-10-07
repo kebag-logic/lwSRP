@@ -33,3 +33,17 @@ void shlan_timer_tick(void)
         }
     }
 }
+
+void shlan_timer_remove(struct shlan_timer *t)
+{
+    struct shlan_timer **at = &g_head;
+    while (*at) {
+        if (*at == t) {
+            *at = t->link;
+            t->cs = 0;
+            t->link = 0;
+            return;
+        }
+        at = &(*at)->link;
+    }
+}

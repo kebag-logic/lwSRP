@@ -19,9 +19,8 @@
  * host-endian struct msrp_talker_adv fields here (encode/decode_attr).
  */
 
-#include <errno.h>
+#include "shish_lan/error.h"
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "shish_lan/mrp.h"
@@ -34,6 +33,7 @@
 
 #define MSRP_ATTR_LEN_TALKER_ADV    25u
 #define MSRP_ATTR_LEN_TALKER_FAILED 34u
+#define MSRP_ATTR_LEN_DOMAIN         4u
 #define MSRP_ATTR_LEN_LISTENER       8u  /* stream ID only; decl in FourPacked */
 
 /* ------------------------------------------------------------------ */
@@ -46,6 +46,11 @@ static void msrp_join_ind(struct mrp_app *app, uint8_t port_id,
     struct msrp_ctx *ctx = (struct msrp_ctx *)app->ops->ctx;
 
     switch (attr_type) {
+    case MSRP_ATTR_TYPE_DOMAIN:
+        if (ctx->on_domain) {
+            ctx->on_domain(ctx, port_id, attr_val, is_new);
+        }
+        break;
     case MSRP_ATTR_TYPE_TALKER_ADV:
         if (ctx->on_talker_advertise) {
             ctx->on_talker_advertise(ctx, port_id,
@@ -243,66 +248,98 @@ static int msrp_encode_attr(uint8_t attr_type, const void *attr_val,
                             uint8_t *buf, size_t buf_len)
 {
     switch (attr_type) {
+    case MSRP_ATTR_TYPE_DOMAIN: {
+        const struct msrp_domain *d = attr_val;
+        if (buf_len < MSRP_ATTR_LEN_DOMAIN) {
+            return -SHLAN_ERROR_NO_BUFFER;
+        }
+        buf[0] = d->class_id;
+        buf[1] = d->priority;
+        be16_put(buf + 2, d->vid);
+        return MSRP_ATTR_LEN_DOMAIN;
+    }
     case MSRP_ATTR_TYPE_TALKER_ADV:
-        if (buf_len < MSRP_ATTR_LEN_TALKER_ADV) return -ENOBUFS;
+        if (buf_len < MSRP_ATTR_LEN_TALKER_ADV) return -SHLAN_ERROR_NO_BUFFER;
         talker_to_wire((const struct msrp_talker_adv *)attr_val, buf);
         return MSRP_ATTR_LEN_TALKER_ADV;
 
     case MSRP_ATTR_TYPE_TALKER_FAILED: {
         const struct msrp_talker_failed *tf = attr_val;
-        if (buf_len < MSRP_ATTR_LEN_TALKER_FAILED) return -ENOBUFS;
+        if (buf_len < MSRP_ATTR_LEN_TALKER_FAILED) return -SHLAN_ERROR_NO_BUFFER;
         talker_to_wire(&tf->talker, buf);
         memcpy(buf + MSRP_ATTR_LEN_TALKER_ADV, tf->failure_info, 9);
         return MSRP_ATTR_LEN_TALKER_FAILED;
     }
 
     case MSRP_ATTR_TYPE_LISTENER:
-        if (buf_len < MSRP_ATTR_LEN_LISTENER) return -ENOBUFS;
+        if (buf_len < MSRP_ATTR_LEN_LISTENER) return -SHLAN_ERROR_NO_BUFFER;
         memcpy(buf, attr_val, MSRP_ATTR_LEN_LISTENER);
         return MSRP_ATTR_LEN_LISTENER;
 
     default:
-        return -EINVAL;
+        return -SHLAN_ERROR_INVALID;
     }
 }
 
-/*
- * decode_attr: stream attributes identified by StreamID are not "incremented"
- * across vector offsets — each value in a vector is independent (§35.2.1).
- * We therefore ignore offset and parse attr_val directly.
- */
+/* IEEE 802.1Q-2018 35.2.2.8: increment Unique ID and destination MAC. */
+static void increment_stream(uint8_t *b, unsigned count, uint32_t offset)
+{
+    for (unsigned n = count; n > 0; --n) {
+        offset += b[n - 1];
+        b[n - 1] = (uint8_t)offset;
+        offset >>= 8;
+    }
+}
+
 static int msrp_decode_attr(uint8_t attr_type, uint32_t offset,
                             const uint8_t *buf, size_t buf_len,
                             void *attr_val_out)
 {
-    (void)offset;
     switch (attr_type) {
-    case MSRP_ATTR_TYPE_TALKER_ADV:
-        if (buf_len < MSRP_ATTR_LEN_TALKER_ADV) return -EINVAL;
-        talker_from_wire(buf, (struct msrp_talker_adv *)attr_val_out);
-        return MSRP_ATTR_LEN_TALKER_ADV;
-
-    case MSRP_ATTR_TYPE_TALKER_FAILED: {
-        struct msrp_talker_failed *tf = attr_val_out;
-        if (buf_len < MSRP_ATTR_LEN_TALKER_FAILED) return -EINVAL;
-        talker_from_wire(buf, &tf->talker);
-        memcpy(tf->failure_info, buf + MSRP_ATTR_LEN_TALKER_ADV, 9);
-        return MSRP_ATTR_LEN_TALKER_FAILED;
+    case MSRP_ATTR_TYPE_DOMAIN: {
+        struct msrp_domain *d = attr_val_out;
+        if (buf_len != MSRP_ATTR_LEN_DOMAIN || offset > 255u - buf[0] ||
+            buf[1] > 7u || offset > 7u - buf[1]) {
+            return -SHLAN_ERROR_INVALID;
+        }
+        d->class_id = (uint8_t)(buf[0] + offset);
+        d->priority = (uint8_t)(buf[1] + offset);
+        d->vid = be16_get(buf + 2);
+        return MSRP_ATTR_LEN_DOMAIN;
     }
-
+    case MSRP_ATTR_TYPE_TALKER_ADV:
+    case MSRP_ATTR_TYPE_TALKER_FAILED: {
+        struct msrp_talker_adv *t = attr_val_out;
+        unsigned len = attr_type == MSRP_ATTR_TYPE_TALKER_ADV ?
+                       MSRP_ATTR_LEN_TALKER_ADV : MSRP_ATTR_LEN_TALKER_FAILED;
+        if (buf_len != len) {
+            return -SHLAN_ERROR_INVALID;
+        }
+        talker_from_wire(buf, t);
+        increment_stream(t->stream_id.bytes + 6, 2, offset);
+        increment_stream(t->dest_mac, 6, offset);
+        if (attr_type == MSRP_ATTR_TYPE_TALKER_FAILED) {
+            struct msrp_talker_failed *tf = attr_val_out;
+            memcpy(tf->failure_info, buf + MSRP_ATTR_LEN_TALKER_ADV, 9);
+        }
+        return (int)len;
+    }
     case MSRP_ATTR_TYPE_LISTENER:
-        if (buf_len < MSRP_ATTR_LEN_LISTENER) return -EINVAL;
+        if (buf_len != MSRP_ATTR_LEN_LISTENER) {
+            return -SHLAN_ERROR_INVALID;
+        }
         memcpy(attr_val_out, buf, MSRP_ATTR_LEN_LISTENER);
+        increment_stream((uint8_t *)attr_val_out + 6, 2, offset);
         return MSRP_ATTR_LEN_LISTENER;
-
     default:
-        return -EINVAL;
+        return -SHLAN_ERROR_INVALID;
     }
 }
 
 static uint8_t msrp_attr_len(uint8_t attr_type)
 {
     switch (attr_type) {
+    case MSRP_ATTR_TYPE_DOMAIN:        return MSRP_ATTR_LEN_DOMAIN;
     case MSRP_ATTR_TYPE_TALKER_ADV:    return MSRP_ATTR_LEN_TALKER_ADV;
     case MSRP_ATTR_TYPE_TALKER_FAILED: return MSRP_ATTR_LEN_TALKER_FAILED;
     case MSRP_ATTR_TYPE_LISTENER:      return MSRP_ATTR_LEN_LISTENER;
@@ -323,6 +360,7 @@ static bool msrp_attr_has_subtype(uint8_t attr_type)
 static uint8_t msrp_attr_mem_len(uint8_t attr_type)
 {
     switch (attr_type) {
+    case MSRP_ATTR_TYPE_DOMAIN:        return sizeof(struct msrp_domain);
     case MSRP_ATTR_TYPE_TALKER_ADV:    return sizeof(struct msrp_talker_adv);
     case MSRP_ATTR_TYPE_TALKER_FAILED: return sizeof(struct msrp_talker_failed);
     case MSRP_ATTR_TYPE_LISTENER:      return MSRP_ATTR_LEN_LISTENER + 1u;
@@ -333,8 +371,18 @@ static uint8_t msrp_attr_mem_len(uint8_t attr_type)
 static int msrp_attr_cmp(uint8_t attr_type, const void *a, const void *b)
 {
     /* Stream identity is determined by StreamID (first 8 bytes for all types) */
-    (void)attr_type;
+    if (attr_type == MSRP_ATTR_TYPE_DOMAIN) {
+        return memcmp(a, b, sizeof(struct msrp_domain));
+    }
     return memcmp(a, b, sizeof(struct msrp_stream_id));
+}
+
+static bool msrp_attr_replaces(uint8_t old_type, const void *old_value,
+                               uint8_t new_type, const void *new_value)
+{
+    return ((old_type == MSRP_ATTR_TYPE_TALKER_ADV && new_type == MSRP_ATTR_TYPE_TALKER_FAILED) ||
+            (old_type == MSRP_ATTR_TYPE_TALKER_FAILED && new_type == MSRP_ATTR_TYPE_TALKER_ADV)) &&
+           memcmp(old_value,new_value,sizeof(struct msrp_stream_id)) == 0;
 }
 
 static const struct mrp_app_ops msrp_ops_tmpl = {
@@ -348,10 +396,11 @@ static const struct mrp_app_ops msrp_ops_tmpl = {
     .attr_cmp         = msrp_attr_cmp,
     .attr_has_subtype = msrp_attr_has_subtype,
     .attr_mem_len     = msrp_attr_mem_len,
+    .attr_replaces    = msrp_attr_replaces,
     .ethertype        = MRP_ETHERTYPE_MSRP,
     .proto_version    = MRP_PROTOCOL_VERSION,
-    /* group_addr: MSRP uses 91:E0:F0:00:0E:80 per 802.1Q Table 10-1 */
-    .group_addr       = { 0x91u, 0xE0u, 0xF0u, 0x00u, 0x0Eu, 0x80u },
+    /* IEEE 802.1Q-2018 35.2.2.1, Table 8-1: Nearest Bridge group address. */
+    .group_addr       = { 0x01u, 0x80u, 0xC2u, 0x00u, 0x00u, 0x0Eu },
 };
 
 /* ------------------------------------------------------------------ */
@@ -385,7 +434,7 @@ int msrp_declare_listener(struct mrp_app *app, uint8_t port_id,
     uint8_t val[9];
     memcpy(val, stream_id->bytes, 8);
     val[8] = (uint8_t)decl;
-    return mrp_mad_join(app, port_id, MSRP_ATTR_TYPE_LISTENER, val, false);
+    return mrp_mad_join(app, port_id, MSRP_ATTR_TYPE_LISTENER, val, true);
 }
 
 int msrp_withdraw_talker(struct mrp_app *app, uint8_t port_id,
