@@ -3,6 +3,7 @@
 #include <string.h>
 #include <errno.h>
 #include "shish_lan/msrp.h"
+#include "shish_lan/mvrp.h"
 #include "shish_lan/mrp_pdu.h"
 #include "ports/timer.h"
 Describe(Transmit);
@@ -108,11 +109,31 @@ Ensure(Transmit, refused_pdu_survives_timers_without_aging_unsent_leaveall)
     tick(1); assert_that(left,is_equal_to(1));
     msrp_app_destroy(a);
 }
+Ensure(Transmit, receive_redeclare_requests_transmission_without_periodic_wait)
+{
+    struct mvrp_ctx ctx = {0};
+    struct mrp_app *a = mvrp_app_create(1,&ctx);
+    assert_that(mvrp_declare(a,0,2),is_equal_to(0));
+    uint8_t buffer[1500]; refuse=0;
+    assert_that(mrp_transmit(a,0,buffer,sizeof(buffer),send_pdu,0),is_equal_to(1));
+    tick(20);
+    assert_that(mrp_transmit(a,0,buffer,sizeof(buffer),send_pdu,0),is_equal_to(1));
+    tick(20);
+    assert_that(mrp_transmit(a,0,buffer,sizeof(buffer),send_pdu,0),is_equal_to(0));
+    uint8_t pdu[] = {0,1,2,0,1,0,2,108,0,0,0,0};
+    assert_that(mrp_rx(a,0,pdu,sizeof(pdu)),is_equal_to(0));
+    assert_that(mrp_transmit(a,0,buffer,sizeof(buffer),send_pdu,0),is_equal_to(1));
+    tick(20); pdu[3]=0x20; pdu[7]=144;
+    assert_that(mrp_rx(a,0,pdu,sizeof(pdu)),is_equal_to(0));
+    assert_that(mrp_transmit(a,0,buffer,sizeof(buffer),send_pdu,0),is_equal_to(1));
+    mvrp_app_destroy(a);
+}
 TestSuite *transmit_suite(void)
 {
     TestSuite *s = create_test_suite();
     add_test_with_context(s, Transmit, fresh_ladder_and_refusal_are_transactional);
     add_test_with_context(s, Transmit, leaveall_then_withdrawal_retains_until_leave_expiry);
     add_test_with_context(s, Transmit, refused_pdu_survives_timers_without_aging_unsent_leaveall);
+    add_test_with_context(s, Transmit, receive_redeclare_requests_transmission_without_periodic_wait);
     return s;
 }
