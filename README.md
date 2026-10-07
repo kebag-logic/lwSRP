@@ -27,7 +27,7 @@ See the [architecture guide](doc/architecture.md) for the boundaries.
 ## Quick start
 
 Use a C11 compiler and [CMake](https://cmake.org/cmake/help/latest/) version 3.20 or newer.
-Install [cgreen](https://github.com/cgreen-devs/cgreen) headers and libraries to enable the optional unit target.
+Install [cgreen](https://github.com/cgreen-devs/cgreen) headers and libraries for the required host unit target.
 Install [behave](https://behave.readthedocs.io/en/stable/) for scenarios.
 Run these commands from the repository root.
 
@@ -38,9 +38,9 @@ ctest --test-dir build --output-on-failure
 behave
 ~~~
 
-The configured unit target currently runs zero assertions.
-The scenario run currently fails during setup because [shlan_connect](src/include/shish_lan/switch.h) is not exported.
-The [tester guide](doc/tester.md) explains both results and runs the existing codec tests separately.
+The configured unit target runs nine codec tests with 1690 assertions.
+The scenario suite passes three scenarios and ten steps.
+The [tester guide](doc/tester.md) explains their coverage and limits.
 
 ## Choose your guide
 

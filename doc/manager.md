@@ -10,19 +10,19 @@ Use the matrix below to scope engineering work and acceptance evidence.
 
 Each row links the relevant standard area and implementation evidence.
 The status describes inspected code, not demonstrated standards conformance.
-The public standard catalogue does not expose the normative state tables.
-Independent table verification remains open.
+The [state graphs](developer.md#state-machines) were checked against the normative tables.
+Their displayed transitions match the tables; the implementation differences below remain.
 
 | Standard area | Present in code | Missing or limited | Evidence |
 | --- | --- | --- | --- |
 | [IEEE 802.1Q-2018, clause 10.2](https://standards.ieee.org/ieee/802.1Q/6844/) | Declaration requests and registration indications. | No complete network transmit path. | [State engine](../src/core/mrp_mad.c). |
 | [IEEE 802.1Q-2018, clause 10.3](https://standards.ieee.org/ieee/802.1Q/6844/) | Optional propagation callbacks and 32-bit port masks. | No topology gating; VLAN and MAC callbacks are unset. | [Core](../src/core/mrp_mad.c), [VLAN](../src/modules/mvrp.c), [MAC](../src/modules/mmrp.c). |
 | [IEEE 802.1Q-2018, clause 10.5](https://standards.ieee.org/ieee/802.1Q/6844/) | Protocol identifiers and group addresses. | No link-layer send or receive adapter. | [Application interface](../src/include/shish_lan/mrp.h). |
-| [IEEE 802.1Q-2018, clause 10.7.7](https://standards.ieee.org/ieee/802.1Q/6844/) | Twelve Applicant states and an event table. | Conditional notes are not enforced; transmit events lack public scheduling. | [Applicant table and handler](../src/core/mrp_mad.c). |
-| [IEEE 802.1Q-2018, clause 10.7.8](https://standards.ieee.org/ieee/802.1Q/6844/) | Three Registrar states, callbacks, and Leave expiry. | Local New also drives registration; protocol coverage is absent. | [Registrar table](../src/core/mrp_mad.c). |
-| [IEEE 802.1Q-2018, clause 10.7.9](https://standards.ieee.org/ieee/802.1Q/6844/) | LeaveAll states and timer events. | No emitted LeaveAll frames. | [LeaveAll handler](../src/core/mrp_mad.c). |
-| [IEEE 802.1Q-2018, clause 10.7.10](https://standards.ieee.org/ieee/802.1Q/6844/) | Periodic enablement and events. | Pending actions are not transmitted. | [Periodic handler](../src/core/mrp_mad.c). |
-| [IEEE 802.1Q-2018, clause 10.7.11](https://standards.ieee.org/ieee/802.1Q/6844/) | Centisecond callback timers. | Fixed intervals; no LeaveAll randomization or timer removal. | [Timer port](../src/ports/timer.c), [state engine](../src/core/mrp_mad.c). |
+| [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3](https://standards.ieee.org/ieee/802.1Q/6844/) | Three graphs match the selected table paths. | Implementation differs on declaration, receive, withdrawal, recovery, and periodic events. Conditions and transmit scheduling are incomplete. | [Comparison](developer.md#applicant-declarations), [table](../src/core/mrp_mad.c#L116-L275), [handler](../src/core/mrp_mad.c#L495-L505). |
+| [IEEE 802.1Q-2018, clause 10.7.8, Table 10-4](https://standards.ieee.org/ieee/802.1Q/6844/) | Graph matches the displayed state transitions. | Local New registers; received Join in LV emits an extra indication. | [Comparison](developer.md#registrar), [New row](../src/core/mrp_mad.c#L318-L323), [Join rows](../src/core/mrp_mad.c#L343-L354). |
+| [IEEE 802.1Q-2018, clause 10.7.9, Table 10-5](https://standards.ieee.org/ieee/802.1Q/6844/) | Graph matches the displayed state transitions. | Transmit additionally restarts the timer. No LeaveAll frame is emitted. | [Comparison](developer.md#leaveall), [handler](../src/core/mrp_mad.c#L639-L673). |
+| [IEEE 802.1Q-2018, clause 10.7.10, Table 10-6](https://standards.ieee.org/ieee/802.1Q/6844/) | Graph matches the displayed state transitions. | Disable additionally stops the timer. Periodic interval and Applicant handling differ. | [Comparison](developer.md#periodictransmission), [expiry](../src/core/mrp_mad.c#L679-L700), [disable](../src/core/mrp_mad.c#L871-L882). |
+| [IEEE 802.1Q-2018, clauses 10.7.4.3, 10.7.4.4, and 10.7.11](https://standards.ieee.org/ieee/802.1Q/6844/) | Centisecond callback timers. | Periodic interval is 20 centiseconds instead of one second. LeaveAll lacks randomization; destroyed timers remain linked. | [Timer port](../src/ports/timer.c), [timer handlers](../src/core/mrp_mad.c#L639-L700). |
 | [IEEE 802.1Q-2018, clause 10.8.2](https://standards.ieee.org/ieee/802.1Q/6844/) | Vector parsing and basic encoding helpers. | Encoder handles one value and no Listener subtype vector. | [Codec](../src/core/mrp_pdu.c). |
 | [IEEE 802.1Q-2018, clause 10.8.3](https://standards.ieee.org/ieee/802.1Q/6844/) | Length checks for several input fields. | Version and stream attribute-list length are ignored; callbacks can precede a later error. | [Parser](../src/core/mrp_pdu.c). |
 | [IEEE 802.1Q-2018, clauses 10.9–10.12](https://standards.ieee.org/ieee/802.1Q/6844/) | MAC and service codecs with host callbacks. | No filtering database, mode enforcement, or propagation policy. | [MAC adapter](../src/modules/mmrp.c). |
@@ -48,14 +48,19 @@ flowchart TD
 ~~~
 
 The [host build](../CMakeLists.txt) succeeds.
-Its configured unit target passes with zero assertions.
-The separate [codec suite](../tests/unit/mrp_pdu_test.c) passes nine tests with 1690 assertions through the [documented runner](tester.md#run-the-existing-codec-tests).
-The [scenario harness](../tests/features/environment.py) fails before three scenarios because [shlan_connect](../src/include/shish_lan/switch.h) is not exported.
+Its configured [unit runner](../tests/unit/main.c) passes nine codec tests with 1690 assertions.
+The [scenario harness](../tests/features/environment.py) passes three scenarios and ten steps through [test bindings](../tests/features/switch_bindings.c).
+The [tester guide](tester.md#coverage) describes what those checks cover.
 There is no measured coverage percentage.
 
 The [integration guide](integrator.md) documents a timer lifetime defect and global tick behavior.
 Hardware deployment, target builds, and network interoperability remain unverified.
 A passing build alone does not establish release readiness.
+
+## Planned work
+
+The transmit path, receive validation, registration updates, and freestanding headers are planned.
+Their pull requests are not available yet.
 
 ## Plan work by role
 
