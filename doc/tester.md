@@ -22,21 +22,22 @@ behave --dry-run
 
 | Check | Current result | Meaning |
 | --- | --- | --- |
-| Configure and build | Exit 0. | The host library and optional unit target compile. |
-| Configured unit target | Exit 0; zero assertions. | The [runner](../tests/unit/placeholder.c) creates an empty suite. |
-| Scenario execution | Exit 1; three scenarios untested. | The [setup hook](../tests/features/environment.py) cannot load [shlan_connect](../src/include/shish_lan/switch.h). |
+| Configure and build | Exit 0. | The host library and required unit target compile. |
+| Configured unit target | Exit 0; nine tests and 1690 assertions. | The [runner](../tests/unit/main.c) executes the [codec suite](../tests/unit/mrp_pdu_test.c). |
+| Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c). |
 | Scenario dry run | Validates step matching only. | It does not execute setup or verify behavior. |
 
-The [build definition](../CMakeLists.txt) silently omits the unit target when its dependency is absent.
+The [build definition](../CMakeLists.txt) requires the unit framework's headers and library for host configuration.
+It rejects an empty suite through an output-based failure rule.
 The scenario hook loads the shared library from the root build directory.
-The [switch wrappers](../src/include/shish_lan/switch.h) are static inline functions and do not provide the requested dynamic symbols.
-This must be fixed before the scenario suite can execute.
+The [switch wrappers](../src/include/shish_lan/switch.h) are static inline functions.
+The [test bindings](../tests/features/switch_bindings.c) expose them through separate dynamic symbols.
 
 ## Run the existing codec tests
 
 The [codec test source](../tests/unit/mrp_pdu_test.c) contains nine tests.
-The configured unit target does not include them.
-This command compiles them with a small runner and the [codec implementation](../src/core/mrp_pdu.c).
+The configured unit target includes them through the [suite runner](../tests/unit/main.c).
+For an isolated codec run, this command uses the same tests and the [codec implementation](../src/core/mrp_pdu.c).
 The [public headers](../src/include/shish_lan/mrp_pdu.h) define the tested helpers.
 Use a [C compiler](https://gcc.gnu.org/onlinedocs/gcc/) with the unit dependency available.
 
@@ -82,7 +83,7 @@ Place new scenarios in the existing feature directory configured by [the runner 
 Reuse matching steps or add a precise new step definition.
 Keep setup, action, and assertion separate.
 Run the dry-run command above to check matching.
-Run the real suite after resolving its setup failure.
+Run the real suite to execute setup and assertions.
 The current active-state assertion repeats an operation and checks success.
 It does not independently read port state.
 
@@ -90,10 +91,9 @@ It does not independently read port state.
 
 ~~~mermaid
 flowchart LR
-    Checks[Current checks] --> Empty[Empty configured unit suite]
-    Checks --> Codec[Nine codec tests]
+    Checks[Current checks] --> Codec[Nine codec tests]
     Checks --> Scenarios[Three switch scenarios]
-    Scenarios --> Blocked[Blocked during setup]
+    Scenarios --> Steps[Ten passing steps]
     Missing[Coverage gaps] --> State[State and timer behavior]
     Missing --> Wire[Parser and interoperability]
     Missing --> Target[Hardware and lifecycle]
@@ -102,7 +102,7 @@ flowchart LR
 | Area | Current evidence | Next useful cases |
 | --- | --- | --- |
 | Packed values and encoding | [Nine codec tests](../tests/unit/mrp_pdu_test.c). | Multi-value encoding and malformed lengths. |
-| Switch operations | [Three scenarios](../tests/features/switch.feature), currently blocked. | Independent state queries and adapter failures. |
+| Switch operations | [Three passing scenarios](../tests/features/switch.feature). | Independent state queries and adapter failures. |
 | Parser | No parser test in the current suite. | Truncation, version handling, subtype vectors, and list boundaries. |
 | MRP state | No wired state-machine suite. | Event tables, propagation masks, and callback order. |
 | Timers | No timer tests. | Global ticking, expiry, cancellation, and destruction. |
