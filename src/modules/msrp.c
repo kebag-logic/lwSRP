@@ -19,7 +19,7 @@
  * host-endian struct msrp_talker_adv fields here (encode/decode_attr).
  */
 
-#include <errno.h>
+#include "shish_lan/error.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -251,7 +251,7 @@ static int msrp_encode_attr(uint8_t attr_type, const void *attr_val,
     case MSRP_ATTR_TYPE_DOMAIN: {
         const struct msrp_domain *d = attr_val;
         if (buf_len < MSRP_ATTR_LEN_DOMAIN) {
-            return -ENOBUFS;
+            return -SHLAN_ERROR_NO_BUFFER;
         }
         buf[0] = d->class_id;
         buf[1] = d->priority;
@@ -259,25 +259,25 @@ static int msrp_encode_attr(uint8_t attr_type, const void *attr_val,
         return MSRP_ATTR_LEN_DOMAIN;
     }
     case MSRP_ATTR_TYPE_TALKER_ADV:
-        if (buf_len < MSRP_ATTR_LEN_TALKER_ADV) return -ENOBUFS;
+        if (buf_len < MSRP_ATTR_LEN_TALKER_ADV) return -SHLAN_ERROR_NO_BUFFER;
         talker_to_wire((const struct msrp_talker_adv *)attr_val, buf);
         return MSRP_ATTR_LEN_TALKER_ADV;
 
     case MSRP_ATTR_TYPE_TALKER_FAILED: {
         const struct msrp_talker_failed *tf = attr_val;
-        if (buf_len < MSRP_ATTR_LEN_TALKER_FAILED) return -ENOBUFS;
+        if (buf_len < MSRP_ATTR_LEN_TALKER_FAILED) return -SHLAN_ERROR_NO_BUFFER;
         talker_to_wire(&tf->talker, buf);
         memcpy(buf + MSRP_ATTR_LEN_TALKER_ADV, tf->failure_info, 9);
         return MSRP_ATTR_LEN_TALKER_FAILED;
     }
 
     case MSRP_ATTR_TYPE_LISTENER:
-        if (buf_len < MSRP_ATTR_LEN_LISTENER) return -ENOBUFS;
+        if (buf_len < MSRP_ATTR_LEN_LISTENER) return -SHLAN_ERROR_NO_BUFFER;
         memcpy(buf, attr_val, MSRP_ATTR_LEN_LISTENER);
         return MSRP_ATTR_LEN_LISTENER;
 
     default:
-        return -EINVAL;
+        return -SHLAN_ERROR_INVALID;
     }
 }
 
@@ -300,7 +300,7 @@ static int msrp_decode_attr(uint8_t attr_type, uint32_t offset,
         struct msrp_domain *d = attr_val_out;
         if (buf_len != MSRP_ATTR_LEN_DOMAIN || offset > 255u - buf[0] ||
             buf[1] > 7u || offset > 7u - buf[1]) {
-            return -EINVAL;
+            return -SHLAN_ERROR_INVALID;
         }
         d->class_id = (uint8_t)(buf[0] + offset);
         d->priority = (uint8_t)(buf[1] + offset);
@@ -313,7 +313,7 @@ static int msrp_decode_attr(uint8_t attr_type, uint32_t offset,
         unsigned len = attr_type == MSRP_ATTR_TYPE_TALKER_ADV ?
                        MSRP_ATTR_LEN_TALKER_ADV : MSRP_ATTR_LEN_TALKER_FAILED;
         if (buf_len != len) {
-            return -EINVAL;
+            return -SHLAN_ERROR_INVALID;
         }
         talker_from_wire(buf, t);
         increment_stream(t->stream_id.bytes + 6, 2, offset);
@@ -326,13 +326,13 @@ static int msrp_decode_attr(uint8_t attr_type, uint32_t offset,
     }
     case MSRP_ATTR_TYPE_LISTENER:
         if (buf_len != MSRP_ATTR_LEN_LISTENER) {
-            return -EINVAL;
+            return -SHLAN_ERROR_INVALID;
         }
         memcpy(attr_val_out, buf, MSRP_ATTR_LEN_LISTENER);
         increment_stream((uint8_t *)attr_val_out + 6, 2, offset);
         return MSRP_ATTR_LEN_LISTENER;
     default:
-        return -EINVAL;
+        return -SHLAN_ERROR_INVALID;
     }
 }
 

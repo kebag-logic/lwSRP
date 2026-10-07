@@ -10,7 +10,7 @@
  *   VectorAttribute = VectorHeader, FirstValue {, Vector}
  */
 
-#include <errno.h>
+#include "shish_lan/error.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -24,14 +24,14 @@
 
 static int put_u8(uint8_t *buf, size_t len, uint8_t v)
 {
-    if (len < 1) return -ENOBUFS;
+    if (len < 1) return -SHLAN_ERROR_NO_BUFFER;
     buf[0] = v;
     return 1;
 }
 
 static int put_u16be(uint8_t *buf, size_t len, uint16_t v)
 {
-    if (len < 2) return -ENOBUFS;
+    if (len < 2) return -SHLAN_ERROR_NO_BUFFER;
     buf[0] = (uint8_t)(v >> 8);
     buf[1] = (uint8_t)(v & 0xFF);
     return 2;
@@ -39,7 +39,7 @@ static int put_u16be(uint8_t *buf, size_t len, uint16_t v)
 
 static int get_u16be(const uint8_t *buf, size_t len, uint16_t *out)
 {
-    if (len < 2) return -EINVAL;
+    if (len < 2) return -SHLAN_ERROR_INVALID;
     *out = (uint16_t)((buf[0] << 8) | buf[1]);
     return 2;
 }
@@ -71,12 +71,12 @@ int mrpdu_encode_vector(uint8_t *buf, size_t buf_len,
                         enum mrp_attr_event attr_event,
                         const uint8_t *first_value, uint8_t fv_len)
 {
-    if (fv_len == 0 || !first_value) return -EINVAL;
+    if (fv_len == 0 || !first_value) return -SHLAN_ERROR_INVALID;
 
     /* VectorHeader: 2 octets */
     uint16_t vh = mrp_vh_encode(la_event, 1u);
     size_t need = 2u /* VH */ + fv_len + 1u /* one ThreePacked byte */;
-    if (buf_len < need) return -ENOBUFS;
+    if (buf_len < need) return -SHLAN_ERROR_NO_BUFFER;
 
     int off = 0;
     int r;
@@ -111,7 +111,7 @@ static int parse_pass(const uint8_t *pdu, size_t len,
                       mrpdu_on_leaveall_fn on_leaveall, void *ctx)
 {
     if (!pdu || len < 3 || !ops || !ops->attr_len || !ops->decode_attr) {
-        return -EINVAL;
+        return -SHLAN_ERROR_INVALID;
     }
     size_t off = 1; /* Later versions retain the common message format. */
     while (off + 2 <= len) {
@@ -125,7 +125,7 @@ static int parse_pass(const uint8_t *pdu, size_t len,
         if (msrp) {
             uint16_t count;
             if (get_u16be(pdu + off, len - off, &count) < 0 || count < 2) {
-                return -EINVAL;
+                return -SHLAN_ERROR_INVALID;
             }
             off += 2;
             end = count > len - off ? len : off + count;
@@ -136,7 +136,7 @@ static int parse_pass(const uint8_t *pdu, size_t len,
             continue;
         }
         if (!expected || expected != alen) {
-            return -EINVAL;
+            return -SHLAN_ERROR_INVALID;
         }
         bool ended = false;
         bool vector_seen = false;
@@ -155,7 +155,7 @@ static int parse_pass(const uint8_t *pdu, size_t len,
             size_t subtypes = subtype ? (count + 3u) / 4u : 0;
             size_t need = alen + events + subtypes;
             if (la > MRP_LA_ALL || need > end - off) {
-                return -EINVAL;
+                return -SHLAN_ERROR_INVALID;
             }
             const uint8_t *fv = pdu + off;
             const uint8_t *ev = fv + alen;
@@ -164,7 +164,7 @@ static int parse_pass(const uint8_t *pdu, size_t len,
             vector_seen = true;
             for (size_t k = 0; k < events; ++k) {
                 if (ev[k] > 215u) {
-                    return -EINVAL;
+                    return -SHLAN_ERROR_INVALID;
                 }
             }
             if (la && on_leaveall) {
@@ -196,10 +196,10 @@ static int parse_pass(const uint8_t *pdu, size_t len,
             return 0;
         }
         if (!ended || (msrp && off != end)) {
-            return -EINVAL;
+            return -SHLAN_ERROR_INVALID;
         }
     }
-    return off == len ? 0 : -EINVAL;
+    return off == len ? 0 : -SHLAN_ERROR_INVALID;
 }
 
 int mrpdu_parse(const uint8_t *pdu, size_t len,
