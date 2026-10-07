@@ -7,7 +7,7 @@ Keep each command's exit code in your test report.
 
 ## Run the suites
 
-Install a C11 compiler, [CMake](https://cmake.org/cmake/help/latest/), [cgreen](https://github.com/cgreen-devs/cgreen), and [behave](https://behave.readthedocs.io/en/stable/).
+Install a [C11](https://www.iso.org/standard/57853.html) compiler, [CMake](https://cmake.org/cmake/help/latest/), [cgreen](https://github.com/cgreen-devs/cgreen), and [behave](https://behave.readthedocs.io/en/stable/).
 Make the unit framework's headers and library discoverable by the compiler and build system.
 Run these commands from the repository root.
 
@@ -84,8 +84,8 @@ Reuse matching steps or add a precise new step definition.
 Keep setup, action, and assertion separate.
 Run the dry-run command above to check matching.
 Run the real suite to execute setup and assertions.
-The current active-state assertion repeats an operation and checks success.
-It does not independently read port state.
+Both [active-state and inactive-state assertions](../tests/features/steps/switch_steps.py#L26-L36) only repeat the operation and check its return code.
+Neither independently reads port state.
 
 ## Coverage
 
@@ -102,11 +102,15 @@ flowchart LR
 | Area | Current evidence | Next useful cases |
 | --- | --- | --- |
 | Packed values and encoding | [Nine codec tests](../tests/unit/mrp_pdu_test.c). | Multi-value encoding and malformed lengths. |
-| Switch operations | [Three passing scenarios](../tests/features/switch.feature). | Independent state queries and adapter failures. |
+| Switch operations | [Three passing scenarios](../tests/features/switch.feature); a wrong disable binding also passes all three. | Independent state queries and adapter failures; see [issue #4](https://github.com/kebag-logic/lwSRP/issues/4). |
 | Parser | No parser test in the current suite. | Truncation, version handling, subtype vectors, and list boundaries. |
 | MRP state | No wired state-machine suite. | Event tables, propagation masks, and callback order. |
 | Timers | No timer tests. | Global ticking, expiry, cancellation, and destruction. |
 | Hardware and network | No adapter or interoperability suite. | Target timing and packet captures after transmit implementation. |
+
+A [disable binding](../tests/features/switch_bindings.c) redirected to enable still passes all three scenarios.
+The active-state and inactive-state assertions repeat operations; they cannot establish port state.
+The defect is tracked in [issue #4](https://github.com/kebag-logic/lwSRP/issues/4).
 
 The [build definition](../CMakeLists.txt) has no coverage target or instrumentation option.
 No line or branch coverage percentage has been measured.

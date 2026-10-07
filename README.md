@@ -26,7 +26,7 @@ See the [architecture guide](doc/architecture.md) for the boundaries.
 
 ## Quick start
 
-Use a C11 compiler and [CMake](https://cmake.org/cmake/help/latest/) version 3.20 or newer.
+Use a [C11](https://www.iso.org/standard/57853.html) compiler and [CMake](https://cmake.org/cmake/help/latest/) version 3.20 or newer.
 Install [cgreen](https://github.com/cgreen-devs/cgreen) headers and libraries for the required host unit target.
 Install [behave](https://behave.readthedocs.io/en/stable/) for scenarios.
 Run these commands from the repository root.

@@ -17,6 +17,7 @@ Run the [codec tests](tester.md#run-the-existing-codec-tests) before and after c
 | Stream application | [Stream interface](../src/include/shish_lan/msrp.h), [implementation](../src/modules/msrp.c) | Talker and Listener values, plus propagation policy. |
 | Platform services | [Allocation](../src/ports/alloc.h), [timers](../src/ports/timer.h) | Replaceable platform boundaries. |
 | Switch control | [Switch operations](../src/include/shish_lan/switch.h), [register queue](../src/include/shish_lan/switch_ctrl.h) | Independent hardware integration surfaces. |
+| Host tests | [Runner](../tests/unit/main.c), [codec suite](../tests/unit/mrp_pdu_test.c), [scenario bindings](../tests/features/switch_bindings.c), [steps](../tests/features/steps/switch_steps.py) | Codec assertions and switch-operation scenarios. |
 
 The layers use ports and adapters.
 The [mrp_app_ops](../src/include/shish_lan/mrp.h) interface separates application meaning from protocol events.
@@ -31,8 +32,8 @@ flowchart TD
     Ops --> Context[Borrowed host context]
     App --> Private[Private state]
     Private --> Port[Port array]
-    Port --> Timers[LeaveAll and periodic timers]
     Port --> List[Attribute list]
+    Port --> Timers[Port timers]
     List --> Value[Value and identity]
     List --> Machines[Applicant and Registrar]
     List --> Leave[Leave timer]
@@ -40,6 +41,7 @@ flowchart TD
 
 The [application handle](../src/include/shish_lan/mrp.h) owns a copied callback table and private state.
 The [private structures](../src/core/mrp_mad.c) allocate a flexible port array and linked attribute lists.
+Port timers drive LeaveAll and periodic events; each attribute has its own Leave timer.
 Each attribute stores up to 48 bytes.
 The [parser](../src/core/mrp_pdu.c) uses a 64-byte temporary value buffer.
 Keep decoded values within both limits.
@@ -177,7 +179,7 @@ Reference: [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3, notes 1–4 and 12](htt
 ### Registrar
 
 Reference: [IEEE 802.1Q-2018, clause 10.7.8, Table 10-4](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [Registrar table](../src/core/mrp_mad.c#L311-L407) and [indication handler](../src/core/mrp_mad.c#L550-L582).
+Evidence: [Registrar table](../src/core/mrp_mad.c#L311-L395) and [indication handler](../src/core/mrp_mad.c#L550-L582).
 
 ~~~mermaid
 stateDiagram-v2
@@ -203,8 +205,12 @@ Local Join and Leave events do not change Registrar state.
 | --- | --- |
 | Local New drives registration, although the table defines received New only. | [Local New row](../src/core/mrp_mad.c#L318-L323), [event delivery](../src/core/mrp_mad.c#L614-L625). |
 | Received Join in LV emits an extra Join indication. The table stops the Leave timer and enters IN without that indication. | [Join rows](../src/core/mrp_mad.c#L343-L354), [callback](../src/core/mrp_mad.c#L571-L574). |
+| Received LeaveAll delivers rLA! across all attribute types on the port. It affects both Applicants and Registrars. | [Receive handler](../src/core/mrp_mad.c#L835-L841), [issue #7](https://github.com/kebag-logic/lwSRP/issues/7). |
 
 The extra indication also invokes propagation policy.
+The standard limits received LeaveAll to the message's attribute type: [IEEE 802.1Q-2018, clause 10.7.5.20](https://standards.ieee.org/ieee/802.1Q/6844/).
+A Listener LeaveAll therefore also moves Talker registrations from IN to LV in the current implementation.
+The [parser](../src/core/mrp_pdu.c#L154-L155) delivers LeaveAll once per marked vector.
 
 ### LeaveAll
 

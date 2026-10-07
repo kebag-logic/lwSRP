@@ -9,6 +9,7 @@ Read the [notice](NOTICE) and the [implementation status](doc/manager.md#impleme
 
 Use braces for every conditional and loop body.
 This includes bodies with one statement.
+Apply this rule to new and changed lines; existing sources may predate it.
 Declare enums with tags.
 Do not use typedef enums.
 Put each enum element on its own line.
@@ -37,7 +38,7 @@ Make every standard, file, function, issue, and tool reference a link.
 Use small graphs with short labels.
 Keep each graph to about 15 nodes or fewer.
 Give each graph one purpose and nearby links to its evidence.
-Start each new Markdown page with the existing SPDX comment.
+Start each new Markdown page with the existing [SPDX](https://spdx.dev/) comment.
 Keep machine syntax inside fenced examples.
 Link its references in the surrounding prose.
 Do not include private infrastructure details or generated assets.

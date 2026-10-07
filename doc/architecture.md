@@ -64,3 +64,12 @@ The [state engine](../src/core/mrp_mad.c) stores pending transmit actions.
 No public API drains them into frames.
 The [encoding helpers](../src/include/shish_lan/mrp_pdu.h) do not complete this boundary.
 See the [scope matrix](manager.md#implementation-status) before making interoperability claims.
+
+## Test layout
+
+| Entry | Purpose |
+| --- | --- |
+| [Unit runner](../tests/unit/main.c) | Codec suite runner. |
+| [Scenario bindings](../tests/features/switch_bindings.c) | Switch wrapper bindings. |
+
+Use the [tester guide](tester.md) to run these checks and interpret their limits.
