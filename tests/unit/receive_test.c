@@ -99,11 +99,31 @@ Ensure(Receive, uninteresting_values_do_not_allocate_and_empty_state_is_reclaime
     assert_that(mrp_attr_visit(a,0,0,0),is_equal_to(1));
     msrp_app_destroy(a);
 }
+static unsigned stored_decl;
+static void stored(void *ctx, const struct mrp_attr_status *status)
+{
+    (void)ctx;
+    stored_decl=((const uint8_t *)status->attr_val)[8];
+}
+Ensure(Receive, withdrawal_does_not_replace_the_registered_declaration)
+{
+    struct msrp_ctx ctx={0}; struct mrp_app *a=msrp_app_create(1,&ctx);
+    uint8_t pdu[]={0,3,8,0,14,0,1,1,2,3,4,5,6,7,8,0,128,0,0,0,0};
+    assert_that(mrp_rx(a,0,pdu,sizeof(pdu)),is_equal_to(0));
+    pdu[5]=0x20; pdu[15]=4*36;
+    assert_that(mrp_rx(a,0,pdu,sizeof(pdu)),is_equal_to(0));
+    pdu[5]=0; pdu[15]=5*36; pdu[16]=64;
+    assert_that(mrp_rx(a,0,pdu,sizeof(pdu)),is_equal_to(0));
+    assert_that(mrp_attr_visit(a,0,stored,0),is_equal_to(1));
+    assert_that(stored_decl,is_equal_to(2));
+    msrp_app_destroy(a);
+}
 TestSuite *receive_suite(void)
 {
     TestSuite *s = create_test_suite();
     add_test_with_context(s, Receive, truncation_respects_complete_vectors_and_pdu_end);
     add_test_with_context(s, Receive, changed_registered_listener_notifies_without_duplicate_join);
     add_test_with_context(s, Receive, uninteresting_values_do_not_allocate_and_empty_state_is_reclaimed);
+    add_test_with_context(s, Receive, withdrawal_does_not_replace_the_registered_declaration);
     return s;
 }
