@@ -847,6 +847,9 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
                        enum mrp_attr_event attr_event, const void *attr_val)
 {
     struct rx_ctx        *rc = (struct rx_ctx *)raw_ctx;
+    struct mrp_attr_inst *previous = find_attr(rc->ps, rc->app->ops, attr_type, attr_val);
+    bool changed_in = previous && previous->reg == MRP_REG_STATE_IN &&
+        memcmp(previous->attr_val, attr_val, attr_store_len(rc->app->ops, attr_type)) != 0;
     struct mrp_attr_inst *ai = get_or_create_attr(rc->app, rc->ps,
                                               rc->port_id, attr_type, attr_val);
     if (!ai) {
@@ -866,6 +869,10 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
     default: return;
     }
     deliver_event(rc->app, rc->ps, ai, ev, rc->port_id);
+    if (changed_in && (ev == MRP_EVENT_RJOININ || ev == MRP_EVENT_RJOINMT)) {
+        rc->app->ops->join_ind(rc->app, rc->port_id, attr_type, ai->attr_val, false);
+        map_apply_join(rc->app, rc->port_id, attr_type, ai->attr_val);
+    }
 }
 
 static void rx_on_leaveall(void *raw_ctx, uint8_t attr_type)
