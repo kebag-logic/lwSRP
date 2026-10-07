@@ -249,6 +249,12 @@ void            mrp_app_destroy(struct mrp_app *app);
  * Ports never call back into this application synchronously. Caller storage
  * must fit the declared attributes; -ENOBUFS changes no state. Returns 1 for
  * a committed PDU, zero when no opportunity is due, or negative errno. */
+/* A refused send retains the exact PDU in the caller's buffer until accepted.
+ * Keep that buffer alive and unchanged between retries. While retained, RX and
+ * local declarations on this port are refused without side effects: queue and
+ * retry them after the transmit. Timers still expire, including registrar Leave.
+ * The send function must never call back into MRP synchronously.
+ */
 typedef int (*mrp_send_fn)(void *ctx, uint8_t port_id,
                            const uint8_t *pdu, size_t len);
 int mrp_transmit(struct mrp_app *app, uint8_t port_id,
