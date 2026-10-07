@@ -7,9 +7,8 @@
  *   Type 2 (MAC): 6-octet MAC address
  */
 
-#include <errno.h>
+#include "shish_lan/error.h"
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "shish_lan/mrp.h"
@@ -65,9 +64,11 @@ static int mmrp_encode_attr(uint8_t attr_type, const void *attr_val,
     switch (attr_type) {
     case MMRP_ATTR_TYPE_SVC: alen = MMRP_ATTR_LEN_SVC; break;
     case MMRP_ATTR_TYPE_MAC: alen = MMRP_ATTR_LEN_MAC; break;
-    default: return -EINVAL;
+    default: return -SHLAN_ERROR_INVALID;
     }
-    if (buf_len < alen) return -ENOBUFS;
+    if (buf_len < alen) {
+        return -SHLAN_ERROR_NO_BUFFER;
+    }
     memcpy(buf, attr_val, alen);
     return alen;
 }
@@ -82,12 +83,16 @@ static int mmrp_decode_attr(uint8_t attr_type, uint32_t offset,
 {
     switch (attr_type) {
     case MMRP_ATTR_TYPE_SVC:
-        if (buf_len < MMRP_ATTR_LEN_SVC) return -EINVAL;
+        if (buf_len < MMRP_ATTR_LEN_SVC) {
+            return -SHLAN_ERROR_INVALID;
+        }
         *(uint8_t *)attr_val_out = buf[0]; /* service values not incremented */
         return MMRP_ATTR_LEN_SVC;
 
     case MMRP_ATTR_TYPE_MAC: {
-        if (buf_len < MMRP_ATTR_LEN_MAC) return -EINVAL;
+        if (buf_len < MMRP_ATTR_LEN_MAC) {
+            return -SHLAN_ERROR_INVALID;
+        }
         uint8_t *out = (uint8_t *)attr_val_out;
         memcpy(out, buf, MMRP_ATTR_LEN_MAC);
         /* Increment 6-octet big-endian MAC by offset */
@@ -97,10 +102,13 @@ static int mmrp_decode_attr(uint8_t attr_type, uint32_t offset,
             out[b] = (uint8_t)carry;
             carry >>= 8;
         }
+        if (carry) {
+            return -SHLAN_ERROR_RANGE;
+        }
         return MMRP_ATTR_LEN_MAC;
     }
     default:
-        return -EINVAL;
+        return -SHLAN_ERROR_INVALID;
     }
 }
 

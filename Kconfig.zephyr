@@ -3,5 +3,5 @@ config LWSRP
 	bool "lwSRP — IEEE 802.1Q MRP/MVRP/MMRP/MSRP state machines"
 	help
 	  Portable MRP base + applications. Tick-driven (call
-	  shlan_timer_tick() and mrp_tick() at centisecond rate);
-	  PDU transmit assembly is not yet part of the library.
+	  shlan_timer_tick() at centisecond rate). Poll mrp_transmit()
+	  for asynchronous output; only accepted PDUs commit state.

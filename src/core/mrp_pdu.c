@@ -10,7 +10,7 @@
  *   VectorAttribute = VectorHeader, FirstValue {, Vector}
  */
 
-#include <errno.h>
+#include "shish_lan/error.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -24,29 +24,28 @@
 
 static int put_u8(uint8_t *buf, size_t len, uint8_t v)
 {
-    if (len < 1) return -ENOBUFS;
+    if (len < 1) {
+        return -SHLAN_ERROR_NO_BUFFER;
+    }
     buf[0] = v;
     return 1;
 }
 
 static int put_u16be(uint8_t *buf, size_t len, uint16_t v)
 {
-    if (len < 2) return -ENOBUFS;
+    if (len < 2) {
+        return -SHLAN_ERROR_NO_BUFFER;
+    }
     buf[0] = (uint8_t)(v >> 8);
     buf[1] = (uint8_t)(v & 0xFF);
     return 2;
 }
 
-static int get_u8(const uint8_t *buf, size_t len, uint8_t *out)
-{
-    if (len < 1) return -EINVAL;
-    *out = buf[0];
-    return 1;
-}
-
 static int get_u16be(const uint8_t *buf, size_t len, uint16_t *out)
 {
-    if (len < 2) return -EINVAL;
+    if (len < 2) {
+        return -SHLAN_ERROR_INVALID;
+    }
     *out = (uint16_t)((buf[0] << 8) | buf[1]);
     return 2;
 }
@@ -78,12 +77,16 @@ int mrpdu_encode_vector(uint8_t *buf, size_t buf_len,
                         enum mrp_attr_event attr_event,
                         const uint8_t *first_value, uint8_t fv_len)
 {
-    if (fv_len == 0 || !first_value) return -EINVAL;
+    if (fv_len == 0 || !first_value) {
+        return -SHLAN_ERROR_INVALID;
+    }
 
     /* VectorHeader: 2 octets */
     uint16_t vh = mrp_vh_encode(la_event, 1u);
     size_t need = 2u /* VH */ + fv_len + 1u /* one ThreePacked byte */;
-    if (buf_len < need) return -ENOBUFS;
+    if (buf_len < need) {
+        return -SHLAN_ERROR_NO_BUFFER;
+    }
 
     int off = 0;
     int r;
@@ -109,149 +112,122 @@ int mrpdu_encode_vector(uint8_t *buf, size_t buf_len,
 /* mrpdu_parse — §10.8.3                                               */
 /* ------------------------------------------------------------------ */
 
-/*
- * Parse a single Message (§10.8.2.2) starting at buf[0].
- * Returns bytes consumed or negative errno.
- * Calls on_attr / on_leaveall for each decoded event.
- */
-static int parse_message(const uint8_t *buf, size_t len,
-                         const struct mrp_app_ops *ops,
-                         mrpdu_on_attr_fn on_attr,
-                         mrpdu_on_leaveall_fn on_leaveall,
-                         void *ctx)
+/* Validate the complete PDU before delivering any event. IEEE 802.1Q
+ * 10.8.3 supplies the length and vector rules. Higher-version extensions
+ * are skipped at their Message or VectorAttribute boundary (10.8.3.5). */
+static int parse_pass(const uint8_t *pdu, size_t len,
+                      const struct mrp_app_ops *ops,
+                      mrpdu_on_attr_fn on_attr,
+                      mrpdu_on_leaveall_fn on_leaveall, void *ctx)
 {
-    if (len < 2) return -EINVAL;
-
-    uint8_t  attr_type   = buf[0];
-    uint8_t  attr_length = buf[1]; /* FirstValue length in octets */
-    size_t   off         = 2;
-
-    /* AttributeListLength present only when ops says so (MSRP) */
-    uint16_t attr_list_len = 0;
-    bool     has_all_len   = (ops && ops->ethertype == MRP_ETHERTYPE_MSRP);
-    if (has_all_len) {
-        if (len - off < 2) return -EINVAL;
-        uint16_t tmp;
-        int r = get_u16be(buf + off, len - off, &tmp);
-        if (r < 0) return r;
-        attr_list_len = tmp;
-        off += 2;
-        (void)attr_list_len; /* consumed; used only for bounds in strict mode */
+    if (!pdu || len < 3 || !ops || !ops->attr_len || !ops->decode_attr) {
+        return -SHLAN_ERROR_INVALID;
     }
-
-    /* Parse AttributeList: zero or more VectorAttributes, then EndMark */
+    bool later = pdu[0] > ops->proto_version;
+    size_t off = 1; /* Later versions retain the common message format. */
     while (off + 2 <= len) {
-        uint16_t vh;
-        int r = get_u16be(buf + off, len - off, &vh);
-        if (r < 0) return r;
-
-        /* EndMark terminates AttributeList */
-        if (vh == MRP_ENDMARK) { off += 2; break; }
-        off += 2;
-
-        uint8_t  la_ev    = mrp_vh_la(vh);
-        uint16_t n_values = mrp_vh_nv(vh);
-
-        if (la_ev == MRP_LA_ALL && on_leaveall)
-            on_leaveall(ctx, attr_type);
-
-        /* FirstValue must be present */
-        if (off + attr_length > len) return -EINVAL;
-        const uint8_t *first_val = buf + off;
-        off += attr_length;
-
-        /*
-         * Vector layout: ceil(n/3) ThreePackedEvents octets carry the
-         * AttributeEvents; attribute types with a subtype (the MSRP
-         * Listener declaration, §35.2.2.7.2) append ceil(n/4)
-         * FourPackedEvents octets after them.
-         */
-        bool has_subtype = (ops && ops->attr_has_subtype &&
-                            ops->attr_has_subtype(attr_type));
-        size_t ev_len  = ((size_t)n_values + 2u) / 3u;
-        size_t sub_len = has_subtype ? (((size_t)n_values + 3u) / 4u) : 0u;
-
-        if (off + ev_len + sub_len > len) return -EINVAL;
-        const uint8_t *ev_bytes  = buf + off;
-        const uint8_t *sub_bytes = buf + off + ev_len;
-        off += ev_len + sub_len;
-
-        for (uint32_t i = 0; i < n_values; i++) {
-            uint8_t e[3];
-            mrp_three_unpack(ev_bytes[i / 3u], &e[0], &e[1], &e[2]);
-            uint8_t ev = e[i % 3u];
-
-            if (ev > MRP_ATTR_EVENT_LV) continue; /* ignore reserved */
-
-            uint8_t attr_val[64] = {0};
-            if (ops && ops->decode_attr) {
-                r = ops->decode_attr(attr_type, i,
-                                    first_val, attr_length, attr_val);
-                if (r < 0) continue;
-            } else {
-                /* Fallback: increment FirstValue by offset (integer attrs) */
-                if (attr_length <= sizeof(attr_val)) {
-                    memcpy(attr_val, first_val, attr_length);
-                    /* Simple big-endian increment by i */
-                    uint32_t carry = i;
-                    for (int b = attr_length - 1; b >= 0 && carry; b--) {
-                        carry += attr_val[b];
-                        attr_val[b] = (uint8_t)carry;
-                        carry >>= 8;
+        uint8_t type = pdu[off++];
+        uint8_t alen = pdu[off++];
+        if (type == 0 && alen == 0) {
+            return 0;
+        }
+        size_t end = len;
+        bool msrp = ops->ethertype == MRP_ETHERTYPE_MSRP;
+        if (msrp) {
+            uint16_t count;
+            if (get_u16be(pdu + off, len - off, &count) < 0 || count < 2) {
+                return -SHLAN_ERROR_INVALID;
+            }
+            off += 2;
+            end = count > len - off ? len : off + count;
+        }
+        uint8_t expected = ops->attr_len(type);
+        bool unknown = !expected && later;
+        /* MSRP supplies the boundary even when its future vector layout is unknown. */
+        if (unknown && msrp) {
+            off = end;
+            continue;
+        }
+        if ((!expected && !unknown) || !alen || (expected && expected != alen)) {
+            return -SHLAN_ERROR_INVALID;
+        }
+        bool ended = false;
+        bool vector_seen = false;
+        while (off + 2 <= end) {
+            uint16_t vh = 0;
+            (void)get_u16be(pdu + off, end - off, &vh);
+            off += 2;
+            if (vh == 0) {
+                ended = true;
+                break;
+            }
+            unsigned la = mrp_vh_la(vh);
+            unsigned count = mrp_vh_nv(vh);
+            bool subtype = !unknown && ops->attr_has_subtype && ops->attr_has_subtype(type);
+            size_t events = (count + 2u) / 3u;
+            size_t subtypes = subtype ? (count + 3u) / 4u : 0;
+            size_t need = alen + events + subtypes;
+            if (need > end - off) {
+                return -SHLAN_ERROR_INVALID;
+            }
+            const uint8_t *fv = pdu + off;
+            const uint8_t *ev = fv + alen;
+            const uint8_t *sub = ev + events;
+            off += need;
+            vector_seen = true;
+            bool unknown_event = la > MRP_LA_ALL;
+            for (size_t k = 0; k < events; ++k) {
+                unknown_event = unknown_event || ev[k] > 215u;
+            }
+            if (unknown || (later && unknown_event)) {
+                continue;
+            }
+            if (unknown_event) {
+                return -SHLAN_ERROR_INVALID;
+            }
+            if (la && on_leaveall) {
+                on_leaveall(ctx, type);
+            }
+            for (unsigned k = 0; k < count; ++k) {
+                uint8_t e[3];
+                _Alignas(max_align_t) uint8_t value[64] = {0};
+                mrp_three_unpack(ev[k / 3u], &e[0], &e[1], &e[2]);
+                int r = ops->decode_attr(type, k, fv, alen, value);
+                if (r < 0) {
+                    return r; /* The validation pass rejects the complete PDU. */
+                }
+                if (subtype) {
+                    uint8_t decl[4];
+                    mrp_four_unpack(sub[k / 4u], &decl[0], &decl[1], &decl[2], &decl[3]);
+                    if (decl[k % 4u] == 0) {
+                        continue; /* 35.2.2.7.2 Ignore occupies no registrar. */
                     }
+                    value[alen] = decl[k % 4u];
                 }
-            }
-
-            if (has_subtype) {
-                uint8_t s[4];
-                size_t  vlen = ops->attr_len ? ops->attr_len(attr_type)
-                                             : attr_length;
-                mrp_four_unpack(sub_bytes[i / 4u],
-                                &s[0], &s[1], &s[2], &s[3]);
-                if (vlen < sizeof(attr_val)) {
-                    attr_val[vlen] = s[i % 4u];
+                if (on_attr) {
+                    on_attr(ctx, type, (enum mrp_attr_event)e[k % 3u], value);
                 }
-            }
-
-            if (on_attr) {
-                on_attr(ctx, attr_type, (enum mrp_attr_event)ev, attr_val);
             }
         }
+        /* 10.8.1.2(f): the actual PDU end is also an EndMark. */
+        if (vector_seen && off == len) {
+            return 0;
+        }
+        if (!ended || (msrp && off != end)) {
+            return -SHLAN_ERROR_INVALID;
+        }
     }
-
-    return (int)off;
+    return off == len ? 0 : -SHLAN_ERROR_INVALID;
 }
 
-int mrpdu_parse(const uint8_t *pdu, size_t pdu_len,
+int mrpdu_parse(const uint8_t *pdu, size_t len,
                 const struct mrp_app_ops *ops,
                 mrpdu_on_attr_fn on_attr,
-                mrpdu_on_leaveall_fn on_leaveall,
-                void *ctx)
+                mrpdu_on_leaveall_fn on_leaveall, void *ctx)
 {
-    if (!pdu || pdu_len < 1) return -EINVAL;
-
-    size_t off = 0;
-
-    /* ProtocolVersion (§10.8.2.1) */
-    uint8_t version;
-    int r = get_u8(pdu + off, pdu_len - off, &version);
-    if (r < 0) return r;
-    off += (size_t)r;
-    /* Version mismatch: log but continue per §10.8.3.3 */
-    (void)version;
-
-    /* Parse Messages until EndMark or buffer exhausted */
-    while (off + 2 <= pdu_len) {
-        /* Peek at next 2 bytes for EndMark */
-        uint16_t probe;
-        if (get_u16be(pdu + off, pdu_len - off, &probe) < 0) break;
-        if (probe == MRP_ENDMARK) break;
-
-        r = parse_message(pdu + off, pdu_len - off,
-                          ops, on_attr, on_leaveall, ctx);
-        if (r <= 0) return (r == 0) ? -EINVAL : r;
-        off += (size_t)r;
+    int r = parse_pass(pdu, len, ops, NULL, NULL, NULL);
+    if (r < 0) {
+        return r;
     }
-
-    return 0;
+    return parse_pass(pdu, len, ops, on_attr, on_leaveall, ctx);
 }
