@@ -24,9 +24,10 @@ struct shlan_switch {
     void                          *priv; /* adapter-private data */
 };
 
-static inline int  shlan_connect(struct shlan_switch *sw)                      { return sw->ops->connect(sw); }
-static inline void shlan_disconnect(struct shlan_switch *sw)                   { sw->ops->disconnect(sw); }
-static inline int  shlan_port_enable(struct shlan_switch *sw, uint8_t port_id) { return sw->ops->port_enable(sw, port_id); }
-static inline int  shlan_port_disable(struct shlan_switch *sw, uint8_t port_id){ return sw->ops->port_disable(sw, port_id); }
+/* Out-of-line entry points also support shared-library callers. */
+int shlan_connect(struct shlan_switch *sw);
+void shlan_disconnect(struct shlan_switch *sw);
+int shlan_port_enable(struct shlan_switch *sw, uint8_t port_id);
+int shlan_port_disable(struct shlan_switch *sw, uint8_t port_id);
 
 #endif /* SHISH_LAN_SWITCH_H */

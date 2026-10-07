@@ -6,6 +6,9 @@ import pathlib
 
 def _load_lib():
     """Find and load the compiled shlan shared library."""
+    library = os.environ.get("SHLAN_LIBRARY")
+    if library:
+        return ctypes.CDLL(library)
     candidates = [
         pathlib.Path(__file__).parents[2] / "build" / "libshlan.so",
         pathlib.Path(__file__).parents[2] / "build" / "libshlan.dylib",

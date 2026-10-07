@@ -66,3 +66,9 @@ lwSRP is licensed under the [Apache License, Version 2.0](LICENSE).
 Copyright 2026 kebag-logic. See [NOTICE](NOTICE).
 
 Individuals and companies may contribute under the same licence.
+
+## Builds outside the checkout
+
+The unit executable runs the MRPDU cgreen suite. For an external build
+directory, set `SHLAN_LIBRARY` to its `libshlan.so` when running `behave`.
+The switch dispatch operations are exported for the Python harness.
