@@ -98,7 +98,7 @@ Strip Ethernet framing and select the matching application first.
 The [application interface](../src/include/shish_lan/mrp.h) supplies protocol identifiers.
 The library does not receive network frames itself.
 
-For transmit integration, the [stream destination constant](../src/modules/msrp.c#L352-L353) is currently 91-E0-F0-00-0E-80.
+For transmit integration, the [stream destination constant](../src/modules/msrp.c#L353-L354) is currently 91-E0-F0-00-0E-80.
 MSRPDUs require 01-80-C2-00-00-0E under [IEEE 802.1Q-2018, clause 35.2.2.1 and Table 8-1](https://standards.ieee.org/ieee/802.1Q/6844/).
 Do not use the current constant for conforming transmission.
 Track the correction in [issue #6](https://github.com/kebag-logic/lwSRP/issues/6).
@@ -115,10 +115,10 @@ A negative return does not roll back state.
 The parser ignores protocol version differences and does not enforce the stream attribute-list length.
 Validate untrusted inputs and review the [coverage gaps](tester.md#coverage).
 
-The [LeaveAll handler](../src/core/mrp_mad.c#L835-L841) ignores attribute type and delivers rLA! to every attribute instance on the port.
+The [LeaveAll handler](../src/core/mrp_mad.c#L836-L842) ignores attribute type and delivers rLA! to every attribute instance on the port.
 This affects both Applicants and Registrars, including unrelated types.
 A Listener LeaveAll can therefore move Talker registrations from IN to LV.
-The [parser](../src/core/mrp_pdu.c#L154-L155) invokes that handler once per marked vector.
+The [parser](../src/core/mrp_pdu.c#L155-L156) invokes that handler once per marked vector.
 The standard requires type-specific delivery: [IEEE 802.1Q-2018, clause 10.7.5.20](https://standards.ieee.org/ieee/802.1Q/6844/).
 Track this receive-path limitation in [issue #7](https://github.com/kebag-logic/lwSRP/issues/7).
 
@@ -143,8 +143,8 @@ The [module help text](../Kconfig.zephyr#L5-L6) conflicts with this requirement 
 Do not call the latter once per port or application.
 It ignores its arguments and advances all timers.
 
-The [port timer handlers](../src/core/mrp_mad.c#L639-L700) use 20 centiseconds for periodic events and 1000 for LeaveAll.
-The [Registrar timer action](../src/core/mrp_mad.c#L560-L564) arms Leave for 60 centiseconds using the [Leave interval](../src/include/shish_lan/mrp.h#L118).
+The [port timer handlers](../src/core/mrp_mad.c#L640-L701) use 20 centiseconds for periodic events and 1000 for LeaveAll.
+The [Registrar timer action](../src/core/mrp_mad.c#L561-L565) arms Leave for 60 centiseconds using the [Leave interval](../src/include/shish_lan/mrp.h#L119).
 Periodic timing differs from the one-second interval in [IEEE 802.1Q-2018, clause 10.7.4.4](https://standards.ieee.org/ieee/802.1Q/6844/).
 LeaveAll lacks the randomization required by [IEEE 802.1Q-2018, clause 10.7.4.3](https://standards.ieee.org/ieee/802.1Q/6844/).
 See the [state comparison](developer.md#state-machines) before relying on timer behavior.

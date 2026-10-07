@@ -84,7 +84,7 @@ Reuse matching steps or add a precise new step definition.
 Keep setup, action, and assertion separate.
 Run the dry-run command above to check matching.
 Run the real suite to execute setup and assertions.
-Both [active-state and inactive-state assertions](../tests/features/steps/switch_steps.py#L26-L36) only repeat the operation and check its return code.
+Both [active-state and inactive-state assertions](../tests/features/steps/switch_steps.py#L27-L37) only repeat the operation and check its return code.
 Neither independently reads port state.
 
 ## Coverage
