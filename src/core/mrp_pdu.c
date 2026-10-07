@@ -183,7 +183,7 @@ static int parse_message(const uint8_t *buf, size_t len,
 
             if (ev > MRP_ATTR_EVENT_LV) continue; /* ignore reserved */
 
-            uint8_t attr_val[64] = {0};
+            _Alignas(max_align_t) uint8_t attr_val[64] = {0};
             if (ops && ops->decode_attr) {
                 r = ops->decode_attr(attr_type, i,
                                     first_val, attr_length, attr_val);
