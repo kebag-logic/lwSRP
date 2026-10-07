@@ -6,11 +6,23 @@
 #include "shish_lan/mvrp.h"
 #include "shish_lan/mrp_pdu.h"
 #include "ports/timer.h"
+#include "shish_lan/error.h"
+#include "fault_alloc.h"
 
 Describe(Boundaries);
 static unsigned joins, leaves, maps, decoded, leavealls;
-BeforeEach(Boundaries) { joins = leaves = maps = decoded = leavealls = 0; }
-AfterEach(Boundaries) {}
+static unsigned indicated_value;
+BeforeEach(Boundaries)
+{
+    joins = leaves = maps = decoded = leavealls = 0;
+    allocation_fail_after(0);
+    assert_that(allocation_live(), is_equal_to(0));
+}
+AfterEach(Boundaries)
+{
+    allocation_fail_after(0);
+    assert_that(allocation_live(), is_equal_to(0));
+}
 static void tick(unsigned n)
 {
     while (n--) {
@@ -19,7 +31,13 @@ static void tick(unsigned n)
 }
 static void joined(struct mrp_app *a, uint8_t p, uint8_t t, const void *v, bool n)
 {
-    (void)a; (void)p; (void)t; (void)v; (void)n; ++joins;
+    (void)a; (void)p; (void)n; ++joins;
+    if (t == MSRP_ATTR_TYPE_LISTENER) {
+        indicated_value = ((const uint8_t *)v)[8];
+    } else if (t == MSRP_ATTR_TYPE_TALKER_ADV) {
+        /* Only stream tests inspect this captured value. */
+        indicated_value = 0;
+    }
 }
 static void left(struct mrp_app *a, uint8_t p, uint8_t t, const void *v)
 {
@@ -356,6 +374,275 @@ Ensure(Boundaries, received_leaveall_restarts_the_participant_deadline)
     assert_that(la, is_equal_to(MRP_LA_STATE_ACTIVE));
     mrp_app_destroy(a);
 }
+static size_t stream_pdu(uint8_t *pdu, bool listener, unsigned value,
+                         unsigned event, bool leave_all)
+{
+    size_t len = listener ? 21 : 37;
+    memset(pdu, 0, len);
+    pdu[1] = listener ? 3 : 1;
+    pdu[2] = listener ? 8 : 25;
+    pdu[4] = listener ? 14 : 30;
+    pdu[5] = leave_all ? 0x20 : 0;
+    pdu[6] = 1; pdu[14] = 1;
+    if (listener) {
+        pdu[15] = (uint8_t)(36 * event);
+        pdu[16] = (uint8_t)(value << 6);
+    } else {
+        pdu[23] = (uint8_t)(value >> 8); pdu[24] = (uint8_t)value;
+        pdu[32] = (uint8_t)(36 * event);
+    }
+    return len;
+}
+struct stream_state {
+    unsigned value;
+    enum mrp_reg_state reg;
+    enum mrp_appl_state appl;
+};
+static void stream_snapshot(void *ctx, const struct mrp_attr_status *s)
+{
+    struct stream_state *st = ctx;
+    if (s->attr_type == MSRP_ATTR_TYPE_TALKER_ADV) {
+        st->value = ((const struct msrp_talker_adv *)s->attr_val)->max_frame_size;
+    } else if (s->attr_type == MSRP_ATTR_TYPE_LISTENER) {
+        st->value = ((const uint8_t *)s->attr_val)[8];
+    } else {
+        return;
+    }
+    st->reg = s->reg; st->appl = s->appl;
+}
+static struct stream_state stream_state(struct mrp_app *a, uint8_t port)
+{
+    struct stream_state st = {0};
+    mrp_attr_visit(a, port, stream_snapshot, &st);
+    return st;
+}
+static uint32_t stream_targets(const struct mrp_app *a, uint8_t p, uint8_t t, const void *v)
+{
+    (void)a; (void)t; (void)v; ++maps;
+    return p == 0 ? 6u : 0;
+}
+static void stream_joined(struct mrp_app *a, uint8_t p, uint8_t t, const void *v, bool n)
+{
+    joined(a, p, t, v, n);
+    if (t == MSRP_ATTR_TYPE_TALKER_ADV) {
+        indicated_value = ((const struct msrp_talker_adv *)v)->max_frame_size;
+    }
+}
+static struct mrp_app *stream_bridge(void)
+{
+    struct mrp_app *base = application(2, 1, true);
+    struct mrp_app_ops ops = *base->ops;
+    ops.join_ind = stream_joined;
+    ops.map_join = stream_targets; ops.map_leave = stream_targets;
+    mrp_app_destroy(base);
+    struct mrp_app *a = mrp_app_create(&ops, 3);
+    for (uint8_t p = 0; p < 3; ++p) {
+        assert_that(mrp_port_configure(a, p, 20, 60, 10000, 1, true), is_equal_to(0));
+        mrp_set_periodic(a, p, false);
+    }
+    return a;
+}
+static void changed_after_leaveall(bool transmitted)
+{
+    for (unsigned listener = 0; listener < 2; ++listener) {
+        for (unsigned event = 1; event <= 3; event += 2) {
+            struct mrp_app *a = stream_bridge();
+            uint8_t pdu[64], tx[256];
+            unsigned old = listener ? 2 : 100, next = listener ? 1 : 200;
+            size_t len = stream_pdu(pdu, listener, old, event, false);
+            joins = leaves = maps = 0;
+            if (transmitted) {
+                assert_that(mrp_port_configure(a, 0, 20, 60, 1000, 1, true), is_equal_to(0));
+            }
+            assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+            if (transmitted) {
+                tick(1500);
+                assert_that(mrp_transmit(a, 0, tx, sizeof(tx), accept, NULL), is_equal_to(1));
+            } else {
+                /* A LeaveAll-only message enters LV without renewing the value. */
+                pdu[5] = 0x20; pdu[6] = 0;
+                pdu[4] = listener ? 12 : 29;
+                len = listener ? 19 : 36;
+                memset(pdu + 7 + pdu[2], 0, 4);
+                assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+            }
+            assert_that(stream_state(a, 0).reg, is_equal_to(MRP_REG_STATE_LV));
+            len = stream_pdu(pdu, listener, next, event, false);
+            assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+            assert_that(joins, is_equal_to(2));
+            assert_that(indicated_value, is_equal_to(next));
+            assert_that(maps, is_equal_to(2));
+            assert_that(leaves, is_equal_to(0));
+            assert_that(stream_state(a, 0).reg, is_equal_to(MRP_REG_STATE_IN));
+            assert_that(stream_state(a, 1).value, is_equal_to(next));
+            assert_that(stream_state(a, 2).value, is_equal_to(next));
+            assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+            tick(60);
+            assert_that(joins, is_equal_to(2));
+            assert_that(leaves, is_equal_to(0));
+            mrp_app_destroy(a);
+        }
+    }
+}
+Ensure(Boundaries, changed_values_after_received_leaveall_are_indicated_and_propagated)
+{
+    changed_after_leaveall(false);
+}
+Ensure(Boundaries, changed_values_after_transmitted_leaveall_are_indicated_and_propagated)
+{
+    changed_after_leaveall(true);
+}
+Ensure(Boundaries, unknown_stream_layout_uses_attribute_list_length)
+{
+    uint8_t pdu[] = {1,9,1,0,8,0,1,7,36,0,0,0xaa,0xbb,
+                    3,8,0,14,0,1,1,2,3,4,5,6,0,1,36,128,0,0,0,0};
+    struct mrp_app *a = application(2, 1, false);
+    assert_that(mrp_rx(a, 0, pdu, sizeof(pdu)), is_equal_to(0));
+    assert_that(joins, is_equal_to(1));
+    assert_that(indicated_value, is_equal_to(2));
+    mrp_app_destroy(a);
+    a = application(2, 1, false); pdu[0] = 0;
+    unchanged_rejection(a, pdu, sizeof(pdu));
+    mrp_app_destroy(a);
+}
+Ensure(Boundaries, unknown_generic_messages_reject_zero_attribute_length)
+{
+    uint8_t pdu[] = {1,9,0,0,1,0,0,0,1,2,0,1,0,2,0,0,0,0,0};
+    for (unsigned kind = 0; kind < 2; ++kind) {
+        struct mrp_app *a = application(kind, 1, false);
+        uint8_t mac[] = {1,9,0,0,1,0,0,0,1,1,0,1,0,0,0,0,0,0};
+        unchanged_rejection(a, kind == 0 ? pdu : mac, kind == 0 ? sizeof(pdu) : sizeof(mac));
+        mrp_app_destroy(a);
+    }
+}
+Ensure(Boundaries, changed_value_allocation_failure_preserves_retry)
+{
+    for (unsigned listener = 0; listener < 2; ++listener) {
+        for (unsigned lv = 0; lv < 2; ++lv) {
+            struct mrp_app *a = stream_bridge();
+            unsigned old = listener ? 2 : 100, next = listener ? 1 : 200;
+            uint8_t pdu[64]; size_t len = stream_pdu(pdu, listener, old, 1, false);
+            joins = leaves = 0;
+            assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+            len = stream_pdu(pdu, listener, next, 1, lv);
+            allocation_fail_after(2); /* Partial reservation must be discarded. */
+            assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(-SHLAN_ERROR_NO_MEMORY));
+            assert_that(joins, is_equal_to(1));
+            assert_that(indicated_value, is_equal_to(old));
+            assert_that(stream_state(a, 0).value, is_equal_to(old));
+            assert_that(stream_state(a, 0).reg, is_equal_to(lv ? MRP_REG_STATE_LV : MRP_REG_STATE_IN));
+            assert_that(stream_state(a, 1).value, is_equal_to(old));
+            assert_that(stream_state(a, 2).value, is_equal_to(old));
+            assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+            assert_that(joins, is_equal_to(2));
+            assert_that(stream_state(a, 0).value, is_equal_to(next));
+            assert_that(stream_state(a, 1).value, is_equal_to(next));
+            assert_that(stream_state(a, 2).value, is_equal_to(next));
+            mrp_app_destroy(a);
+        }
+    }
+}
+Ensure(Boundaries, reservation_failure_is_reported_without_partial_publication)
+{
+    struct mrp_app *a = stream_bridge();
+    assert_that(mrp_port_configure(a, 0, 20, 60, 10000, 1, false), is_equal_to(0));
+    uint8_t pdu[64], tx[256]; size_t len = stream_pdu(pdu, false, 100, 1, false);
+    allocation_fail_after(3); /* Source instance, first reservation, then fail. */
+    assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(-SHLAN_ERROR_NO_MEMORY));
+    assert_that(joins, is_equal_to(0)); assert_that(maps, is_equal_to(0));
+    assert_that(stream_state(a, 0).reg, is_equal_to(MRP_REG_STATE_MT));
+    assert_that(stream_state(a, 0).appl, is_equal_to(MRP_APPL_STATE_VO));
+    for (uint8_t p = 1; p < 3; ++p) {
+        assert_that(mrp_transmit(a, p, tx, sizeof(tx), accept, NULL), is_equal_to(0));
+        assert_that(mrp_attr_visit(a, p, NULL, NULL), is_equal_to(0));
+    }
+    assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+    assert_that(joins, is_equal_to(1));
+    assert_that(stream_state(a, 1).value, is_equal_to(100));
+    assert_that(stream_state(a, 2).value, is_equal_to(100));
+    mrp_app_destroy(a);
+}
+Ensure(Boundaries, timer_allocation_failure_rolls_back_and_retries)
+{
+    struct mrp_app *a = stream_bridge();
+    uint8_t pdu[64]; size_t len = stream_pdu(pdu, false, 100, 1, false);
+    assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+    /* LeaveAll plus Mt starts the IEEE deadline in both profiles. */
+    stream_pdu(pdu, false, 100, 4, true);
+    assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+    tick(59); allocation_fail_after(2); tick(1);
+    assert_that(leaves, is_equal_to(0));
+    assert_that(stream_state(a, 0).reg, is_equal_to(MRP_REG_STATE_LV));
+    tick(1);
+    assert_that(leaves, is_equal_to(1));
+    assert_that(stream_state(a, 0).reg, is_equal_to(MRP_REG_STATE_MT));
+    assert_that(stream_state(a, 1).appl, is_equal_to(MRP_APPL_STATE_VO));
+    assert_that(stream_state(a, 2).appl, is_equal_to(MRP_APPL_STATE_VO));
+    mrp_app_destroy(a);
+}
+static void retain_target(struct mrp_app *a, uint8_t *tx, size_t len)
+{
+    struct msrp_domain d = {6,3,2};
+    assert_that(mrp_mad_join(a, 1, 4, &d, true), is_equal_to(0));
+    assert_that(mrp_transmit(a, 1, tx, len, refuse, NULL), is_less_than(0));
+}
+Ensure(Boundaries, failed_commit_replay_is_retried_by_the_next_poll)
+{
+    struct mrp_app *a = stream_bridge();
+    uint8_t pdu[64], tx[256], saved[256];
+    retain_target(a, tx, sizeof(tx)); memcpy(saved, tx, sizeof(tx));
+    size_t len = stream_pdu(pdu, false, 100, 1, false);
+    assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+    allocation_fail_after(1);
+    assert_that(mrp_transmit(a, 1, tx, sizeof(tx), accept, NULL), is_equal_to(1));
+    assert_that(memcmp(tx, saved, sizeof(tx)), is_equal_to(0));
+    assert_that(stream_state(a, 1).value, is_equal_to(0));
+    (void)mrp_transmit(a, 1, tx, sizeof(tx), accept, NULL);
+    assert_that(stream_state(a, 1).value, is_equal_to(100));
+    mrp_app_destroy(a);
+}
+Ensure(Boundaries, destroy_releases_all_queued_allocations)
+{
+    size_t before = allocation_live();
+    struct mrp_app *a = stream_bridge();
+    uint8_t pdu[64], tx[256]; retain_target(a, tx, sizeof(tx));
+    size_t len = stream_pdu(pdu, false, 100, 1, false);
+    assert_that(mrp_rx(a, 0, pdu, len), is_equal_to(0));
+    mrp_app_destroy(a);
+    assert_that(allocation_live(), is_equal_to(before));
+}
+static unsigned join_seen, leave_seen;
+static uint32_t join_after_indication(const struct mrp_app *a, uint8_t p, uint8_t t, const void *v)
+{
+    (void)a; (void)p; (void)t; (void)v;
+    join_seen = joins;
+    return joins ? 2u : 0;
+}
+static uint32_t leave_after_indication(const struct mrp_app *a, uint8_t p, uint8_t t, const void *v)
+{
+    (void)a; (void)p; (void)t; (void)v;
+    leave_seen = leaves;
+    return leaves ? 2u : 0;
+}
+Ensure(Boundaries, propagation_policy_observes_completed_host_indications)
+{
+    struct mrp_app *base = application(0, 1, false);
+    struct mrp_app_ops ops = *base->ops;
+    ops.map_join = join_after_indication; ops.map_leave = leave_after_indication;
+    mrp_app_destroy(base);
+    struct mrp_app *a = mrp_app_create(&ops, 2);
+    uint8_t pdu[] = {0,1,2,0,1,0,2,0,0,0,0,0};
+    join_seen = leave_seen = 0;
+    assert_that(mrp_rx(a, 0, pdu, sizeof(pdu)), is_equal_to(0));
+    assert_that(join_seen, is_equal_to(1));
+    assert_that(mrp_attr_visit(a, 1, NULL, NULL), is_equal_to(1));
+    pdu[7] = 180;
+    assert_that(mrp_rx(a, 0, pdu, sizeof(pdu)), is_equal_to(0));
+    tick(60);
+    assert_that(leave_seen, is_equal_to(1));
+    assert_that(state(a, 1).appl, is_equal_to(MRP_APPL_STATE_VO));
+    mrp_app_destroy(a);
+}
 TestSuite *boundaries_suite(void)
 {
     TestSuite *s = create_test_suite();
@@ -372,5 +659,15 @@ TestSuite *boundaries_suite(void)
     add_test_with_context(s, Boundaries, full_leaveall_reports_each_required_transition);
     add_test_with_context(s, Boundaries, leaving_observer_is_retained_until_its_pending_transmission);
     add_test_with_context(s, Boundaries, received_leaveall_restarts_the_participant_deadline);
+    add_test_with_context(s, Boundaries, changed_values_after_received_leaveall_are_indicated_and_propagated);
+    add_test_with_context(s, Boundaries, changed_values_after_transmitted_leaveall_are_indicated_and_propagated);
+    add_test_with_context(s, Boundaries, unknown_stream_layout_uses_attribute_list_length);
+    add_test_with_context(s, Boundaries, unknown_generic_messages_reject_zero_attribute_length);
+    add_test_with_context(s, Boundaries, changed_value_allocation_failure_preserves_retry);
+    add_test_with_context(s, Boundaries, reservation_failure_is_reported_without_partial_publication);
+    add_test_with_context(s, Boundaries, timer_allocation_failure_rolls_back_and_retries);
+    add_test_with_context(s, Boundaries, failed_commit_replay_is_retried_by_the_next_poll);
+    add_test_with_context(s, Boundaries, destroy_releases_all_queued_allocations);
+    add_test_with_context(s, Boundaries, propagation_policy_observes_completed_host_indications);
     return s;
 }

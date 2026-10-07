@@ -143,6 +143,11 @@ static int parse_pass(const uint8_t *pdu, size_t len,
         }
         uint8_t expected = ops->attr_len(type);
         bool unknown = !expected && later;
+        /* MSRP supplies the boundary even when its future vector layout is unknown. */
+        if (unknown && msrp) {
+            off = end;
+            continue;
+        }
         if ((!expected && !unknown) || !alen || (expected && expected != alen)) {
             return -SHLAN_ERROR_INVALID;
         }

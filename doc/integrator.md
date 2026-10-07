@@ -16,7 +16,7 @@ The [root build definition](../CMakeLists.txt) selects between host and embedded
 | C language | Requires [C11 draft](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf). |
 | [CMAKE_BUILD_TYPE](https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html) set to Debug | Adds compiler debugging information through [CMake](https://cmake.org/cmake/help/latest/). |
 | Export compile commands | Enabled by the [build definition](../CMakeLists.txt). |
-| Unit dependency found | Builds the [unit runner](../tests/unit/main.c) with seven suites. |
+| Unit dependency found | Builds the [unit runner](../tests/unit/main.c) with eight suites. |
 | Unit dependency absent | Host configuration fails. Headers and library are required. |
 | [ZEPHYR_BASE](../CMakeLists.txt) defined | Selects the module branch and returns before host configuration. |
 | [CONFIG_LWSRP](../Kconfig.zephyr) enabled | Builds protocol sources and default allocation and timer ports. |
@@ -130,8 +130,10 @@ sequenceDiagram
     Codec->>Core: Decoded events
     Core->>Policy: Check interest
     Core->>Core: Find or allocate
+    Core->>Core: Reserve possible targets
     Core->>Policy: Indicate registration
-    Core->>Core: Propagate
+    Core->>Policy: Select propagation ports
+    Core->>Core: Queue and replay targets
     Core->>Host: Observe transition
     Core-->>Host: Parse result
 ~~~
@@ -151,9 +153,10 @@ Copy values that must survive the callback.
 The [parser](../src/core/mrp_pdu.c) validates the complete wire structure and decoded application ranges before delivering state-changing events.
 It checks vector lengths, packed events, stream message boundaries, and vector arithmetic.
 A complete vector may end at the actual payload boundary without explicit EndMarks.
-Higher protocol versions skip unknown message types in every application, using advertised value lengths and vector boundaries through the EndMark.
+Higher protocol versions skip unknown stream messages to the advertised list boundary, regardless of their vector layout.
+Unknown VLAN and MAC messages use advertised value lengths and vector boundaries through the EndMark.
 Unrecognized events discard their vector; subsequent supported content still applies.
-This follows [IEEE 802.1Q-2018, clause 10.8.3.5](https://standards.ieee.org/ieee/802.1Q/6844/).
+This follows [IEEE 802.1Q-2018, clauses 10.8.3.5 and 35.2.2](https://standards.ieee.org/ieee/802.1Q/6844/).
 Current-version unknown types and reserved events reject the complete payload.
 Invalid decoded ranges and overflowing vector increments also reject the complete payload, in both profiles.
 Ignored Listener subtypes produce no attribute indication.
@@ -209,6 +212,11 @@ The core replays these operations after committing accepted output, before the n
 This preserves registration and timer-driven withdrawal order while the host continues servicing other ports.
 The queue drains during later polls if destination allocation temporarily fails.
 Size allocation capacity for the propagation accumulated during transport refusal.
+Each indication with propagation policy first reserves one entry per possible target, up to 32 entries.
+The host indication precedes policy selection; unused entries are freed.
+A reservation failure preserves the prior source value and state without issuing the corresponding indication.
+Retry the received payload after allocation becomes available.
+Earlier completed events in that payload remain applied.
 Receive reports allocation failures; a timer withdrawal retries allocation on the next tick.
 Destroying the application releases remaining queued operations.
 
@@ -225,7 +233,7 @@ sequenceDiagram
     Target->>Target: Schedule next output
 ~~~
 
-The [assembler](../src/core/mrp_mad.c#L1258) splits populations across Join-spaced opportunities.
+The [assembler](../src/core/mrp_mad.c#L1285) splits populations across Join-spaced opportunities.
 Previously omitted attributes precede repeated declarations.
 Size the buffer for the largest single message and the application's LeaveAll preamble.
 Insufficient space for any required value returns the [no-buffer error](../src/include/shish_lan/error.h).
@@ -261,7 +269,7 @@ Deliver every elapsed centisecond, including ticks coalesced by the platform.
 The [timer defaults](../src/include/shish_lan/mrp.h) are Join 20, Leave 60, and LeaveAll 1000 centiseconds.
 The Mark II profile uses Leave 500 centiseconds through [mrp_port_configure](../src/include/shish_lan/mrp.h).
 Combine this interval with the [Milan received-Leave option](#milan-received-leave) for immediate explicit withdrawals.
-The [periodic handler](../src/core/mrp_mad.c#L779) uses 100 centiseconds independently of Join spacing.
+The [periodic handler](../src/core/mrp_mad.c#L801) uses 100 centiseconds independently of Join spacing.
 LeaveAll draws lie strictly between its configured interval and 1.5 times that interval.
 The rules are in [IEEE 802.1Q-2018, clauses 10.7.4.3 and 10.7.4.4](https://standards.ieee.org/ieee/802.1Q/6844/).
 Supply different seeds where independent participants need different timing.
@@ -287,7 +295,7 @@ sequenceDiagram
 ~~~
 
 Call the matching [application destroy operation](../src/include/shish_lan/mrp.h) only after all callbacks and accesses have stopped.
-The [destructor](../src/core/mrp_mad.c#L879) unlinks all owned timers before releasing storage.
+The [destructor](../src/core/mrp_mad.c#L901) unlinks all owned timers before releasing storage.
 Other applications may continue ticking afterward.
 Destruction itself does not transmit withdrawals.
 Complete any required network withdrawal before teardown.
