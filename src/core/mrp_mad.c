@@ -85,6 +85,10 @@ struct mrp_port_state {
     uint32_t random;
     bool point_to_point;
     bool in_send;
+    bool periodic_owed;
+    bool prepared_la;
+    uint8_t *prepared_pdu;
+    size_t prepared_len;
     struct mrp_attr_inst *attrs;      /* linked list of attribute instances */
     /* LeaveAll timer: fires MRP_EVENT_LEAVEALLTIMER on expiry */
     struct shlan_timer          la_timer;
@@ -689,7 +693,11 @@ static void pt_event(struct mrp_app *app, struct mrp_port_state *ps,
         if (ps->pt == MRP_PT_STATE_ACTIVE) {
             shlan_timer_arm(&ps->pt_timer, 100u); /* restart */
             /* Generate periodic! for all Applicant SMs */
-            broadcast_event(app, ps, MRP_EVENT_PERIODIC, port_id);
+            if (ps->prepared_pdu) {
+                ps->periodic_owed = true;
+            } else {
+                broadcast_event(app, ps, MRP_EVENT_PERIODIC, port_id);
+            }
             ps->tx_pending = true;
         }
         break;
@@ -796,7 +804,7 @@ void mrp_app_destroy(struct mrp_app *app)
 int mrp_mad_join(struct mrp_app *app, uint8_t port_id,
                  uint8_t attr_type, const void *attr_val, bool is_new)
 {
-    if (!app || port_id >= priv_of(app)->n_ports || priv_of(app)->ports[port_id].in_send) {
+    if (!app || port_id >= priv_of(app)->n_ports || (priv_of(app)->ports[port_id].in_send || priv_of(app)->ports[port_id].prepared_pdu)) {
         return -SHLAN_ERROR_INVALID;
     }
 
@@ -813,7 +821,7 @@ int mrp_mad_join(struct mrp_app *app, uint8_t port_id,
 int mrp_mad_leave(struct mrp_app *app, uint8_t port_id,
                   uint8_t attr_type, const void *attr_val)
 {
-    if (!app || port_id >= priv_of(app)->n_ports || priv_of(app)->ports[port_id].in_send) {
+    if (!app || port_id >= priv_of(app)->n_ports || (priv_of(app)->ports[port_id].in_send || priv_of(app)->ports[port_id].prepared_pdu)) {
         return -SHLAN_ERROR_INVALID;
     }
 
@@ -874,7 +882,7 @@ static void rx_on_leaveall(void *raw_ctx, uint8_t attr_type)
 int mrp_rx(struct mrp_app *app, uint8_t port_id,
            const uint8_t *pdu, size_t pdu_len)
 {
-    if (!app || port_id >= priv_of(app)->n_ports || priv_of(app)->ports[port_id].in_send) {
+    if (!app || port_id >= priv_of(app)->n_ports || (priv_of(app)->ports[port_id].in_send || priv_of(app)->ports[port_id].prepared_pdu)) {
         return -SHLAN_ERROR_INVALID;
     }
 
@@ -1094,53 +1102,61 @@ int mrp_transmit(struct mrp_app *app, uint8_t port_id,
     if (ps->in_send) {
         return -SHLAN_ERROR_INVALID;
     }
-    if (!ps->tx_pending || ps->join_wait) {
+    if (!ps->prepared_pdu && (!ps->tx_pending || ps->join_wait)) {
         return 0;
     }
-    bool la = ps->la == MRP_LA_STATE_ACTIVE;
+    bool la = ps->prepared_pdu ? ps->prepared_la : ps->la == MRP_LA_STATE_ACTIVE;
     enum mrp_event event = la ? MRP_EVENT_TXLA : MRP_EVENT_TX;
-    size_t off = 1;
-    unsigned flagged = 0;
-    pdu[0] = app->ops->proto_version;
-    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
-        const struct appl_entry *e = &appl_table[event][a->appl];
-        if (e->tx == TX_MSG_NONE) {
-            continue;
+    size_t off = ps->prepared_len;
+    if (!ps->prepared_pdu) {
+        off = 1;
+        unsigned flagged = 0;
+        pdu[0] = app->ops->proto_version;
+        for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
+            const struct appl_entry *e = &appl_table[event][a->appl];
+            if (e->tx == TX_MSG_NONE) {
+                continue;
+            }
+            bool flag = la && !(flagged & (1u << a->attr_type));
+            int n = tx_vector(app->ops, a->attr_type, a->attr_val,
+                              wire_event(e->tx, a->reg), flag, false,
+                              pdu + off, capacity - off - 2u);
+            if (n < 0) {
+                return n;
+            }
+            off += (size_t)n;
+            flagged |= 1u << a->attr_type;
         }
-        bool flag = la && !(flagged & (1u << a->attr_type));
-        int n = tx_vector(app->ops, a->attr_type, a->attr_val,
-                          wire_event(e->tx, a->reg), flag, false,
-                          pdu + off, capacity - off - 2u);
-        if (n < 0) {
-            return n;
-        }
-        off += (size_t)n;
-        flagged |= 1u << a->attr_type;
-    }
-    if (la) {
-        unsigned last = app->ops->ethertype == MRP_ETHERTYPE_MSRP ? 4u : 1u;
-        for (unsigned type = 1; type <= last; ++type) {
-            if (!(flagged & (1u << type))) {
-                int n = tx_vector(app->ops, (uint8_t)type, NULL, MRP_ATTR_EVENT_MT,
-                                  true, true, pdu + off, capacity - off - 2u);
-                if (n < 0) {
-                    return n;
+        if (la) {
+            unsigned last = app->ops->ethertype == MRP_ETHERTYPE_MSRP ? 4u : 1u;
+            for (unsigned type = 1; type <= last; ++type) {
+                if (!(flagged & (1u << type))) {
+                    int n = tx_vector(app->ops, (uint8_t)type, NULL, MRP_ATTR_EVENT_MT,
+                                      true, true, pdu + off, capacity - off - 2u);
+                    if (n < 0) {
+                        return n;
+                    }
+                    off += (size_t)n;
                 }
-                off += (size_t)n;
             }
         }
+        if (off == 1) {
+            ps->tx_pending = false;
+            return 0;
+        }
+        pdu[off++] = 0; pdu[off++] = 0;
+        ps->prepared_pdu = pdu;
+        ps->prepared_len = off;
+        ps->prepared_la = la;
     }
-    if (off == 1) {
-        ps->tx_pending = false;
-        return 0;
-    }
-    pdu[off++] = 0; pdu[off++] = 0;
     ps->in_send = true;
-    int r = send(ctx, port_id, pdu, off);
+    int r = send(ctx, port_id, ps->prepared_pdu, ps->prepared_len);
     ps->in_send = false;
     if (r != 0) {
         return r;
     }
+    ps->prepared_pdu = NULL;
+    ps->prepared_len = 0;
     ps->tx_pending = false;
     for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
         deliver_event(app, ps, a, event, port_id);
@@ -1157,6 +1173,14 @@ int mrp_transmit(struct mrp_app *app, uint8_t port_id,
     }
     if (la) {
         ps->la = MRP_LA_STATE_PASSIVE;
+    }
+    if (ps->periodic_owed) {
+        ps->periodic_owed = false;
+        broadcast_event(app, ps, MRP_EVENT_PERIODIC, port_id);
+        ps->tx_pending = true;
+    }
+    if (ps->la == MRP_LA_STATE_ACTIVE) {
+        ps->tx_pending = true;
     }
     ps->join_wait = ps->join_cs;
     shlan_timer_arm(&ps->join_timer, ps->join_cs);

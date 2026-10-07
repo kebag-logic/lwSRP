@@ -79,10 +79,40 @@ Ensure(Transmit, leaveall_then_withdrawal_retains_until_leave_expiry)
     tick(501); assert_that(left,is_equal_to(1));
     msrp_app_destroy(a);
 }
+Ensure(Transmit, refused_pdu_survives_timers_without_aging_unsent_leaveall)
+{
+    struct msrp_ctx ctx = {.on_leave = leave_ind};
+    struct mrp_app *a = msrp_app_create(1,&ctx);
+    assert_that(mrp_port_configure(a,0,20,500,1000,1,true),is_equal_to(0));
+    uint8_t rx[] = {0,3,8,0,14,0,1,1,2,3,4,5,6,7,8,0,128,0,0,0,0};
+    assert_that(mrp_rx(a,0,rx,sizeof(rx)),is_equal_to(0));
+    struct msrp_talker_adv talker = {0};
+    assert_that(msrp_declare_talker(a,0,&talker,true),is_equal_to(0));
+    uint8_t buffer[1500], saved[1500];
+    memset(buffer,0,sizeof(buffer)); refuse = 1; left = 0;
+    assert_that(mrp_transmit(a,0,buffer,sizeof(buffer),send_pdu,0),is_less_than(0));
+    memcpy(saved,buffer,sizeof(saved));
+    assert_that(mrp_rx(a,0,rx,sizeof(rx)),is_less_than(0));
+    assert_that(msrp_declare_talker(a,0,&talker,false),is_less_than(0));
+    assert_that(msrp_withdraw_talker(a,0,&talker.stream_id),is_less_than(0));
+    tick(1600);
+    assert_that(left,is_equal_to(0));
+    assert_that(mrp_transmit(a,0,buffer,sizeof(buffer),send_pdu,0),is_less_than(0));
+    assert_that(memcmp(buffer,saved,sizeof(buffer)),is_equal_to(0));
+    refuse = 0;
+    assert_that(mrp_transmit(a,0,buffer,sizeof(buffer),send_pdu,0),is_equal_to(1));
+    assert_that(memcmp(frame,saved,frame_len),is_equal_to(0));
+    tick(20);
+    assert_that(mrp_transmit(a,0,buffer,sizeof(buffer),send_pdu,0),is_equal_to(1));
+    tick(499); assert_that(left,is_equal_to(0));
+    tick(1); assert_that(left,is_equal_to(1));
+    msrp_app_destroy(a);
+}
 TestSuite *transmit_suite(void)
 {
     TestSuite *s = create_test_suite();
     add_test_with_context(s, Transmit, fresh_ladder_and_refusal_are_transactional);
     add_test_with_context(s, Transmit, leaveall_then_withdrawal_retains_until_leave_expiry);
+    add_test_with_context(s, Transmit, refused_pdu_survives_timers_without_aging_unsent_leaveall);
     return s;
 }
