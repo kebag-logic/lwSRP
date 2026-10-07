@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 #ifndef SHLAN_PORTS_TIMER_H
 #define SHLAN_PORTS_TIMER_H
 

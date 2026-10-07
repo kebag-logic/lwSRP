@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * MRP Attribute Declaration (MAD) state machine implementation.
  * IEEE 802.1Q-2018, §10.7 — Tables 10-3 through 10-6.

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Unit tests for MRPDU encode / decode helpers (§10.8.2.10).
  *

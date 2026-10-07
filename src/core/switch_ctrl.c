@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Switch register control — MPSC queue and dispatcher.
  * See include/shish_lan/switch_ctrl.h for interface documentation.

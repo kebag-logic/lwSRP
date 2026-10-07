@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * MRPDU encode / decode — IEEE 802.1Q-2018 §10.8.
  *
