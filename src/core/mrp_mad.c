@@ -812,6 +812,7 @@ struct rx_ctx {
     struct mrp_app        *app;
     struct mrp_port_state *ps;
     uint8_t                port_id;
+    int                    error;
 };
 
 static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
@@ -820,7 +821,10 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
     struct rx_ctx        *rc = (struct rx_ctx *)raw_ctx;
     struct mrp_attr_inst *ai = get_or_create_attr(rc->app, rc->ps,
                                               rc->port_id, attr_type, attr_val);
-    if (!ai) return;
+    if (!ai) {
+        rc->error = -ENOMEM;
+        return;
+    }
 
     /* Map wire AttributeEvent → internal MRP event */
     enum mrp_event ev;
@@ -839,9 +843,12 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
 static void rx_on_leaveall(void *raw_ctx, uint8_t attr_type)
 {
     struct rx_ctx *rc = (struct rx_ctx *)raw_ctx;
-    (void)attr_type;
     la_event(rc->app, rc->ps, MRP_EVENT_RLA, rc->port_id);
-    broadcast_event(rc->app, rc->ps, MRP_EVENT_RLA, rc->port_id);
+    for (struct mrp_attr_inst *a = rc->ps->attrs; a; a = a->next) {
+        if (a->attr_type == attr_type) {
+            deliver_event(rc->app, rc->ps, a, MRP_EVENT_RLA, rc->port_id);
+        }
+    }
 }
 
 int mrp_rx(struct mrp_app *app, uint8_t port_id,
@@ -851,8 +858,9 @@ int mrp_rx(struct mrp_app *app, uint8_t port_id,
     struct mrp_port_state *ps   = &priv->ports[port_id];
 
     struct rx_ctx ctx = { .app = app, .ps = ps, .port_id = port_id };
-    return mrpdu_parse(pdu, pdu_len, app->ops,
-                       rx_on_attr, rx_on_leaveall, &ctx);
+    int r = mrpdu_parse(pdu, pdu_len, app->ops,
+                        rx_on_attr, rx_on_leaveall, &ctx);
+    return r < 0 ? r : ctx.error;
 }
 
 void mrp_tick(struct mrp_app *app, uint8_t port_id)

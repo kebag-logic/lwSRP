@@ -4,6 +4,7 @@
 TestSuite *mrp_pdu_suite(void);
 TestSuite *timer_suite(void);
 TestSuite *msrp_values_suite(void);
+TestSuite *receive_suite(void);
 
 int main(void)
 {
@@ -11,5 +12,6 @@ int main(void)
     add_suite(suite, mrp_pdu_suite());
     add_suite(suite, timer_suite());
     add_suite(suite, msrp_values_suite());
+    add_suite(suite, receive_suite());
     return run_test_suite(suite, create_text_reporter());
 }
