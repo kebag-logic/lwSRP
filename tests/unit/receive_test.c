@@ -46,9 +46,39 @@ Ensure(Receive, truncation_respects_complete_vectors_and_pdu_end)
     assert_that(mrpdu_parse(pdu,sizeof(pdu),a->ops,attr,la,0), is_less_than(0));
     msrp_app_destroy(a);
 }
+static unsigned changes, declaration;
+static void listener_changed(struct msrp_ctx *ctx, uint8_t port,
+                             const struct msrp_stream_id *sid,
+                             enum msrp_listener_decl decl, bool is_new)
+{
+    (void)ctx; (void)port; (void)sid; (void)is_new;
+    ++changes; declaration = decl;
+}
+Ensure(Receive, changed_registered_listener_notifies_without_duplicate_join)
+{
+    struct msrp_ctx ctx = {.on_listener = listener_changed};
+    struct mrp_app *a = msrp_app_create(1,&ctx);
+    uint8_t pdu[] = {0,3,8,0,14,0,1,1,2,3,4,5,6,7,8,36,128,0,0,0,0};
+    changes = 0;
+    assert_that(mrp_rx(a,0,pdu,sizeof(pdu)),is_equal_to(0));
+    assert_that(changes,is_equal_to(1));
+    assert_that(declaration,is_equal_to(MSRP_LISTENER_DECL_READY));
+    assert_that(mrp_rx(a,0,pdu,sizeof(pdu)),is_equal_to(0));
+    assert_that(changes,is_equal_to(1));
+    pdu[16] = 64;
+    assert_that(mrp_rx(a,0,pdu,sizeof(pdu)),is_equal_to(0));
+    assert_that(changes,is_equal_to(2));
+    assert_that(declaration,is_equal_to(MSRP_LISTENER_DECL_ASKING_FAILED));
+    pdu[15] = 3 * 36; pdu[16] = 192;
+    assert_that(mrp_rx(a,0,pdu,sizeof(pdu)),is_equal_to(0));
+    assert_that(changes,is_equal_to(3));
+    assert_that(declaration,is_equal_to(MSRP_LISTENER_DECL_READY_FAILED));
+    msrp_app_destroy(a);
+}
 TestSuite *receive_suite(void)
 {
     TestSuite *s = create_test_suite();
     add_test_with_context(s, Receive, truncation_respects_complete_vectors_and_pdu_end);
+    add_test_with_context(s, Receive, changed_registered_listener_notifies_without_duplicate_join);
     return s;
 }
