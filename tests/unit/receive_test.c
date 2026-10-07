@@ -75,10 +75,35 @@ Ensure(Receive, changed_registered_listener_notifies_without_duplicate_join)
     assert_that(declaration,is_equal_to(MSRP_LISTENER_DECL_READY_FAILED));
     msrp_app_destroy(a);
 }
+static bool interest(void *ctx, uint8_t port, uint8_t type, const void *value)
+{
+    (void)port; (void)type;
+    return ((const uint8_t *)value)[7] == *(const uint8_t *)ctx;
+}
+Ensure(Receive, uninteresting_values_do_not_allocate_and_empty_state_is_reclaimed)
+{
+    struct msrp_ctx ctx = {0};
+    struct mrp_app *a = msrp_app_create(1,&ctx);
+    uint8_t pdu[] = {0,3,8,0,14,0,1,1,2,3,4,5,6,7,8,144,128,0,0,0,0};
+    uint8_t wanted=9;
+    mrp_set_rx_filter(a,interest,&wanted);
+    assert_that(mrp_rx(a,0,pdu,sizeof(pdu)),is_equal_to(0));
+    assert_that(mrp_attr_visit(a,0,0,0),is_equal_to(0));
+    wanted=8;
+    assert_that(mrp_rx(a,0,pdu,sizeof(pdu)),is_equal_to(0));
+    assert_that(mrp_attr_visit(a,0,0,0),is_equal_to(1));
+    assert_that(mrp_reclaim(a,0),is_equal_to(1));
+    pdu[15]=0;
+    assert_that(mrp_rx(a,0,pdu,sizeof(pdu)),is_equal_to(0));
+    assert_that(mrp_reclaim(a,0),is_equal_to(0));
+    assert_that(mrp_attr_visit(a,0,0,0),is_equal_to(1));
+    msrp_app_destroy(a);
+}
 TestSuite *receive_suite(void)
 {
     TestSuite *s = create_test_suite();
     add_test_with_context(s, Receive, truncation_respects_complete_vectors_and_pdu_end);
     add_test_with_context(s, Receive, changed_registered_listener_notifies_without_duplicate_join);
+    add_test_with_context(s, Receive, uninteresting_values_do_not_allocate_and_empty_state_is_reclaimed);
     return s;
 }

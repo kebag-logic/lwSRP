@@ -255,6 +255,16 @@ void            mrp_app_destroy(struct mrp_app *app);
  * retry them after the transmit. Timers still expire, including registrar Leave.
  * The send function must never call back into MRP synchronously.
  */
+/* 10.7 permits limiting state to attributes of immediate interest. A filter
+ * runs after complete wire validation, before any allocation. LeaveAll remains
+ * applicable to retained attributes. It must not re-enter MRP.
+ */
+typedef bool (*mrp_rx_filter_fn)(void *ctx, uint8_t port, uint8_t type, const void *value);
+void mrp_set_rx_filter(struct mrp_app *app, mrp_rx_filter_fn filter, void *ctx);
+/* Reclaim only unregistered, undeclared attributes (Table 10-3 note 11).
+ * Call outside callbacks; a prepared transmission prevents reclamation.
+ */
+unsigned mrp_reclaim(struct mrp_app *app, uint8_t port_id);
 typedef int (*mrp_send_fn)(void *ctx, uint8_t port_id,
                            const uint8_t *pdu, size_t len);
 int mrp_transmit(struct mrp_app *app, uint8_t port_id,

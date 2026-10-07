@@ -105,6 +105,8 @@ struct mrp_priv {
     /* Optional transition observer (mrp_set_observer) */
     void               (*obs_fn)(void *ctx, const struct mrp_transition *t);
     void                *obs_ctx;
+    mrp_rx_filter_fn      filter;
+    void                *filter_ctx;
     struct mrp_port_state ports[]; /* flexible array */
 };
 
@@ -858,6 +860,10 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
                        enum mrp_attr_event attr_event, const void *attr_val)
 {
     struct rx_ctx        *rc = (struct rx_ctx *)raw_ctx;
+    struct mrp_priv *priv = priv_of(rc->app);
+    if (priv->filter && !priv->filter(priv->filter_ctx,rc->port_id,attr_type,attr_val)) {
+        return;
+    }
     struct mrp_attr_inst *previous = find_attr(rc->ps, rc->app->ops, attr_type, attr_val);
     bool changed_in = previous && previous->reg == MRP_REG_STATE_IN &&
         memcmp(previous->attr_val, attr_val, attr_store_len(rc->app->ops, attr_type)) != 0;
@@ -911,6 +917,35 @@ int mrp_rx(struct mrp_app *app, uint8_t port_id,
     int r = mrpdu_parse(pdu, pdu_len, app->ops,
                         rx_on_attr, rx_on_leaveall, &ctx);
     return r < 0 ? r : ctx.error;
+}
+
+void mrp_set_rx_filter(struct mrp_app *app, mrp_rx_filter_fn filter, void *ctx)
+{
+    priv_of(app)->filter = filter;
+    priv_of(app)->filter_ctx = ctx;
+}
+
+unsigned mrp_reclaim(struct mrp_app *app, uint8_t port_id)
+{
+    struct mrp_port_state *ps = &priv_of(app)->ports[port_id];
+    if (ps->in_send || ps->prepared_pdu) {
+        return 0;
+    }
+    unsigned count = 0;
+    struct mrp_attr_inst **link = &ps->attrs;
+    while (*link) {
+        struct mrp_attr_inst *a = *link;
+        if (a->reg == MRP_REG_STATE_MT &&
+            (a->appl == MRP_APPL_STATE_VO || a->appl == MRP_APPL_STATE_AO || a->appl == MRP_APPL_STATE_QO)) {
+            *link = a->next;
+            shlan_timer_remove(&a->leave_timer);
+            shlan_free(a);
+            ++count;
+        } else {
+            link = &a->next;
+        }
+    }
+    return count;
 }
 
 void mrp_tick(struct mrp_app *app, uint8_t port_id)
