@@ -272,7 +272,10 @@ void            mrp_app_destroy(struct mrp_app *app);
  * Each indication with policy reserves up to 32 entries before notifying the
  * host, then calls policy and frees unselected entries. Reservation failure
  * preserves the prior value and state for receive retry; earlier events may
- * remain applied. Timer withdrawal retries reservation on the next tick.
+ * remain applied. Later attributes wait for that retry. Replacement failures
+ * stop before the new Join, preserving old Leave before new Join.
+ * Timer withdrawal retries reservation on the next tick. Failed topology
+ * Flush enters LV and arms a 1 cs Leave timer for the same withdrawal retry.
  * The send function must never call back into MRP synchronously.
  */
 /* 10.7 permits limiting state to attributes of immediate interest. A filter
@@ -341,6 +344,8 @@ void mrp_tick(struct mrp_app *app, uint8_t port_id);
  * Port topology event — drive Flush!/Re-declare! into state machines.
  * flush=true  → §10.7.5.2 Flush! (Root/Alt → Designated).
  * flush=false → §10.7.5.3 Re-declare! (Designated → Root/Alt).
+ * If Flush cannot reserve propagation, retain the withdrawal in LV with a
+ * 1 cs Leave timer. Continue global ticks and destination polls for replay.
  */
 void mrp_port_role_change(struct mrp_app *app, uint8_t port_id, bool flush);
 
