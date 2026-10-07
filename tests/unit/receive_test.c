@@ -1,0 +1,47 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+#include <cgreen/cgreen.h>
+#include <string.h>
+#include "shish_lan/msrp.h"
+#include "shish_lan/mrp_pdu.h"
+Describe(Receive);
+BeforeEach(Receive) {}
+AfterEach(Receive) {}
+static unsigned attributes, leavealls;
+static void attr(void *ctx, uint8_t type, enum mrp_attr_event ev, const void *value)
+{
+    (void)ctx; (void)type; (void)ev; (void)value; ++attributes;
+}
+static void la(void *ctx, uint8_t type)
+{
+    (void)ctx; (void)type; ++leavealls;
+}
+Ensure(Receive, truncate_every_boundary_before_any_indication)
+{
+    struct msrp_ctx ctx = {0};
+    struct mrp_app *a = msrp_app_create(1, &ctx);
+    /* One Listener New/Ready, with LeaveAll and both EndMarks. */
+    uint8_t pdu[] = {0,3,8,0,14,0x20,1,1,2,3,4,5,6,7,8,0,128,0,0,0,0};
+    for (unsigned n = 0; n < sizeof(pdu); ++n) {
+        attributes = leavealls = 0;
+        assert_that(mrpdu_parse(pdu,n,a->ops,attr,la,0), is_less_than(0));
+        assert_that(attributes + leavealls, is_equal_to(0));
+    }
+    assert_that(mrpdu_parse(pdu,sizeof(pdu),a->ops,attr,la,0), is_equal_to(0));
+    assert_that(attributes, is_equal_to(1));
+    assert_that(leavealls, is_equal_to(1));
+    pdu[16] = 0; attributes = leavealls = 0;
+    assert_that(mrpdu_parse(pdu,sizeof(pdu),a->ops,attr,la,0), is_equal_to(0));
+    assert_that(attributes, is_equal_to(0));
+    assert_that(leavealls, is_equal_to(1));
+    pdu[15] = 216;
+    assert_that(mrpdu_parse(pdu,sizeof(pdu),a->ops,attr,la,0), is_less_than(0));
+    pdu[15] = 0; pdu[4] = 12;
+    assert_that(mrpdu_parse(pdu,sizeof(pdu),a->ops,attr,la,0), is_less_than(0));
+    msrp_app_destroy(a);
+}
+TestSuite *receive_suite(void)
+{
+    TestSuite *s = create_test_suite();
+    add_test_with_context(s, Receive, truncate_every_boundary_before_any_indication);
+    return s;
+}
