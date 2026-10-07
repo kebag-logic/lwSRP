@@ -42,8 +42,12 @@ static void mvrp_leave_ind(struct mrp_app *app, uint8_t port_id,
 static int mvrp_encode_attr(uint8_t attr_type, const void *attr_val,
                             uint8_t *buf, size_t buf_len)
 {
-    if (attr_type != MVRP_ATTR_TYPE_VID) return -SHLAN_ERROR_INVALID;
-    if (buf_len < MVRP_ATTR_LEN_VID) return -SHLAN_ERROR_NO_BUFFER;
+    if (attr_type != MVRP_ATTR_TYPE_VID) {
+        return -SHLAN_ERROR_INVALID;
+    }
+    if (buf_len < MVRP_ATTR_LEN_VID) {
+        return -SHLAN_ERROR_NO_BUFFER;
+    }
     memcpy(buf, attr_val, MVRP_ATTR_LEN_VID);
     return MVRP_ATTR_LEN_VID;
 }
@@ -56,12 +60,18 @@ static int mvrp_decode_attr(uint8_t attr_type, uint32_t offset,
                             const uint8_t *buf, size_t buf_len,
                             void *attr_val_out)
 {
-    if (attr_type != MVRP_ATTR_TYPE_VID) return -SHLAN_ERROR_INVALID;
-    if (buf_len < MVRP_ATTR_LEN_VID) return -SHLAN_ERROR_INVALID;
+    if (attr_type != MVRP_ATTR_TYPE_VID) {
+        return -SHLAN_ERROR_INVALID;
+    }
+    if (buf_len < MVRP_ATTR_LEN_VID) {
+        return -SHLAN_ERROR_INVALID;
+    }
 
     uint16_t vid = (uint16_t)(((uint16_t)buf[0] << 8) | buf[1]);
-    vid = (uint16_t)(vid + (uint16_t)offset);
-    if (vid < MVRP_VID_MIN || vid > MVRP_VID_MAX) return -SHLAN_ERROR_RANGE;
+    if (vid < MVRP_VID_MIN || vid > MVRP_VID_MAX || offset > MVRP_VID_MAX - vid) {
+        return -SHLAN_ERROR_RANGE;
+    }
+    vid = (uint16_t)(vid + offset);
 
     uint8_t *out = (uint8_t *)attr_val_out;
     out[0] = (uint8_t)(vid >> 8);
@@ -71,8 +81,7 @@ static int mvrp_decode_attr(uint8_t attr_type, uint32_t offset,
 
 static uint8_t mvrp_attr_len(uint8_t attr_type)
 {
-    (void)attr_type;
-    return MVRP_ATTR_LEN_VID;
+    return attr_type == MVRP_ATTR_TYPE_VID ? MVRP_ATTR_LEN_VID : 0;
 }
 
 static int mvrp_attr_cmp(uint8_t attr_type, const void *a, const void *b)

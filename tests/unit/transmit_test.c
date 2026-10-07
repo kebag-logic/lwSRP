@@ -11,7 +11,7 @@ BeforeEach(Transmit) {}
 AfterEach(Transmit) {}
 static uint8_t frame[1500];
 static size_t frame_len;
-static unsigned frames, event_value, left;
+static unsigned frames, event_value, left, subtype_value;
 static int refuse;
 static int send_pdu(void *ctx, uint8_t port, const uint8_t *pdu, size_t len)
 {
@@ -24,7 +24,10 @@ static int send_pdu(void *ctx, uint8_t port, const uint8_t *pdu, size_t len)
 }
 static void decoded(void *ctx, uint8_t type, enum mrp_attr_event ev, const void *value)
 {
-    (void)ctx; (void)type; (void)value; event_value = ev;
+    (void)ctx; event_value = ev;
+    if (type == MSRP_ATTR_TYPE_LISTENER) {
+        subtype_value = ((const uint8_t *)value)[8];
+    }
 }
 static void leave_ind(struct msrp_ctx *ctx, uint8_t port, uint8_t type, const void *value)
 {
@@ -174,6 +177,8 @@ Ensure(Transmit, changed_listener_redeclares_from_a_quiet_applicant)
     event_value=99;
     assert_that(mrpdu_parse(frame,frame_len,a->ops,decoded,0,0),is_equal_to(0));
     assert_that(event_value,is_equal_to(MRP_ATTR_EVENT_NEW));
+    assert_that(subtype_value,is_equal_to(MSRP_LISTENER_DECL_ASKING_FAILED));
+    assert_that(frame[16],is_equal_to(64));
     msrp_app_destroy(a);
 }
 TestSuite *transmit_suite(void)
