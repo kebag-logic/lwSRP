@@ -28,21 +28,18 @@ def before_all(context):
     lib.shlan_sim_adapter_destroy.restype = None
     lib.shlan_sim_adapter_destroy.argtypes = [ctypes.c_void_p]
 
-    # shlan_connect(void*) -> int
-    lib.shlan_connect.restype = ctypes.c_int
-    lib.shlan_connect.argtypes = [ctypes.c_void_p]
-
-    # shlan_disconnect(void*)
-    lib.shlan_disconnect.restype = None
-    lib.shlan_disconnect.argtypes = [ctypes.c_void_p]
-
-    # shlan_port_enable(void*, uint8_t) -> int
-    lib.shlan_port_enable.restype = ctypes.c_int
-    lib.shlan_port_enable.argtypes = [ctypes.c_void_p, ctypes.c_uint8]
-
-    # shlan_port_disable(void*, uint8_t) -> int
-    lib.shlan_port_disable.restype = ctypes.c_int
-    lib.shlan_port_disable.argtypes = [ctypes.c_void_p, ctypes.c_uint8]
+    # switch.h implements these as static inline functions, so ctypes uses
+    # thin C test bindings that call the same public helpers.
+    for name, restype, argtypes in (
+        ("connect", ctypes.c_int, [ctypes.c_void_p]),
+        ("disconnect", None, [ctypes.c_void_p]),
+        ("port_enable", ctypes.c_int, [ctypes.c_void_p, ctypes.c_uint8]),
+        ("port_disable", ctypes.c_int, [ctypes.c_void_p, ctypes.c_uint8]),
+    ):
+        binding = getattr(lib, f"shlan_test_{name}")
+        binding.restype = restype
+        binding.argtypes = argtypes
+        setattr(lib, f"shlan_{name}", binding)
 
     context.lib = lib
 

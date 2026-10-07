@@ -35,18 +35,19 @@ add_library(shlan SHARED
     src/modules/mvrp.c
     src/modules/mmrp.c
     src/modules/msrp.c
+    tests/features/switch_bindings.c
     # src/core/hw_adapter.c    (add when hardware driver exists)
 )
 target_include_directories(shlan PUBLIC src/include src/modules src)
 
 # ---------- unit tests (cgreen, C-only, for core/ internals) ----------
 enable_testing()
-find_library(CGREEN_LIB cgreen)
-find_path(CGREEN_INCLUDE cgreen/cgreen.h)
+find_library(CGREEN_LIB cgreen REQUIRED)
+find_path(CGREEN_INCLUDE cgreen/cgreen.h REQUIRED)
 
-if(CGREEN_LIB AND CGREEN_INCLUDE)
-    add_executable(unit_tests tests/unit/placeholder.c)
-    target_include_directories(unit_tests PRIVATE ${CGREEN_INCLUDE} src/include)
-    target_link_libraries(unit_tests PRIVATE shlan ${CGREEN_LIB})
-    add_test(NAME unit COMMAND unit_tests)
-endif()
+add_executable(unit_tests tests/unit/main.c tests/unit/mrp_pdu_test.c)
+target_include_directories(unit_tests PRIVATE ${CGREEN_INCLUDE} src/include)
+target_link_libraries(unit_tests PRIVATE shlan ${CGREEN_LIB})
+add_test(NAME unit COMMAND unit_tests)
+# An empty cgreen suite exits successfully; it must not pass CTest.
+set_tests_properties(unit PROPERTIES FAIL_REGULAR_EXPRESSION "No assertions")
