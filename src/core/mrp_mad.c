@@ -1285,39 +1285,126 @@ static enum mrp_attr_event wire_event(enum tx_msg msg, enum mrp_reg_state reg)
     }
 }
 
-static int tx_vector(const struct mrp_app_ops *ops, uint8_t type,
-                      const void *value, enum mrp_attr_event event, bool la,
-                      bool empty, uint8_t *buf, size_t cap)
+/* 10.8.1.2: AttributeType and AttributeLength open a Message; MSRP adds the
+ * two-octet AttributeListLength (10.8.2.4, 35.2.2.6). */
+static size_t tx_header_len(const struct mrp_app_ops *ops)
+{
+    return ops->ethertype == MRP_ETHERTYPE_MSRP ? 4u : 2u;
+}
+
+/* One VectorAttribute (10.8.2.8): NumberOfValues 1, or 0 for LeaveAll alone. */
+static size_t tx_vector_len(const struct mrp_app_ops *ops, uint8_t type, bool empty)
+{
+    bool subtype = ops->attr_has_subtype && ops->attr_has_subtype(type);
+    return 2u + ops->attr_len(type) + (empty ? 0u : 1u + subtype);
+}
+
+/* AttributeTypes with a Message, and those flagged LeaveAll, in one MRPDU. */
+struct tx_types {
+    uint32_t open[8];
+    uint32_t leave_all[8];
+};
+
+static bool tx_type_in(const uint32_t *set, unsigned type)
+{
+    return (set[type / 32u] >> (type % 32u)) & 1u;
+}
+
+static void tx_type_add(uint32_t *set, unsigned type)
+{
+    set[type / 32u] |= 1u << (type % 32u);
+}
+
+static uint8_t *tx_open(const struct mrp_app_ops *ops, uint8_t type, uint8_t *message)
+{
+    message[0] = type;
+    message[1] = ops->attr_len(type);
+    return message + tx_header_len(ops);
+}
+
+/* The AttributeList ends with its EndMark (10.8.2.9). */
+static uint8_t *tx_close(const struct mrp_app_ops *ops, uint8_t *message, uint8_t *end)
+{
+    end[0] = 0; end[1] = 0;
+    end += 2;
+    if (tx_header_len(ops) == 4u) {
+        size_t list = (size_t)(end - message) - 4u;
+        message[2] = (uint8_t)(list >> 8); message[3] = (uint8_t)list;
+    }
+    return end;
+}
+
+static void tx_swap(uint8_t *a, uint8_t *b, size_t n)
+{
+    while (n--) {
+        uint8_t t = *a;
+        *a++ = *b;
+        *b++ = t;
+    }
+}
+
+/*
+ * One Message for every selected value of a type: an optional LeaveAll vector
+ * first, then one single-value vector per value in ascending FirstValue order
+ * (10.8.2.7). Returns the end of the Message, or NULL if encoding fails.
+ */
+static uint8_t *tx_message(const struct mrp_app_ops *ops, struct mrp_port_state *ps,
+                           enum mrp_event event, uint8_t type, bool la, uint8_t *buf)
 {
     uint8_t len = ops->attr_len(type);
-    bool msrp = ops->ethertype == MRP_ETHERTYPE_MSRP;
     bool subtype = ops->attr_has_subtype && ops->attr_has_subtype(type);
-    size_t hdr = msrp ? 4u : 2u;
-    size_t list = 2u + len + (empty ? 0u : 1u + subtype) + 2u;
-    if (cap < hdr + list || len == 0) {
-        return -SHLAN_ERROR_NO_BUFFER;
-    }
-    buf[0] = type; buf[1] = len;
-    if (msrp) {
-        buf[2] = (uint8_t)(list >> 8); buf[3] = (uint8_t)list;
-    }
-    uint8_t *v = buf + hdr;
-    v[0] = la ? 0x20 : 0; v[1] = empty ? 0 : 1;
-    if (empty) {
+    size_t size = tx_vector_len(ops, type, false);
+    uint8_t *v = tx_open(ops, type, buf);
+    if (la) {
+        v[0] = 0x20; v[1] = 0;
         memset(v + 2, 0, len);
-    } else {
-        int r = ops->encode_attr(type, value, v + 2, len);
-        if (r != len) {
-            return -SHLAN_ERROR_INVALID;
+        v += 2u + len;
+    }
+    uint8_t *first = v;
+    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
+        const struct appl_entry *e = &appl_table[event][a->appl];
+        if (!a->tx_selected || a->attr_type != type || e->tx == TX_MSG_NONE) {
+            continue;
         }
-        v[2u + len] = mrp_three_pack((uint8_t)event, 0, 0);
+        v[0] = 0; v[1] = 1;
+        int r = ops->encode_attr(type, a->attr_val, v + 2, len);
+        if (r != len) {
+            return NULL;
+        }
+        v[2u + len] = mrp_three_pack((uint8_t)wire_event(e->tx, a->reg), 0, 0);
         if (subtype) {
-            const uint8_t *bytes = value;
+            const uint8_t *bytes = a->attr_val;
             v[3u + len] = mrp_four_pack(bytes[len], 0, 0, 0);
         }
+        for (uint8_t *at = v; at > first && memcmp(at - size + 2, at + 2, len) > 0; at -= size) {
+            tx_swap(at - size, at, size);
+        }
+        v += size;
     }
-    buf[hdr + list - 2] = 0; buf[hdr + list - 1] = 0;
-    return (int)(hdr + list);
+    return tx_close(ops, buf, v);
+}
+
+/* Messages follow in AttributeType order, then the MRPDU EndMark (10.8.1.2). */
+static int tx_assemble(const struct mrp_app_ops *ops, struct mrp_port_state *ps,
+                       enum mrp_event event, const struct tx_types *types,
+                       uint8_t *pdu, size_t *len)
+{
+    size_t off = 1;
+    pdu[0] = ops->proto_version;
+    for (unsigned type = 0; type < 256u; ++type) {
+        if (!tx_type_in(types->open, type)) {
+            continue;
+        }
+        uint8_t *end = tx_message(ops, ps, event, (uint8_t)type,
+                                  tx_type_in(types->leave_all, type), pdu + off);
+        if (!end) {
+            return -SHLAN_ERROR_INVALID;
+        }
+        off = (size_t)(end - pdu);
+    }
+    pdu[off++] = 0; pdu[off++] = 0; /* MRPDU EndMark */
+    *len = off;
+    return 0;
 }
 
 int mrp_transmit(struct mrp_app *app, uint8_t port_id,
@@ -1336,20 +1423,24 @@ int mrp_transmit(struct mrp_app *app, uint8_t port_id,
     }
     bool la = ps->prepared_pdu ? ps->prepared_la : ps->la == MRP_LA_STATE_ACTIVE;
     enum mrp_event event = la ? MRP_EVENT_TXLA : MRP_EVENT_TX;
-    size_t off = ps->prepared_len;
     if (!ps->prepared_pdu) {
-        off = 1;
-        pdu[0] = app->ops->proto_version;
+        const struct mrp_app_ops *ops = app->ops;
+        size_t hdr = tx_header_len(ops);
+        /* No Message may outgrow its two-octet AttributeListLength (10.8.2.4). */
+        size_t room = hdr == 4u && capacity > 0xFFFFu ? 0xFFFFu : capacity;
+        size_t used = 3; /* ProtocolVersion and the MRPDU EndMark */
+        struct tx_types types = {{0}, {0}};
         if (la) {
-            unsigned last = app->ops->ethertype == MRP_ETHERTYPE_MSRP ? 4u :
-                            app->ops->ethertype == MRP_ETHERTYPE_MMRP ? 2u : 1u;
+            unsigned last = ops->ethertype == MRP_ETHERTYPE_MSRP ? 4u :
+                            ops->ethertype == MRP_ETHERTYPE_MMRP ? 2u : 1u;
             for (unsigned type = 1; type <= last; ++type) {
-                int n = tx_vector(app->ops, (uint8_t)type, NULL, MRP_ATTR_EVENT_MT,
-                                  true, true, pdu + off, capacity - off - 2u);
-                if (n < 0) {
-                    return n;
+                size_t n = hdr + tx_vector_len(ops, (uint8_t)type, true) + 2u;
+                if (ops->attr_len((uint8_t)type) == 0 || used + n > room) {
+                    return -SHLAN_ERROR_NO_BUFFER;
                 }
-                off += (size_t)n;
+                used += n;
+                tx_type_add(types.open, type);
+                tx_type_add(types.leave_all, type);
             }
         }
         for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
@@ -1370,31 +1461,35 @@ int mrp_transmit(struct mrp_app *app, uint8_t port_id,
                     a->tx_selected = true;
                     continue;
                 }
-                int n = tx_vector(app->ops, a->attr_type, a->attr_val,
-                                  wire_event(e->tx, a->reg), false, false,
-                                  pdu + off, capacity - off - 2u);
-                if (n == -SHLAN_ERROR_NO_BUFFER) {
+                // The first vector of a type also pays for its Message.
+                size_t n = tx_vector_len(ops, a->attr_type, false);
+                if (!tx_type_in(types.open, a->attr_type)) {
+                    n += hdr + 2u;
+                }
+                if (ops->attr_len(a->attr_type) == 0 || used + n > room) {
                     a->tx_deferred = true;
                     full = true;
                     continue;
                 }
-                if (n < 0) {
-                    return n;
-                }
+                tx_type_add(types.open, a->attr_type);
                 a->tx_selected = true;
-                off += (size_t)n;
+                used += n;
             }
         }
-        if (off == 1) {
+        if (used == 3) {
             if (full) {
                 return -SHLAN_ERROR_NO_BUFFER;
             }
             ps->tx_pending = false;
             return 0;
         }
-        pdu[off++] = 0; pdu[off++] = 0;
+        size_t len = 0;
+        int built = tx_assemble(ops, ps, event, &types, pdu, &len);
+        if (built < 0) {
+            return built;
+        }
         ps->prepared_pdu = pdu;
-        ps->prepared_len = off;
+        ps->prepared_len = len;
         ps->prepared_la = la;
     }
     ps->in_send = true;
