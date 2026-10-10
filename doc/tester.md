@@ -27,7 +27,7 @@ behave --dry-run
 | --- | --- | --- |
 | Configure and build | Exit 0. | The host library and required unit target compile. |
 | Default unit target | Exit 0; 102 tests and 26658 assertions. | The [runner](../tests/unit/main.c) executes nine suites. |
-| Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c). |
+| Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c) and reads the simulated port flags. |
 | Scenario dry run | Validates step matching only. | It does not execute setup or verify behavior. |
 
 The [fault-injecting allocation port](../tests/unit/fault_alloc.c) replaces hosted allocation symbols in the unit executable.
@@ -158,8 +158,11 @@ Reuse matching steps or add a precise new step definition.
 Keep setup, action, and assertion separate.
 Run the dry-run command above to check matching.
 Run the real suite to execute setup and assertions.
-Both [active-state and inactive-state assertions](../tests/features/steps/switch_steps.py#L27-L37) only repeat the operation and check its return code.
-Neither independently reads port state.
+Check each effect in the [simulated port flags](../tests/features/environment.py), not by repeating an operation.
+The setup hook takes the flag count from the [simulation adapter](../src/modules/sim_adapter.c) and stops if its private layout changes.
+The [connection step](../tests/features/steps/switch_steps.py) first enables every port, so the reset is visible.
+Each port operation must change only its own flag, and a rejected operation must change none.
+The [teardown hook](../tests/features/environment.py) requires disconnection to leave every flag unchanged.
 
 ## Coverage
 
@@ -177,7 +180,7 @@ flowchart LR
 | Area | Current evidence | Next useful cases |
 | --- | --- | --- |
 | Packed values and encoding | [Nine codec tests](../tests/unit/mrp_pdu_test.c) and [grouped-encoding goldens](../tests/unit/grouping_test.c). | Packed transmit vectors and malformed lengths. |
-| Switch operations | [Three passing scenarios](../tests/features/switch.feature); a wrong disable binding also passes all three. | Independent state queries and adapter failures; see [issue #4](https://github.com/kebag-logic/lwSRP/issues/4). |
+| Switch operations | [Three scenarios](../tests/features/switch.feature) check each connection and port call against the simulated port flags. | Two enabled ports, adapter failures, and an observable disconnection. |
 | Parser | [Receive tests](../tests/unit/receive_test.c) and [integration tests](../tests/unit/integration_test.c) cover truncation, packed events, complete ends, and atomic validation. | Fuzzing and allocation exhaustion. |
 | Receive boundaries | [Boundary tests](../tests/unit/review_test.c) cover range rejection, overflow, legal maxima, unknown types, and unknown events across every application. | Randomized mixed-message input. |
 | Deferred propagation | [Multiport tests](../tests/unit/review_test.c) cover refused targets, copied values, source reclamation, allocation rollback, ordered replacement, Flush snapshots, timer completion, receive interleaving, observer continuity, and teardown. | Exhaustion under prolonged refusal. |
@@ -187,9 +190,9 @@ flowchart LR
 | Profile withdrawal | [Profile tests](../tests/unit/milan_test.c) cover immediate stream withdrawal, unchanged VLAN/MAC timing, and preserved LV deadlines. | Target callback timing and network interoperability. |
 | Hardware and network | No adapter or interoperability suite. | Target timing, frame ownership, and packet captures. |
 
-A [disable binding](../tests/features/switch_bindings.c) redirected to enable still passes all three scenarios.
-The active-state and inactive-state assertions repeat operations; they cannot establish port state.
-The defect is tracked in [issue #4](https://github.com/kebag-logic/lwSRP/issues/4).
+The [simulation adapter](../src/modules/sim_adapter.c) changes no flag on disconnection.
+A [disconnect binding](../tests/features/switch_bindings.c) that skips the call therefore still passes.
+The disable scenario enables only port 0, so a disable binding that reconnects also passes.
 
 The [build definition](../CMakeLists.txt) has no coverage target or instrumentation option.
 No line or branch coverage percentage has been measured.
@@ -221,7 +224,11 @@ The second must fail the deadline test while the immediate-indication tests stil
 Additional reversals check build selection and application scope.
 Five grouping reversals split a Message, omit the PDU EndMark, reverse vector order, drop a vector, and remove the length bound.
 Each must fail its named [grouping tests](../tests/unit/grouping_test.c).
-Both profiles run all 99 reversals.
+Seven scenario reversals miswire the [test bindings](../tests/features/switch_bindings.c) or their [scenario setup](../tests/features/environment.py) for [issue #4](https://github.com/kebag-logic/lwSRP/issues/4).
+They swap enable and disable, disable the next port, skip connection, and swap connection with disconnection.
+Each must fail exactly its named [scenarios](../tests/features/switch.feature) with the expected assertion words.
+The runner's interpreter must import [behave](https://behave.readthedocs.io/en/stable/), because it also runs the scenarios before and after the plants.
+Both profiles run all 106 reversals.
 They also pin propagation order, recovery indications, extension handling, range errors, and all reported LeaveAll boundaries.
 Each added behavioral reversal must fail its named regression after successful compilation.
 The [embedded check](../tests/check_embedded.py) exercises the actual module source list with a host compiler in both profiles.

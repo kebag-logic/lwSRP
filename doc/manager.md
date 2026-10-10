@@ -56,10 +56,8 @@ The [host build](../CMakeLists.txt) succeeds.
 Its default [unit runner](../tests/unit/main.c) passes 102 tests with 26658 assertions.
 The enabled [Milan build](tester.md#test-both-registrar-profiles) passes 102 tests with 26646 assertions.
 The [scenario harness](../tests/features/environment.py) passes three scenarios and ten steps through [test bindings](../tests/features/switch_bindings.c).
-Both [active-state and inactive-state assertions](../tests/features/steps/switch_steps.py#L27-L37) only repeat the operation and check its return code.
-Neither independently reads port state.
-A wrong disable binding that calls enable still passes all three scenarios.
-Track the coverage defect in [issue #4](https://github.com/kebag-logic/lwSRP/issues/4).
+Each [scenario step](../tests/features/steps/switch_steps.py) checks the simulated port flags instead of repeating an operation.
+Seven [planted binding faults](tester.md#planted-reversals) from [issue #4](https://github.com/kebag-logic/lwSRP/issues/4) each fail named scenarios.
 The [tester guide](tester.md#coverage) describes what those checks cover.
 There is no measured coverage percentage.
 
