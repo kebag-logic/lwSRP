@@ -4,6 +4,63 @@ import os
 import pathlib
 
 
+class _Switch(ctypes.Structure):
+    # struct shlan_switch in src/include/shish_lan/switch.h
+    _fields_ = [("ops", ctypes.c_void_p), ("priv", ctypes.c_void_p)]
+
+
+class _SimPriv(ctypes.Structure):
+    # struct sim_priv in src/modules/sim_adapter.c: SIM_MAX_PORTS flags
+    _fields_ = [("port_state", ctypes.c_int * 48)]
+
+
+def _span(ports):
+    if len(ports) == 1:
+        return f"port {ports[0]}"
+    if ports[-1] - ports[0] + 1 == len(ports):
+        return f"ports {ports[0]}-{ports[-1]}"
+    return "ports " + ", ".join(map(str, ports))
+
+
+class SimulatedPorts:
+    """Read the simulated switch's own port flags, never through a binding."""
+
+    DISABLED = 0
+    ENABLED = 1
+    _NAMES = {DISABLED: "disabled", ENABLED: "enabled"}
+
+    def __init__(self, switch):
+        handle = _Switch.from_address(switch)
+        self._flags = _SimPriv.from_address(handle.priv).port_state
+
+    def __len__(self):
+        return len(self._flags)
+
+    def flags(self):
+        return tuple(self._flags)
+
+    def _name(self, flag):
+        return self._NAMES.get(flag, f"flagged {flag}")
+
+    def state(self, port_id):
+        return self._name(self._flags[port_id])
+
+    def set_all(self, flag):
+        for port_id in range(len(self._flags)):
+            self._flags[port_id] = flag
+
+    def expect(self, expected, action):
+        """Fail naming each port whose flag differs from the expected flags."""
+        wrong = {}
+        for port_id, (flag, want) in enumerate(zip(self.flags(), expected)):
+            if flag != want:
+                wrong.setdefault((flag, want), []).append(port_id)
+        assert not wrong, f"after {action}: " + "; ".join(
+            f"{_span(ports)} {self._name(flag)}, expected {self._name(want)}"
+            for (flag, want), ports in wrong.items()
+        )
+
+
 def _load_lib():
     """Find and load the compiled shlan shared library."""
     library = os.environ.get("SHLAN_LIBRARY")
@@ -49,12 +106,21 @@ def before_all(context):
 
 
 def before_scenario(context, scenario):
+    # The Background step connects, so that it can check the connection.
     context.switch = context.lib.shlan_sim_adapter_create()
-    context.lib.shlan_connect(context.switch)
+    assert context.switch, "the simulation adapter was not created"
+    context.ports = SimulatedPorts(context.switch)
     context.last_rc = 0
 
 
 def after_scenario(context, scenario):
+    if not context.switch:
+        return
+    flags = context.ports.flags()
     context.lib.shlan_disconnect(context.switch)
-    context.lib.shlan_sim_adapter_destroy(context.switch)
-    context.switch = None
+    try:
+        # The simulation's disconnect leaves every port flag as it was.
+        context.ports.expect(flags, "disconnecting")
+    finally:
+        context.lib.shlan_sim_adapter_destroy(context.switch)
+        context.switch = None
