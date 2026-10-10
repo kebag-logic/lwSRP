@@ -2,6 +2,9 @@
 import ctypes
 import os
 import pathlib
+import re
+
+SIM_ADAPTER = pathlib.Path(__file__).parents[2] / "src" / "modules" / "sim_adapter.c"
 
 
 class _Switch(ctypes.Structure):
@@ -9,9 +12,16 @@ class _Switch(ctypes.Structure):
     _fields_ = [("ops", ctypes.c_void_p), ("priv", ctypes.c_void_p)]
 
 
-class _SimPriv(ctypes.Structure):
-    # struct sim_priv in src/modules/sim_adapter.c: SIM_MAX_PORTS flags
-    _fields_ = [("port_state", ctypes.c_int * 48)]
+def _sim_port_count():
+    """Return SIM_MAX_PORTS while struct sim_priv holds only the port flags."""
+    text = SIM_ADAPTER.read_text()
+    count = re.search(r"^#define SIM_MAX_PORTS (\d+)$", text, re.MULTILINE)
+    layout = re.search(
+        r"^struct sim_priv \{\n\s*int port_state\[SIM_MAX_PORTS\];[^\n]*\n\};$",
+        text, re.MULTILINE)
+    assert count and layout, \
+        f"struct sim_priv in {SIM_ADAPTER.name} no longer matches the port flag reader"
+    return int(count.group(1))
 
 
 def _span(ports):
@@ -29,9 +39,9 @@ class SimulatedPorts:
     ENABLED = 1
     _NAMES = {DISABLED: "disabled", ENABLED: "enabled"}
 
-    def __init__(self, switch):
+    def __init__(self, switch, count):
         handle = _Switch.from_address(switch)
-        self._flags = _SimPriv.from_address(handle.priv).port_state
+        self._flags = (ctypes.c_int * count).from_address(handle.priv)
 
     def __len__(self):
         return len(self._flags)
@@ -103,13 +113,14 @@ def before_all(context):
         setattr(lib, f"shlan_{name}", binding)
 
     context.lib = lib
+    context.port_count = _sim_port_count()
 
 
 def before_scenario(context, scenario):
     # The Background step connects, so that it can check the connection.
     context.switch = context.lib.shlan_sim_adapter_create()
     assert context.switch, "the simulation adapter was not created"
-    context.ports = SimulatedPorts(context.switch)
+    context.ports = SimulatedPorts(context.switch, context.port_count)
     context.last_rc = 0
 
 

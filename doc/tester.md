@@ -159,6 +159,7 @@ Keep setup, action, and assertion separate.
 Run the dry-run command above to check matching.
 Run the real suite to execute setup and assertions.
 Check each effect in the [simulated port flags](../tests/features/environment.py), not by repeating an operation.
+The setup hook takes the flag count from the [simulation adapter](../src/modules/sim_adapter.c) and stops if its private layout changes.
 The [connection step](../tests/features/steps/switch_steps.py) first enables every port, so the reset is visible.
 Each port operation must change only its own flag, and a rejected operation must change none.
 The [teardown hook](../tests/features/environment.py) requires disconnection to leave every flag unchanged.
