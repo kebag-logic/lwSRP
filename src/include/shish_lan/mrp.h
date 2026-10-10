@@ -257,9 +257,13 @@ void            mrp_app_destroy(struct mrp_app *app);
 
 /* Poll one transmit opportunity. The send port returns zero only after it
  * accepts all bytes; a refusal leaves every applicant and registrar unchanged.
- * Ports never call back into this application synchronously. Caller storage
- * must fit one message and any LeaveAll preamble; larger populations split
- * across opportunities. A no-buffer result commits no state. Returns 1 for
+ * Ports never call back into this application synchronously. Each PDU holds
+ * one Message per AttributeType, in type order: an optional LeaveAll vector,
+ * then one single-value vector per declaration in ascending FirstValue order
+ * (IEEE 802.1Q-2018 10.8.1.2). Caller storage must fit one value's Message
+ * and any LeaveAll preamble; values that do not fit wait for a later
+ * opportunity. MSRP uses at most 65535 octets of storage, the reach of
+ * AttributeListLength. A no-buffer result commits no state. Returns 1 for
  * a committed PDU, zero when no opportunity is due, or negative errno. */
 /* A refused send retains the exact PDU in the caller's buffer until accepted.
  * Keep that buffer alive and unchanged between retries. While retained, RX and

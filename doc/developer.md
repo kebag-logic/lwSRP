@@ -96,15 +96,38 @@ VO means Very anxious Observer; VP means Very anxious Passive.
 VN means Very anxious New; AN means Anxious New.
 AA means Anxious Active; QA means Quiet Active.
 Transmit labels describe required protocol actions.
-The [transmit operation](../src/core/mrp_mad.c#L1323) applies these transitions after the host accepts the payload.
+The [transmit operation](../src/core/mrp_mad.c#L1410) applies these transitions after the host accepts the payload.
 
 Comparison: matches the table for the displayed transitions, including the Registrar condition.
 Transmission assumes sufficient frame space, as required by [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3, note 7](https://standards.ieee.org/ieee/802.1Q/6844/).
 
 The [Applicant handler](../src/core/mrp_mad.c#L506) implements the Registrar condition and corrected declaration transitions.
 The [event dispatcher](../src/core/mrp_mad.c#L755) requests transmission for anxious and leaving states.
-The [transactional assembler](../src/core/mrp_mad.c#L1323) preserves state when a required value cannot fit.
+The [transactional assembler](../src/core/mrp_mad.c#L1410) preserves state when a required value cannot fit.
 Optional packing actions are omitted; each encoded vector carries one value.
+
+### MRPDU layout
+
+Reference: [IEEE 802.1Q-2018, clauses 10.8.1.2 and 10.8.2](https://standards.ieee.org/ieee/802.1Q/6844/).
+Evidence: [Message writer](../src/core/mrp_mad.c#L1351) and [PDU writer](../src/core/mrp_mad.c#L1388).
+
+~~~mermaid
+flowchart LR
+    Header[Type and lengths] --> LA[LeaveAll vector, when due]
+    LA --> Low[Lowest FirstValue]
+    Low --> Next[Next FirstValue]
+    Next --> End[AttributeList EndMark]
+~~~
+
+Each PDU carries one Message per attribute type, in ascending type order.
+A due LeaveAll comes first in its type's Message, with no values.
+Each declaration follows as a single-value vector, in ascending FirstValue order.
+One EndMark closes each Message, and one more closes the PDU.
+Selection keeps the earlier order: omitted values first, then repeats.
+The first vector of a type also pays for its Message header and EndMark.
+A value that does not fit waits for a later opportunity.
+The PDU layout follows [issue #17](https://github.com/kebag-logic/lwSRP/issues/17).
+The [grouping tests](../tests/unit/grouping_test.c) pin the bytes with an [independent decoder](../tests/unit/mrpdu_decoder.c).
 
 ### Applicant observation
 
@@ -244,7 +267,7 @@ Begin resets either state to Passive.
 Begin, reception, and expiry restart the timer; expiry requests transmission.
 Active transmission requires a LeaveAll message and local LeaveAll processing.
 
-The [transmit operation](../src/core/mrp_mad.c#L1323) emits one LeaveAll vector for each supported attribute type.
+The [transmit operation](../src/core/mrp_mad.c#L1410) emits one LeaveAll vector for each supported attribute type.
 Acceptance makes the participant Passive and delivers local LeaveAll events.
 Refusal preserves the pending payload and does not age registrations through an unsent LeaveAll.
 The [timer draw](../src/core/mrp_mad.c#L773) lies strictly between the configured interval and 1.5 times that interval.
