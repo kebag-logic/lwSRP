@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MAD = "src/core/mrp_mad.c"
 MSRP = "src/modules/msrp.c"
 PDU = "src/core/mrp_pdu.c"
+BINDINGS = "tests/features/switch_bindings.c"
 
 # Each replacement reverses one contract. The original checkout is never edited.
 CASES = [
@@ -192,7 +193,35 @@ CASES = [
      "a->attr_type != type || !a->next || e->tx == TX_MSG_NONE", "unit"),
     ("grouped-list-length-reach", MAD, "size_t room = hdr == 4u && capacity > 0xFFFFu ? 0xFFFFu : capacity;",
      "size_t room = capacity;", "unit"),
+    # Issue #4: miswired scenario bindings must fail the switch scenarios.
+    ("scenario-disable-dispatch", BINDINGS, "    return shlan_port_disable(sw, port_id);",
+     "    return shlan_port_enable(sw, port_id);", "scenario"),
+    ("scenario-disable-mapping", "tests/features/environment.py", 'getattr(lib, f"shlan_test_{name}")',
+     'getattr(lib, "shlan_test_" + name.replace("disable", "enable"))', "scenario"),
+    ("scenario-disable-port", BINDINGS, "    return shlan_port_disable(sw, port_id);",
+     "    return shlan_port_disable(sw, (uint8_t)(port_id + 1u));", "scenario"),
+    ("scenario-enable-dispatch", BINDINGS, "    return shlan_port_enable(sw, port_id);",
+     "    return shlan_port_disable(sw, port_id);", "scenario"),
+    ("scenario-connect-noop", BINDINGS, "    return shlan_connect(sw);",
+     "    (void)sw;\n    return 0;", "scenario"),
+    ("scenario-connect-dispatch", BINDINGS, "    return shlan_connect(sw);",
+     "    shlan_disconnect(sw);\n    return 0;", "scenario"),
+    ("scenario-disconnect-dispatch", BINDINGS, "    shlan_disconnect(sw);",
+     "    (void)shlan_connect(sw);", "scenario"),
 ]
+
+# Each scenario plant must fail exactly these scenarios with these assertion words.
+ENABLE, DISABLE, REJECT = "Enable a port", "Disable a port", "Reject an out-of-range port"
+SCENARIO_FAILURES = {
+    "scenario-disable-dispatch": ({DISABLE}, "after disabling port 0: port 0 enabled, expected disabled"),
+    "scenario-disable-mapping": ({DISABLE}, "after disabling port 0: port 0 enabled, expected disabled"),
+    "scenario-disable-port": ({DISABLE}, "after disabling port 0: port 0 enabled, expected disabled"),
+    "scenario-enable-dispatch": ({ENABLE, DISABLE}, "after enabling port 0: port 0 disabled, expected enabled"),
+    "scenario-connect-noop": ({ENABLE, DISABLE, REJECT}, "after connecting: ports 0-47 enabled, expected disabled"),
+    "scenario-connect-dispatch": ({ENABLE, DISABLE, REJECT},
+                                  "after connecting: ports 0-47 enabled, expected disabled"),
+    "scenario-disconnect-dispatch": ({ENABLE}, "after disconnecting: port 0 disabled, expected enabled"),
+}
 
 REQUIRED_FAILURES = {
     "grouped-message-split": ["two_listener_values_share_one_message",
@@ -274,6 +303,19 @@ REQUIRED_FAILURES = {
 }
 
 
+def failed_scenarios(output):
+    """Return the scenario names that behave lists as failing or errored."""
+    names, listing = set(), False
+    for line in output.splitlines():
+        if line in ("Failing scenarios:", "Errored scenarios:"):
+            listing = True
+        elif listing and line.startswith("  "):
+            names.add(line.split("  ")[-1])
+        else:
+            listing = False
+    return names
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--work-dir", type=Path, required=True)
@@ -295,6 +337,7 @@ def main():
     build = work / "build"
     env = os.environ.copy()
     env["LD_LIBRARY_PATH"] = str(args.prefix.resolve() / "lib") + os.pathsep + env.get("LD_LIBRARY_PATH", "")
+    env["SHLAN_LIBRARY"] = str(build / "libshlan.so")
     records = []
 
     def run(label, command):
@@ -313,7 +356,9 @@ def main():
         return 1
     build_command = ["cmake", "--build", str(build), "--parallel", "2"]
     check_command = ["ctest", "--test-dir", str(build), "--output-on-failure", "--timeout", "10"]
-    if run("baseline-build", build_command)[0] or run("baseline-check", check_command)[0]:
+    scenario_command = [sys.executable, "-m", "behave", "--no-color", "tests/features"]
+    if (run("baseline-build", build_command)[0] or run("baseline-check", check_command)[0]
+            or run("baseline-scenarios", scenario_command)[0]):
         return 1
     failures = 0
     for label, name, old, new, check in CASES:
@@ -337,6 +382,14 @@ def main():
                     killed = killed and "leave_in_lv_keeps_the_original_deadline" not in output
                 if label == "milan-restarted-lv-deadline":
                     killed = killed and "leave_in_is_immediate" not in output
+            elif check == "scenario":
+                if run(label + "-build", build_command)[0]:
+                    print(f"FAIL {label}: build failure is not a killed behavioral reversal")
+                    failures += 1
+                    continue
+                rc, output = run(label, scenario_command)
+                scenarios, words = SCENARIO_FAILURES[label]
+                killed = rc != 0 and failed_scenarios(output) == scenarios and words in output
             elif check == "embedded":
                 rc, output = run(label, [sys.executable, "tests/check_embedded.py",
                                          "--work-dir", str(work / "embedded")])
@@ -352,7 +405,8 @@ def main():
             failures += not killed
         finally:
             path.write_text(original)
-    if run("restored-build", build_command)[0] or run("restored-check", check_command)[0]:
+    if (run("restored-build", build_command)[0] or run("restored-check", check_command)[0]
+            or run("restored-scenarios", scenario_command)[0]):
         failures += 1
     print(f"Reversals: {len(CASES)}; failures: {failures}")
     return int(failures != 0)
