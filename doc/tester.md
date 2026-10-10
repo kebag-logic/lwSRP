@@ -26,7 +26,7 @@ behave --dry-run
 | Check | Current result | Meaning |
 | --- | --- | --- |
 | Configure and build | Exit 0. | The host library and required unit target compile. |
-| Default unit target | Exit 0; 101 tests and 24252 assertions. | The [runner](../tests/unit/main.c) executes nine suites. |
+| Default unit target | Exit 0; 102 tests and 26658 assertions. | The [runner](../tests/unit/main.c) executes nine suites. |
 | Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c). |
 | Scenario dry run | Validates step matching only. | It does not execute setup or verify behavior. |
 
@@ -67,7 +67,7 @@ ctest --test-dir "$LWSRP_MILAN_BUILD" --output-on-failure
 SHLAN_LIBRARY="$LWSRP_MILAN_BUILD/libshlan.so" behave
 ~~~
 
-The enabled build passes 101 tests with 24240 assertions.
+The enabled build passes 102 tests with 26646 assertions.
 It also passes three scenarios and ten steps.
 The [profile suite](../tests/unit/milan_test.c) checks both application options in each build.
 It checks the actual constructor against the build selection.
@@ -84,6 +84,7 @@ The [grouping suite](../tests/unit/grouping_test.c) pins transmitted bytes for [
 Its goldens cover two Listener values, both Domain classes, and mixed Talker and Listener Messages.
 They also cover empty types under LeaveAll and a VLAN Message under LeaveAll.
 Boundary cases fit two values exactly, move one value when one octet is missing, and fill a 1500-octet PDU.
+Another stops stream PDUs at 65535 octets, the reach of the two-octet list length.
 Sweeps grade every PDU of all three applications across four capacities and two LeaveAll periods.
 Three receive tests register the same values from separate, grouped, and packed vectors.
 The [test-side decoder](../tests/unit/mrpdu_decoder.c) follows [IEEE 802.1Q-2018, clauses 10.8.1.2 and 10.8.2](https://standards.ieee.org/ieee/802.1Q/6844/).
@@ -218,9 +219,9 @@ Two independent profile reversals delay withdrawal from IN and restart the LV de
 The first must fail both immediate-indication tests while the deadline test still passes.
 The second must fail the deadline test while the immediate-indication tests still pass.
 Additional reversals check build selection and application scope.
-Four grouping reversals split a Message, omit the PDU EndMark, reverse vector order, and drop a vector.
+Five grouping reversals split a Message, omit the PDU EndMark, reverse vector order, drop a vector, and remove the length bound.
 Each must fail its named [grouping tests](../tests/unit/grouping_test.c).
-Both profiles run all 98 reversals.
+Both profiles run all 99 reversals.
 They also pin propagation order, recovery indications, extension handling, range errors, and all reported LeaveAll boundaries.
 Each added behavioral reversal must fail its named regression after successful compilation.
 The [embedded check](../tests/check_embedded.py) exercises the actual module source list with a host compiler in both profiles.

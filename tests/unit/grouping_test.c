@@ -323,6 +323,44 @@ Ensure(Grouping, an_ethernet_mtu_carries_124_listener_vectors_in_one_message)
     msrp_app_destroy(a);
 }
 
+static size_t measured;
+
+static int measure(void *ctx, uint8_t port, const uint8_t *pdu, size_t len)
+{
+    (void)ctx; (void)port; (void)pdu;
+    measured = len;
+    return 0;
+}
+
+/* AttributeListLength has two octets (10.8.2.4), so larger storage stays unused. */
+Ensure(Grouping, stream_pdus_stop_at_the_attribute_list_length_reach)
+{
+    struct msrp_ctx ctx = {0};
+    struct mrp_app *a = msrp_app_create(1, &ctx);
+    /* Descending declarations leave the newest, lowest identity first. */
+    for (unsigned uid = 2400; uid-- > 0;) {
+        struct msrp_talker_adv t = talker_value(0);
+        t.stream_id.bytes[6] = (uint8_t)(uid >> 8); t.stream_id.bytes[7] = (uint8_t)uid;
+        assert_that(msrp_declare_talker(a, 0, &t, true), is_equal_to(0));
+    }
+    /* Twice the reach, so planted defects stay inside storage. */
+    static uint8_t storage[1u << 17];
+    measured = 0;
+    assert_that(mrp_transmit(a, 0, storage, sizeof(storage), measure, NULL), is_equal_to(1));
+    /* 1 + 4 + 2340 * 28 + 2 + 2 = 65529 octets; one more vector needs 65557. */
+    assert_that(measured, is_equal_to(65529));
+    assert_that(storage[1], is_equal_to(1));
+    assert_that(storage[3] << 8 | storage[4], is_equal_to(65522));
+    unsigned ordered = 0;
+    for (unsigned k = 0; k < 2340; ++k) {
+        const uint8_t *v = storage + 5 + 28u * k;
+        ordered += v[0] == 0 && v[1] == 1 && (unsigned)(v[8] << 8 | v[9]) == k;
+    }
+    assert_that(ordered, is_equal_to(2340));
+    assert_that(storage[65525] | storage[65526] | storage[65527] | storage[65528], is_equal_to(0));
+    msrp_app_destroy(a);
+}
+
 static void sweep(struct mrp_app *a, const size_t capacities[4], void (*change)(struct mrp_app *, unsigned))
 {
     unsigned sent = 0, vectors = 0, leavealls = 0;
@@ -573,6 +611,7 @@ TestSuite *grouping_suite(void)
     add_test_with_context(s, Grouping, a_message_that_fits_exactly_is_not_split);
     add_test_with_context(s, Grouping, one_octet_short_moves_a_vector_to_a_second_pdu);
     add_test_with_context(s, Grouping, an_ethernet_mtu_carries_124_listener_vectors_in_one_message);
+    add_test_with_context(s, Grouping, stream_pdus_stop_at_the_attribute_list_length_reach);
     add_test_with_context(s, Grouping, every_stream_pdu_keeps_one_ordered_message_per_type);
     add_test_with_context(s, Grouping, every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type);
     add_test_with_context(s, Grouping, received_values_in_separate_messages_register);

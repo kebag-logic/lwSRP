@@ -53,8 +53,8 @@ flowchart TD
 ~~~
 
 The [host build](../CMakeLists.txt) succeeds.
-Its default [unit runner](../tests/unit/main.c) passes 101 tests with 24252 assertions.
-The enabled [Milan build](tester.md#test-both-registrar-profiles) passes 101 tests with 24240 assertions.
+Its default [unit runner](../tests/unit/main.c) passes 102 tests with 26658 assertions.
+The enabled [Milan build](tester.md#test-both-registrar-profiles) passes 102 tests with 26646 assertions.
 The [scenario harness](../tests/features/environment.py) passes three scenarios and ten steps through [test bindings](../tests/features/switch_bindings.c).
 Both [active-state and inactive-state assertions](../tests/features/steps/switch_steps.py#L27-L37) only repeat the operation and check its return code.
 Neither independently reads port state.

@@ -190,6 +190,8 @@ CASES = [
      "memcmp(at - size + 2, at + 2, len) < 0", "unit"),
     ("grouped-dropped-vector", MAD, "a->attr_type != type || e->tx == TX_MSG_NONE",
      "a->attr_type != type || !a->next || e->tx == TX_MSG_NONE", "unit"),
+    ("grouped-list-length-reach", MAD, "size_t room = hdr == 4u && capacity > 0xFFFFu ? 0xFFFFu : capacity;",
+     "size_t room = capacity;", "unit"),
 ]
 
 REQUIRED_FAILURES = {
@@ -201,6 +203,7 @@ REQUIRED_FAILURES = {
                              "domain_classes_share_one_message_in_ascending_order"],
     "grouped-dropped-vector": ["two_listener_values_share_one_message",
                                "an_ethernet_mtu_carries_124_listener_vectors_in_one_message"],
+    "grouped-list-length-reach": ["stream_pdus_stop_at_the_attribute_list_length_reach"],
     "point-to-point-condition": ["applicant_receive_conditions_follow_link_mode",
                                   "pending_applicant_joinin_obeys_note_four"],
     "pending-point-to-point-condition": ["pending_applicant_joinin_obeys_note_four"],
