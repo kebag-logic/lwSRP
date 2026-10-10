@@ -16,7 +16,7 @@ The [root build definition](../CMakeLists.txt) selects between host and embedded
 | C language | Requires [C11 draft](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf). |
 | [CMAKE_BUILD_TYPE](https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html) set to Debug | Adds compiler debugging information through [CMake](https://cmake.org/cmake/help/latest/). |
 | Export compile commands | Enabled by the [build definition](../CMakeLists.txt). |
-| Unit dependency found | Builds the [unit runner](../tests/unit/main.c) with eight suites. |
+| Unit dependency found | Builds the [unit runner](../tests/unit/main.c) with nine suites. |
 | Unit dependency absent | Host configuration fails. Headers and library are required. |
 | [ZEPHYR_BASE](../CMakeLists.txt) defined | Selects the module branch and returns before host configuration. |
 | [CONFIG_LWSRP](../Kconfig.zephyr) enabled | Builds protocol sources and default allocation and timer ports. |
@@ -248,9 +248,12 @@ sequenceDiagram
     Target->>Target: Schedule next output
 ~~~
 
-The [assembler](../src/core/mrp_mad.c#L1323) splits populations across Join-spaced opportunities.
+The [assembler](../src/core/mrp_mad.c#L1410) splits populations across Join-spaced opportunities.
 Previously omitted attributes precede repeated declarations.
-Size the buffer for the largest single message and the application's LeaveAll preamble.
+Each PDU holds one Message per attribute type, with values in ascending FirstValue order.
+Size the buffer for the largest single-value Message and the application's LeaveAll preamble.
+A 1500-octet stream PDU holds 124 Listener values in one Message.
+Stream PDUs use at most 65535 octets, the reach of the two-octet list length.
 Insufficient space for any required value returns the [no-buffer error](../src/include/shish_lan/error.h).
 Do not treat successful local declaration as proof of network transmission.
 

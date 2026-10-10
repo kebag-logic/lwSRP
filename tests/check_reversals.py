@@ -179,9 +179,31 @@ CASES = [
     ('flush-snapshot-indication', 'src/core/mrp_mad.c', 'app->ops->leave_ind(app, port_id, ai->attr_type, ind_value);', 'app->ops->leave_ind(app, port_id, ai->attr_type, ai->attr_val);', 'unit'),
     ('flush-snapshot-policy', 'src/core/mrp_mad.c', 'map_publish(app, port_id, ai->attr_type, ind_value, join, reserved);', 'map_publish(app, port_id, ai->attr_type, ai->attr_val, join, reserved);', 'unit'),
     ('flush-timer-completion', 'src/core/mrp_mad.c', '    if (e->ind == REG_IND_LV) {', '    if (e->ind == REG_IND_LV && ev == MRP_EVENT_FLUSH) {', 'unit'),
+    # Issue #17: one Message per AttributeType, ascending vectors, one EndMark each.
+    ("grouped-message-split", MAD, "        v += size;\n    }\n    return tx_close(ops, buf, v);",
+     "        v += size;\n        /* Plant: close the Message after every vector. */\n"
+     "        buf = tx_close(ops, buf, v);\n        v = first = tx_open(ops, type, buf);\n"
+     "    }\n    return tx_close(ops, buf, v);", "unit"),
+    ("grouped-endmark-count", MAD, "pdu[off++] = 0; pdu[off++] = 0; /* MRPDU EndMark */",
+     "/* Plant: omit the MRPDU EndMark. */", "unit"),
+    ("grouped-vector-order", MAD, "memcmp(at - size + 2, at + 2, len) > 0",
+     "memcmp(at - size + 2, at + 2, len) < 0", "unit"),
+    ("grouped-dropped-vector", MAD, "a->attr_type != type || e->tx == TX_MSG_NONE",
+     "a->attr_type != type || !a->next || e->tx == TX_MSG_NONE", "unit"),
+    ("grouped-list-length-reach", MAD, "size_t room = hdr == 4u && capacity > 0xFFFFu ? 0xFFFFu : capacity;",
+     "size_t room = capacity;", "unit"),
 ]
 
 REQUIRED_FAILURES = {
+    "grouped-message-split": ["two_listener_values_share_one_message",
+                              "every_stream_pdu_keeps_one_ordered_message_per_type"],
+    "grouped-endmark-count": ["two_listener_values_share_one_message",
+                              "every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type"],
+    "grouped-vector-order": ["two_listener_values_share_one_message",
+                             "domain_classes_share_one_message_in_ascending_order"],
+    "grouped-dropped-vector": ["two_listener_values_share_one_message",
+                               "an_ethernet_mtu_carries_124_listener_vectors_in_one_message"],
+    "grouped-list-length-reach": ["stream_pdus_stop_at_the_attribute_list_length_reach"],
     "point-to-point-condition": ["applicant_receive_conditions_follow_link_mode",
                                   "pending_applicant_joinin_obeys_note_four"],
     "pending-point-to-point-condition": ["pending_applicant_joinin_obeys_note_four"],
