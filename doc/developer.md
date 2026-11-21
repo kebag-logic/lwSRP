@@ -54,10 +54,11 @@ The [attr_cmp](../src/include/shish_lan/mrp.h) callback defines identity.
 The optional [attr_key](../src/include/shish_lan/mrp.h) callback returns one octet of the octets attr_cmp compares.
 Equal identities and replacement pairs must share that octet.
 The [MAD](../src/core/mrp_mad.c) stores it at creation and compares it before calling attr_cmp or attr_replaces.
-Each participant also keeps its attributes in [LWSRP_ATTR_BUCKETS](../src/core/mrp_mad.c) lookup buckets by that octet.
+With [LWSRP_ATTR_BUCKETS](../src/core/mrp_mad.c) set, each participant also keeps its attributes in lookup buckets by that octet.
 A bucket holds its attributes in the list's order, so a lookup visits only one bucket and still finds the list's first match.
 The same holds for the replacement loop and for [mrp_attr_registered_ports](../src/include/shish_lan/mrp.h).
 Without attr_key, every attribute shares one bucket, which is the list itself.
+The default, zero, scans the list.
 The [stream](../src/modules/msrp.c) and [VLAN](../src/modules/mvrp.c) adapters key on the StreamID's last octet, a Domain VID octet, and a VID octet.
 Received declarations refresh matching identities.
 Withdrawal and aging retain the last registered value.
@@ -131,8 +132,9 @@ Each PDU carries one Message per attribute type, in ascending type order.
 A due LeaveAll comes first in its type's Message, with no values.
 Each declaration follows as a single-value vector, in ascending FirstValue order.
 Equal FirstValues keep the attribute list's order.
-The encoder writes each vector once, in the list's order, then merges runs of the list by FirstValue.
-Only vectors whose place changed are encoded again in their new place.
+By default the encoder swaps each new vector backwards past every greater one.
+With [LWSRP_TX_MERGE](../src/core/mrp_mad.c) set, it writes each vector once, in the list's order, then merges runs of the list by FirstValue.
+Only vectors whose place changed are then encoded again in their new place.
 One EndMark closes each Message, and one more closes the PDU.
 Selection keeps the earlier order: omitted values first, then repeats.
 The first vector of a type also pays for its Message header and EndMark.

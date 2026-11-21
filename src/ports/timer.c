@@ -1,8 +1,59 @@
 /* SPDX-License-Identifier: Apache-2.0 */
+#include "timer.h"
+
+#if LWSRP_TIMER_SLOTS == 0
+
+static struct shlan_timer *g_head;
+
+void shlan_timer_init(struct shlan_timer *t, void (*cb)(void *arg), void *arg)
+{
+    t->cb   = cb;
+    t->arg  = arg;
+    t->cs   = 0;
+    t->link = g_head;
+    g_head  = t;
+}
+
+void shlan_timer_arm(struct shlan_timer *t, uint32_t centiseconds)
+{
+    t->cs = centiseconds;
+}
+
+void shlan_timer_disarm(struct shlan_timer *t)
+{
+    t->cs = 0;
+}
+
+void shlan_timer_tick(void)
+{
+    for (struct shlan_timer *t = g_head; t; t = t->link) {
+        if (t->cs == 0) {
+            continue;
+        }
+        if (--t->cs == 0) {
+            t->cb(t->arg);
+        }
+    }
+}
+
+void shlan_timer_remove(struct shlan_timer *t)
+{
+    struct shlan_timer **at = &g_head;
+    while (*at) {
+        if (*at == t) {
+            *at = t->link;
+            t->cs = 0;
+            t->link = 0;
+            return;
+        }
+        at = &(*at)->link;
+    }
+}
+
+#else
+
 #include <stdbool.h>
 #include <stddef.h>
-
-#include "timer.h"
 
 _Static_assert((LWSRP_TIMER_SLOTS & (LWSRP_TIMER_SLOTS - 1u)) == 0u && LWSRP_TIMER_SLOTS != 0u,
                "LWSRP_TIMER_SLOTS must be a power of two");
@@ -194,3 +245,5 @@ void shlan_timer_remove(struct shlan_timer *t)
     t->link = NULL;
     t->order = 0;
 }
+
+#endif /* LWSRP_TIMER_SLOTS */

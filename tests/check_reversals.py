@@ -17,8 +17,8 @@ BINDINGS = "tests/features/switch_bindings.c"
 
 # Each replacement reverses one contract. The original checkout is never edited.
 CASES = [
-    ("timer-unlink", "src/ports/timer.c", "    if (t->at) {\n        unlink_timer(t);\n    }\n    t->cs = 0;",
-     "    if (t->at && t->link) { return; }\n    if (t->at) {\n        unlink_timer(t);\n    }\n    t->cs = 0;", "unit"),
+    ("timer-unlink", "src/ports/timer.c", "    struct shlan_timer **at = &g_head;",
+     "    if (t->cs && t->link && t->link->cs) { return; }\n    struct shlan_timer **at = &g_head;", "unit"),
     ("msrp-address", MSRP, "{ 0x01u, 0x80u, 0xC2u, 0x00u, 0x00u, 0x0Eu }",
      "{ 0x91u, 0xE0u, 0xF0u, 0x00u, 0x0Eu, 0x80u }", "unit"),
     ("mmrp-address", "src/include/shish_lan/mrp.h", "0x00u, 0x20u", "0x00u, 0x21u", "unit"),
@@ -201,14 +201,14 @@ CASES = [
     ('flush-snapshot-policy', 'src/core/mrp_mad.c', 'map_publish(app, port_id, ai->attr_type, ind_value, join, reserved);', 'map_publish(app, port_id, ai->attr_type, ai->attr_val, join, reserved);', 'unit'),
     ('flush-timer-completion', 'src/core/mrp_mad.c', '    if (e->ind == REG_IND_LV) {', '    if (e->ind == REG_IND_LV && ev == MRP_EVENT_FLUSH) {', 'unit'),
     # Issue #17: one Message per AttributeType, ascending vectors, one EndMark each.
-    ("grouped-message-split", MAD, "        tail = &a->tx_next;\n        v += size;\n    }",
-     "        tail = &a->tx_next;\n        v += size;\n        /* Plant: close the Message after every vector. */\n"
-     "        tx_order(ops, event, type, chosen, first, size);\n        buf = tx_close(ops, buf, v);\n"
-     "        v = first = tx_open(ops, type, buf);\n        chosen = NULL;\n        tail = &chosen;\n    }", "unit"),
+    ("grouped-message-split", MAD, "        v += size;\n    }\n    return tx_close(ops, buf, v);",
+     "        v += size;\n        /* Plant: close the Message after every vector. */\n"
+     "        buf = tx_close(ops, buf, v);\n        v = first = tx_open(ops, type, buf);\n"
+     "    }\n    return tx_close(ops, buf, v);", "unit"),
     ("grouped-endmark-count", MAD, "pdu[off++] = 0; pdu[off++] = 0; /* MRPDU EndMark */",
      "/* Plant: omit the MRPDU EndMark. */", "unit"),
-    ("grouped-vector-order", MAD, "return memcmp(a->tx_key, b->tx_key, len) > 0;",
-     "return memcmp(a->tx_key, b->tx_key, len) < 0;", "unit"),
+    ("grouped-vector-order", MAD, "memcmp(at - size + 2, at + 2, len) > 0",
+     "memcmp(at - size + 2, at + 2, len) < 0", "unit"),
     ("grouped-dropped-vector", MAD, "a->attr_type != type || e->tx == TX_MSG_NONE",
      "a->attr_type != type || !a->next || e->tx == TX_MSG_NONE", "unit"),
     ("grouped-list-length-reach", MAD, "size_t room = hdr == 4u && capacity > 0xFFFFu ? 0xFFFFu : capacity;",

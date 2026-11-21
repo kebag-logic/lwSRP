@@ -19,12 +19,27 @@
 #include "ports/alloc.h"
 #include "ports/timer.h"
 
-/* Lookup buckets a participant keeps, by attr_key: a power of two. */
+/*
+ * Lookup buckets a participant keeps by attr_key, a power of two of at most
+ * 256, or 0 for a scan of the participant's list. A bucket holds its
+ * instances in the list's order, so every lookup finds the list's first
+ * match either way. Build every translation unit with the same value.
+ */
 #ifndef LWSRP_ATTR_BUCKETS
-#define LWSRP_ATTR_BUCKETS 16u
+#define LWSRP_ATTR_BUCKETS 0u
 #endif
+#if LWSRP_ATTR_BUCKETS
 _Static_assert((LWSRP_ATTR_BUCKETS & (LWSRP_ATTR_BUCKETS - 1u)) == 0u && LWSRP_ATTR_BUCKETS != 0u &&
                LWSRP_ATTR_BUCKETS <= 256u, "LWSRP_ATTR_BUCKETS must be a power of two of at most 256");
+#endif
+/*
+ * 1 builds each Message by merging runs of its encoded vectors in FirstValue
+ * order, 0 by swapping each vector backwards past every greater one. Both
+ * place equal FirstValues in the list's order.
+ */
+#ifndef LWSRP_TX_MERGE
+#define LWSRP_TX_MERGE 0
+#endif
 
 /* ------------------------------------------------------------------ */
 /* Internal types                                                       */
@@ -81,12 +96,16 @@ struct mrp_attr_inst {
     bool                 tx_deferred;
     enum tx_msg          pending_tx;   /* message scheduled for next tx */
     struct mrp_attr_inst *next;
+#if LWSRP_ATTR_BUCKETS
     /* The next instance of its lookup bucket, in the list's order. */
     struct mrp_attr_inst *key_next;
+#endif
+#if LWSRP_TX_MERGE
     /* While one Message is built: the next vector chosen, and the
      * FirstValue this instance's vector encoded. */
     struct mrp_attr_inst *tx_next;
     const uint8_t        *tx_key;
+#endif
     /* Leave timer: fires MRP_EVENT_LEAVETIMER into the Registrar SM on expiry */
     struct shlan_timer          leave_timer;
     struct mrp_attr_timer_arg   leave_timer_arg;
@@ -120,8 +139,10 @@ struct mrp_port_state {
     struct mrp_map_work *map_head;
     struct mrp_map_work *map_tail;
     struct mrp_attr_inst *attrs;      /* linked list of attribute instances */
+#if LWSRP_ATTR_BUCKETS
     /* The same instances by attr_key, each bucket in the list's order. */
     struct mrp_attr_inst *by_key[LWSRP_ATTR_BUCKETS];
+#endif
     /* LeaveAll timer: fires MRP_EVENT_LEAVEALLTIMER on expiry */
     struct shlan_timer          la_timer;
     /* PeriodicTransmission timer: fires MRP_EVENT_PERIODICTIMER on expiry */
@@ -436,6 +457,39 @@ uint8_t mrp_app_n_ports(const struct mrp_app *app)
     return priv_of((struct mrp_app *)app)->n_ports;
 }
 
+#if !LWSRP_ATTR_BUCKETS
+uint32_t mrp_attr_registered_ports(const struct mrp_app *app,
+                                   uint8_t attr_type, const void *attr_val)
+{
+    const struct mrp_priv *priv = priv_of((struct mrp_app *)app);
+    uint32_t mask = 0;
+    for (uint8_t p = 0; p < priv->n_ports && p < 32u; p++) {
+        const struct mrp_port_state *ps = &priv->ports[p];
+        for (const struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
+            if (a->attr_type == attr_type &&
+                app->ops->attr_cmp(attr_type, a->attr_val, attr_val) == 0 &&
+                a->reg == MRP_REG_STATE_IN) {
+                mask |= (1u << p);
+                break;
+            }
+        }
+    }
+    return mask;
+}
+
+/* The value's key (attr_key), or 0 for an application without one. */
+static uint8_t key_of(const struct mrp_app_ops *ops, uint8_t type, const void *val)
+{
+    return ops->attr_key ? ops->attr_key(type, val) : 0u;
+}
+
+static struct mrp_attr_inst *find_attr(struct mrp_port_state *ps, const struct mrp_app_ops *ops,
+                                   uint8_t type, const void *val)
+{
+    const uint8_t key = key_of(ops, type, val);
+    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
+        if (a->key == key && a->attr_type == type && ops->attr_cmp(type, a->attr_val, val) == 0) {
+#else
 /* The value's key (attr_key), or 0 for an application without one. */
 static uint8_t key_of(const struct mrp_app_ops *ops, uint8_t type, const void *val)
 {
@@ -481,6 +535,7 @@ static struct mrp_attr_inst *find_attr(struct mrp_port_state *ps, const struct m
     const uint8_t key = key_of(ops, type, val);
     for (struct mrp_attr_inst *a = *bucket_of(ps, key); a; a = a->key_next) {
         if (a->key == key && a->attr_type == type && ops->attr_cmp(type, a->attr_val, val) == 0) {
+#endif
             return a;
         }
     }
@@ -533,8 +588,10 @@ static struct mrp_attr_inst *get_or_create_attr(struct mrp_app *app,
     a->pending_tx = TX_MSG_NONE;
     a->next       = ps->attrs;
     ps->attrs     = a;
+#if LWSRP_ATTR_BUCKETS
     a->key_next   = *bucket_of(ps, a->key);
     ps->by_key[a->key % LWSRP_ATTR_BUCKETS] = a;
+#endif
 
     a->leave_timer_arg.app     = app;
     a->leave_timer_arg.ai      = a;
@@ -1076,7 +1133,11 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
      */
     if ((attr_event == MRP_ATTR_EVENT_JOININ || attr_event == MRP_ATTR_EVENT_JOINMT) &&
         rc->app->ops->attr_replaces) {
+#if !LWSRP_ATTR_BUCKETS
+        for (struct mrp_attr_inst *old = rc->ps->attrs; old; old = old->next) {
+#else
         for (struct mrp_attr_inst *old = *bucket_of(rc->ps, ai->key); old; old = old->key_next) {
+#endif
             if (old != ai && old->reg != MRP_REG_STATE_MT && old->key == ai->key &&
                 rc->app->ops->attr_replaces(old->attr_type,old->attr_val,attr_type,attr_val)) {
                 int r = deliver_event_changed(rc->app, rc->ps, old,
@@ -1160,11 +1221,13 @@ unsigned mrp_reclaim(struct mrp_app *app, uint8_t port_id)
         if (a->reg == MRP_REG_STATE_MT &&
             (a->appl == MRP_APPL_STATE_VO || a->appl == MRP_APPL_STATE_AO || a->appl == MRP_APPL_STATE_QO)) {
             *link = a->next;
+#if LWSRP_ATTR_BUCKETS
             struct mrp_attr_inst **in = &ps->by_key[a->key % LWSRP_ATTR_BUCKETS];
             while (*in != a) {
                 in = &(*in)->key_next;
             }
             *in = a->key_next;
+#endif
             shlan_timer_remove(&a->leave_timer);
             shlan_free(a);
             ++count;
@@ -1386,6 +1449,56 @@ static uint8_t *tx_close(const struct mrp_app_ops *ops, uint8_t *message, uint8_
     return end;
 }
 
+#if !LWSRP_TX_MERGE
+static void tx_swap(uint8_t *a, uint8_t *b, size_t n)
+{
+    while (n--) {
+        uint8_t t = *a;
+        *a++ = *b;
+        *b++ = t;
+    }
+}
+
+/*
+ * One Message for every selected value of a type: an optional LeaveAll vector
+ * first, then one single-value vector per value in ascending FirstValue order
+ * (10.8.2.7). Returns the end of the Message, or NULL if encoding fails.
+ */
+static uint8_t *tx_message(const struct mrp_app_ops *ops, struct mrp_port_state *ps,
+                           enum mrp_event event, uint8_t type, bool la, uint8_t *buf)
+{
+    uint8_t len = ops->attr_len(type);
+    bool subtype = ops->attr_has_subtype && ops->attr_has_subtype(type);
+    size_t size = tx_vector_len(ops, type, false);
+    uint8_t *v = tx_open(ops, type, buf);
+    if (la) {
+        v[0] = 0x20; v[1] = 0;
+        memset(v + 2, 0, len);
+        v += 2u + len;
+    }
+    uint8_t *first = v;
+    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
+        const struct appl_entry *e = &appl_table[event][a->appl];
+        if (!a->tx_selected || a->attr_type != type || e->tx == TX_MSG_NONE) {
+            continue;
+        }
+        v[0] = 0; v[1] = 1;
+        int r = ops->encode_attr(type, a->attr_val, v + 2, len);
+        if (r != len) {
+            return NULL;
+        }
+        v[2u + len] = mrp_three_pack((uint8_t)wire_event(e->tx, a->reg), 0, 0);
+        if (subtype) {
+            const uint8_t *bytes = a->attr_val;
+            v[3u + len] = mrp_four_pack(bytes[len], 0, 0, 0);
+        }
+        for (uint8_t *at = v; at > first && memcmp(at - size + 2, at + 2, len) > 0; at -= size) {
+            tx_swap(at - size, at, size);
+        }
+        v += size;
+    }
+    return tx_close(ops, buf, v);
+#else
 /* One single-value VectorAttribute (10.8.2.8) for a at v: its FirstValue,
  * its ThreePackedEvent and, for a subtype, its FourPackedEvent. */
 static bool tx_vector(const struct mrp_app_ops *ops, const struct mrp_attr_inst *a, enum tx_msg tx,
@@ -1517,6 +1630,7 @@ static uint8_t *tx_message(const struct mrp_app_ops *ops, struct mrp_port_state 
     }
     tx_order(ops, event, type, chosen, first, size);
     return tx_close(ops, buf, v);
+#endif
 }
 
 /* Messages follow in AttributeType order, then the MRPDU EndMark (10.8.1.2). */

@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 option(LWSRP_MILAN "Use Milan rapid MSRP withdrawal" OFF)
+# The timer wheel, the lookup buckets and the merged Message build, for many attributes (doc/integrator.md).
+option(LWSRP_SCALE "Use the timer wheel, lookup buckets and merged build" OFF)
+set(LWSRP_SCALE_DEFINITIONS LWSRP_TIMER_SLOTS=64u LWSRP_ATTR_BUCKETS=16u LWSRP_TX_MERGE=1)
 if(DEFINED ZEPHYR_BASE)
   if(CONFIG_LWSRP)
     zephyr_library_named(lwsrp)
@@ -16,6 +19,9 @@ if(DEFINED ZEPHYR_BASE)
     zephyr_include_directories(src/include)
     zephyr_library_include_directories(src)
     zephyr_library_compile_definitions(LWSRP_MILAN=$<BOOL:${LWSRP_MILAN}>)
+    if(LWSRP_SCALE)
+      zephyr_compile_definitions(${LWSRP_SCALE_DEFINITIONS})
+    endif()
   endif()
   return()
 endif()
@@ -45,6 +51,9 @@ add_library(shlan SHARED
 )
 target_include_directories(shlan PUBLIC src/include src/modules src)
 target_compile_definitions(shlan PUBLIC LWSRP_MILAN=$<BOOL:${LWSRP_MILAN}>)
+if(LWSRP_SCALE)
+  target_compile_definitions(shlan PUBLIC ${LWSRP_SCALE_DEFINITIONS})
+endif()
 
 # ---------- unit tests (cgreen, C-only, for core/ internals) ----------
 enable_testing()

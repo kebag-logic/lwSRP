@@ -7,8 +7,9 @@ transmitted byte. Each is built twice in a new scratch directory, against the
 base revision's sources and against the checkout's, and run on the same seeds.
 The two traces must be byte-identical for every seed, in every configuration
 the checkout is built in. Then each planted defect of MUTANTS is applied to a
-copy of the checkout's sources, and some seed's trace must differ from the
-base's: a defect no trace can see would make the comparison an empty proof.
+copy of the checkout's sources, built with the scale switches, and some seed's
+trace must differ from the base's: a defect no trace can see would make the
+comparison an empty proof.
 """
 
 import argparse
@@ -31,14 +32,23 @@ PROGRAMS = {
                                                "modules/msrp.c", "modules/mvrp.c", "modules/mmrp.c"], 3000),
 }
 
-#: The checkout's builds: the defaults; a four-slot wheel started just short
-#: of the tick counter's wrap, so whole turns and the wrap both show; and one
-#: lookup bucket (every instance in one, as the list was) and 256.
+#: The timer wheel, the lookup buckets and the merged build, as CMake's LWSRP_SCALE selects them.
+SCALE = ["-DLWSRP_TIMER_SLOTS=64u", "-DLWSRP_ATTR_BUCKETS=16u", "-DLWSRP_TX_MERGE=1"]
+#: The checkout's builds: the defaults (the list walk, the scans and the swapping build); the scale switches;
+#: with them a four-slot wheel started just short of the tick counter's wrap, so whole turns and the wrap both
+#: show; and one lookup bucket (every instance in one, as the list was) and 256.
+def scale(*overrides):
+    """SCALE with each override replacing the definition of its macro."""
+    names = {o.split("=")[0] for o in overrides}
+    return [d for d in SCALE if d.split("=")[0] not in names] + list(overrides)
+
+
 CONFIGS = {
     "default": [],
-    "slots4-wrap": ["-DLWSRP_TIMER_SLOTS=4u", "-DLWSRP_TIMER_EPOCH=0xFFFFFF00u"],
-    "buckets1": ["-DLWSRP_ATTR_BUCKETS=1u"],
-    "buckets256": ["-DLWSRP_ATTR_BUCKETS=256u"],
+    "scale": SCALE,
+    "scale-slots4-wrap": scale("-DLWSRP_TIMER_SLOTS=4u", "-DLWSRP_TIMER_EPOCH=0xFFFFFF00u"),
+    "scale-buckets1": scale("-DLWSRP_ATTR_BUCKETS=1u"),
+    "scale-buckets256": scale("-DLWSRP_ATTR_BUCKETS=256u"),
 }
 
 TIMER = "ports/timer.c"
@@ -197,7 +207,7 @@ def main():
                 problems.append(f"mutant {name}: its target is missing")
                 continue
             target.write_text(text.replace(old, new, 1))
-            exe = build(work, f"mutant-{name}", tree / "src", program, [], args.milan)
+            exe = build(work, f"mutant-{name}", tree / "src", program, SCALE, args.milan)
             if not exe:
                 problems.append(f"mutant {name}: the build fails, which is no behavioural kill")
                 continue
