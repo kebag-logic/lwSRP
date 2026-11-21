@@ -16,8 +16,8 @@ PDU = "src/core/mrp_pdu.c"
 
 # Each replacement reverses one contract. The original checkout is never edited.
 CASES = [
-    ("timer-unlink", "src/ports/timer.c", "    struct shlan_timer **at = &g_head;",
-     "    if (t->cs && t->link && t->link->cs) { return; }\n    struct shlan_timer **at = &g_head;", "unit"),
+    ("timer-unlink", "src/ports/timer.c", "    if (t->at) {\n        unlink_timer(t);\n    }\n    t->cs = 0;",
+     "    if (t->at && t->link) { return; }\n    if (t->at) {\n        unlink_timer(t);\n    }\n    t->cs = 0;", "unit"),
     ("msrp-address", MSRP, "{ 0x01u, 0x80u, 0xC2u, 0x00u, 0x00u, 0x0Eu }",
      "{ 0x91u, 0xE0u, 0xF0u, 0x00u, 0x0Eu, 0x80u }", "unit"),
     ("mmrp-address", "src/include/shish_lan/mrp.h", "0x00u, 0x20u", "0x00u, 0x21u", "unit"),

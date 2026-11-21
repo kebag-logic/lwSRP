@@ -10,6 +10,13 @@
  * after that, the platform drives them by calling shlan_timer_tick() once
  * per centisecond.
  *
+ * A tick visits only the timers that expire in it: each armed timer waits
+ * in the wheel slot of the tick it expires in. Timers that expire in the
+ * same tick fire latest registration first. A timer armed by a callback
+ * during a tick counts that tick too when it registered before the timer
+ * whose callback runs, so a one-centisecond arm of such a timer fires in
+ * the same tick.
+ *
  * To port to an OS timer service: replace timer.c with an implementation
  * that maps shlan_timer_arm/disarm to OS one-shot timers.
  * shlan_timer_tick() becomes a no-op in that case because callbacks are
@@ -18,13 +25,21 @@
 
 #include <stdint.h>
 
+/* Wheel slots: a power of two. A timer due further ahead waits whole turns
+ * of the wheel in its slot; the tick that reaches the slot skips it. */
+#ifndef LWSRP_TIMER_SLOTS
+#define LWSRP_TIMER_SLOTS 64u
+#endif
+
 struct shlan_timer {
     void (*cb)(void *arg); /* callback invoked on expiry          */
     void  *arg;             /* opaque argument passed back to cb  */
 
     /* Module-internal fields — do not access outside timer.c */
-    uint32_t            cs;
-    struct shlan_timer *link;
+    uint32_t             cs;    /* the tick it expires in, while armed  */
+    struct shlan_timer  *link;  /* next timer in its slot, while armed  */
+    struct shlan_timer **at;    /* the link that holds it; NULL: idle   */
+    uint64_t             order; /* registration number; 0: unregistered */
 };
 
 /*
@@ -36,6 +51,7 @@ void shlan_timer_init(struct shlan_timer *t, void (*cb)(void *arg), void *arg);
 /*
  * shlan_timer_arm — start or restart the timer.
  * The callback fires after centiseconds centiseconds.
+ * Zero disarms it. A timer that is not registered never fires.
  */
 void shlan_timer_arm(struct shlan_timer *t, uint32_t centiseconds);
 

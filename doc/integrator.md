@@ -72,6 +72,8 @@ Do not link duplicate definitions.
 The [allocation interface](../src/ports/alloc.h) declares [shlan_malloc, shlan_calloc, and shlan_free](../src/ports/alloc.h).
 The default implementation uses the C library.
 The [timer interface](../src/ports/timer.h) defines initialization, one-shot arming, cancellation, removal, and ticking.
+A tick visits only the timers that expire in it, through a wheel of [LWSRP_TIMER_SLOTS](../src/ports/timer.h) slots.
+Timers that expire in one tick fire latest registration first.
 A fixed pool can replace the default heap.
 Allocation failure returns a negative result.
 Earlier received attributes may remain applied when a later allocation fails.
