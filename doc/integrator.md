@@ -262,7 +262,7 @@ Do not treat successful local declaration as proof of network transmission.
 
 The host adds Ethernet headers and selects the physical interface.
 Use the application's [group address and EtherType](../src/include/shish_lan/mrp.h).
-The [stream destination](../src/modules/msrp.c#L415) is 01-80-C2-00-00-0E.
+The [stream destination](../src/modules/msrp.c#L430) is 01-80-C2-00-00-0E.
 It matches [IEEE 802.1Q-2018, clause 35.2.2.1 and Table 8-1](https://standards.ieee.org/ieee/802.1Q/6844/).
 The [address regression](../tests/unit/integration_test.c) also pins the MAC and VLAN destinations.
 

@@ -33,7 +33,7 @@ Their default transitions match the tables; the optional profile change and impl
 | [IEEE 802.1Q-2018, clause 35.2.2.1 and Table 8-1](https://standards.ieee.org/ieee/802.1Q/6844/) | Stream destination is 01-80-C2-00-00-0E. | Ethernet framing remains in the host adapter. | [Destination constant](../src/modules/msrp.c#L415), [address tests](../tests/unit/integration_test.c). |
 | [IEEE 802.1Q-2018, clause 35.2.2.7.2](https://standards.ieee.org/ieee/802.1Q/6844/) | Listener subtype vectors are encoded and decoded; Ignore creates no registration. | Network interoperability remains unverified. | [Codec](../src/core/mrp_pdu.c), [assembler](../src/core/mrp_mad.c#L1415). |
 | [IEEE 802.1Q-2018, clause 35.2.3](https://standards.ieee.org/ieee/802.1Q/6844/) | Local declaration wrappers. | Full stream registration and attachment service primitives are absent. | [Stream interface](../src/include/shish_lan/msrp.h). |
-| [IEEE 802.1Q-2018, clause 35.2.4](https://standards.ieee.org/ieee/802.1Q/6844/) | Talker flooding and Listener propagation toward registered Talkers. Retained ports replay queued propagation in order. | No topology gating, bandwidth checks, or hardware reservation. | [Stream policy](../src/modules/msrp.c#L138). |
+| [IEEE 802.1Q-2018, clause 35.2.4](https://standards.ieee.org/ieee/802.1Q/6844/) | Talker flooding and Listener propagation toward registered Talkers. Retained ports replay queued propagation in order. | No topology gating, bandwidth checks, or hardware reservation. | [Stream policy](../src/modules/msrp.c#L139). |
 | [IEEE 802.1Q-2018, clause 35.2.6](https://standards.ieee.org/ieee/802.1Q/6844/) | Received Join replaces opposite Talker registrations in IN or LV, with Leave before Join. Changed Listener and Talker values indicate and propagate in IN and LV. | Changed Listeners notify without separate Leave indications. Conflicting New registrations require host precedence policy. | [Value behavior](developer.md#stream-values-and-bounded-interests), [receive tests](../tests/unit/receive_test.c). |
 
 No broader conformance claim follows from these rows.
@@ -53,8 +53,8 @@ flowchart TD
 ~~~
 
 The [host build](../CMakeLists.txt) succeeds.
-Its default [unit runner](../tests/unit/main.c) passes 108 tests with 27199 assertions.
-The enabled [Milan build](tester.md#test-both-registrar-profiles) passes 108 tests with 27187 assertions.
+Its default [unit runner](../tests/unit/main.c) passes 110 tests with 27227 assertions.
+The enabled [Milan build](tester.md#test-both-registrar-profiles) passes 110 tests with 27215 assertions.
 The [scenario harness](../tests/features/environment.py) passes three scenarios and ten steps through [test bindings](../tests/features/switch_bindings.c).
 Each [scenario step](../tests/features/steps/switch_steps.py) checks the simulated port flags instead of repeating an operation.
 Seven [planted binding faults](tester.md#planted-reversals) from [issue #4](https://github.com/kebag-logic/lwSRP/issues/4) each fail named scenarios.

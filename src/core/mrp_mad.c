@@ -61,6 +61,7 @@ static void on_join_timer(void *arg);
 /* Per-attribute instance: one Applicant SM + one Registrar SM */
 struct mrp_attr_inst {
     uint8_t              attr_type;
+    uint8_t              key;          /* attr_key of attr_val, fixed at creation */
     /* Largest in-memory value (struct msrp_talker_failed) with margin;
      * see attr_store_len(). */
     _Alignas(max_align_t) uint8_t attr_val[48];
@@ -439,12 +440,21 @@ uint32_t mrp_attr_registered_ports(const struct mrp_app *app,
     return mask;
 }
 
+/* The value's key (attr_key), or 0 for an application without one. */
+static uint8_t key_of(const struct mrp_app_ops *ops, uint8_t type, const void *val)
+{
+    return ops->attr_key ? ops->attr_key(type, val) : 0u;
+}
+
 static struct mrp_attr_inst *find_attr(struct mrp_port_state *ps, const struct mrp_app_ops *ops,
                                    uint8_t type, const void *val)
 {
-    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next)
-        if (a->attr_type == type && ops->attr_cmp(type, a->attr_val, val) == 0)
+    const uint8_t key = key_of(ops, type, val);
+    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
+        if (a->key == key && a->attr_type == type && ops->attr_cmp(type, a->attr_val, val) == 0) {
             return a;
+        }
+    }
     return NULL;
 }
 
@@ -487,6 +497,7 @@ static struct mrp_attr_inst *get_or_create_attr(struct mrp_app *app,
     }
 
     a->attr_type = type;
+    a->key       = key_of(ops, type, val);
     memcpy(a->attr_val, val, attr_store_len(ops, type));
     a->appl       = MRP_APPL_STATE_VO;
     a->reg        = MRP_REG_STATE_MT;
@@ -1035,7 +1046,7 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
     if ((attr_event == MRP_ATTR_EVENT_JOININ || attr_event == MRP_ATTR_EVENT_JOINMT) &&
         rc->app->ops->attr_replaces) {
         for (struct mrp_attr_inst *old = rc->ps->attrs; old; old = old->next) {
-            if (old != ai && old->reg != MRP_REG_STATE_MT &&
+            if (old != ai && old->reg != MRP_REG_STATE_MT && old->key == ai->key &&
                 rc->app->ops->attr_replaces(old->attr_type,old->attr_val,attr_type,attr_val)) {
                 int r = deliver_event_changed(rc->app, rc->ps, old,
                                                MRP_EVENT_RLV, rc->port_id, false);

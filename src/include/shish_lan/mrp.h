@@ -239,6 +239,13 @@ struct mrp_app_ops {
      * Other events and the existing LV deadline are unchanged.
      */
     bool milan_rapid_leave;
+    /* Optional (may be NULL): one octet of the value octets attr_cmp
+     * compares. Values attr_cmp holds equal, and pairs attr_replaces
+     * accepts, must share it. The MAD compares it before calling attr_cmp
+     * or attr_replaces, so a lookup passes other values without a call.
+     * NULL gives every value the same key.
+     */
+    uint8_t (*attr_key)(uint8_t attr_type, const void *value);
 };
 
 /* Opaque MRP application handle */
