@@ -118,9 +118,10 @@ Each trace driver prints one random life of a module.
 The trace holds every call, its result, every callback with its arguments, and every transmitted octet.
 The check builds each driver against the base revision's sources and against this checkout's.
 Both run the same seeds, and every pair of traces must be byte-identical.
-The checkout is also built with a four-slot timer wheel started just short of the tick counter's wrap.
+The checkout is built with its defaults, and with the three scale options of the [integrator guide](integrator.md#port-platform-services).
+With those options it is also built with a four-slot timer wheel started just short of the tick counter's wrap.
 It is built with one lookup bucket, as the plain list was, and with 256 buckets.
-Then each planted defect in the check's list is applied to a copy of the sources.
+Then each planted defect in the check's list is applied to a copy of the sources, built with the scale options.
 Some seed's trace must then differ from the base's, or the defect counts as surviving.
 A run that does not end counts as differing.
 A defect that only breaks compilation does not count as detected.
@@ -129,6 +130,15 @@ Set DIFFERENTIAL_SCRATCH to a new directory outside the checkout.
 ~~~sh
 python3 tests/check_differential.py --work-dir "$DIFFERENTIAL_SCRATCH"
 python3 tests/check_differential.py --work-dir "$MILAN_DIFFERENTIAL_SCRATCH" --milan ON
+~~~
+
+The unit suite also runs with the scale options.
+Set SCALE_BUILD to a new directory outside the checkout.
+
+~~~sh
+cmake -S . -B "$SCALE_BUILD" -DCMAKE_BUILD_TYPE=Debug -DLWSRP_SCALE=ON
+cmake --build "$SCALE_BUILD" --parallel 2
+ctest --test-dir "$SCALE_BUILD" --output-on-failure
 ~~~
 
 The [timer driver](../tests/differential/timer_trace.c) registers, arms, disarms, removes, and ticks 48 timers at random.
@@ -219,7 +229,7 @@ flowchart LR
 | Deferred propagation | [Multiport tests](../tests/unit/review_test.c) cover refused targets, copied values, source reclamation, allocation rollback, ordered replacement, Flush snapshots, timer completion, receive interleaving, observer continuity, and teardown. | Exhaustion under prolonged refusal. |
 | Propagation policy | [Boundary tests](../tests/unit/review_test.c) pin selected destinations, excluded source ports, Listener routing, receive stopping, and allocation-free operation without policy. | Future spanning-tree role filtering. |
 | MRP state | [Transmit tests](../tests/unit/transmit_test.c) cover declaration ladders, refusal, retry, segmentation, withdrawal, and redeclaration. | Exhaustive table paths. |
-| Timers | [Lifecycle tests](../tests/unit/timer_test.c) and [integration tests](../tests/unit/integration_test.c) cover removal, recreation, aging, periodic timing, and LeaveAll draws. The [differential check](../tests/check_differential.py) holds the wheel to the list walk it replaced. | Target scheduling and long-duration drift. |
+| Timers | [Lifecycle tests](../tests/unit/timer_test.c) and [integration tests](../tests/unit/integration_test.c) cover removal, recreation, aging, periodic timing, and LeaveAll draws. The [differential check](../tests/check_differential.py) holds the optional wheel to the list walk. | Target scheduling and long-duration drift. |
 | Profile withdrawal | [Profile tests](../tests/unit/milan_test.c) cover immediate stream withdrawal, unchanged VLAN/MAC timing, and preserved LV deadlines. | Target callback timing and network interoperability. |
 | Hardware and network | No adapter or interoperability suite. | Target timing, frame ownership, and packet captures. |
 

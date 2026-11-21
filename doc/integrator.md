@@ -21,6 +21,7 @@ The [root build definition](../CMakeLists.txt) selects between host and embedded
 | [ZEPHYR_BASE](../CMakeLists.txt) defined | Selects the module branch and returns before host configuration. |
 | [CONFIG_LWSRP](../Kconfig.zephyr) enabled | Builds protocol sources and default allocation and timer ports. |
 | [LWSRP_MILAN](../CMakeLists.txt) enabled | Selects immediate MSRP withdrawal on received Leave in IN. Defaults to OFF. |
+| [LWSRP_SCALE](../CMakeLists.txt) enabled | Selects the timer wheel, the lookup buckets and the merged Message build, with identical behavior; see [port services](#port-platform-services). Defaults to OFF. |
 
 There are no project options for hardware selection or coverage.
 The [register queue](../src/core/switch_ctrl.c) is absent from both source lists.
@@ -72,10 +73,18 @@ Do not link duplicate definitions.
 The [allocation interface](../src/ports/alloc.h) declares [shlan_malloc, shlan_calloc, and shlan_free](../src/ports/alloc.h).
 The default implementation uses the C library.
 The [timer interface](../src/ports/timer.h) defines initialization, one-shot arming, cancellation, removal, and ticking.
-A tick visits only the timers that expire in it, through a wheel of [LWSRP_TIMER_SLOTS](../src/ports/timer.h) slots.
 Timers that expire in one tick fire latest registration first.
-Each wheel slot costs one pointer of static storage, and each timer four more words than a bare countdown.
-Each participant holds [LWSRP_ATTR_BUCKETS](../src/core/mrp_mad.c) lookup pointers, and each attribute three more pointers.
+By default each tick walks every registered timer.
+Three build options trade code and memory for work that does not grow with the attribute count.
+Set all three with the LWSRP_SCALE option of the [build definition](../CMakeLists.txt), and build every source with the same values.
+
+| Option | Default | Set | Cost when set |
+| --- | --- | --- | --- |
+| [LWSRP_TIMER_SLOTS](../src/ports/timer.h) | 0: each tick walks every timer | A tick visits only its wheel slot's timers. | One pointer a slot; each timer four more words. |
+| [LWSRP_ATTR_BUCKETS](../src/core/mrp_mad.c) | 0: each lookup scans the participant | A lookup scans one bucket by attr_key. | One pointer a bucket a participant; one more an attribute. |
+| [LWSRP_TX_MERGE](../src/core/mrp_mad.c) | 0: each vector is swapped into place | Runs of encoded vectors are merged. | Two more pointers an attribute. |
+
+Each option changes no output, callback, or callback order.
 A fixed pool can replace the default heap.
 Allocation failure returns a negative result.
 Earlier received attributes may remain applied when a later allocation fails.
