@@ -47,7 +47,7 @@ Replacement tests start in IN and received-LeaveAll LV, sweep every allocation i
 Additional tests pin receive stopping at source and reservation allocations, policy masks, and allocation-free registration without propagation policy.
 Named reversals must fail these regressions after compiling successfully.
 The [key suite](../tests/unit/key_test.c) pairs applications that differ only in [attr_key](../src/include/shish_lan/mrp.h).
-It runs in a build with LWSRP_ATTR_KEY, such as LWSRP_SCALE's, and is empty without it.
+It runs in a build with LWSRP_ATTR_KEY, such as LWSRP_SCALE's, and is not registered without it.
 Both take 4000 random steps of reception, declarations, withdrawals, ticks, and transmissions.
 Their indications, attribute states, and transmitted PDUs must match after every step.
 Its values often share a key octet across different identities.
