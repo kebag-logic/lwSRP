@@ -98,8 +98,12 @@ MUTANTS = [
     ("sort-final-merge", "mad", MAD, "sorted = sorted ? tx_merge(pending[k], sorted, len) : pending[k];",
      "sorted = sorted ? tx_merge(sorted, pending[k], len) : pending[k];"),
     ("sort-reencode", "mad", MAD, "        if (a->tx_key != v + 2) {", "        if (false) {"),
-    ("sort-failed-prefix", "mad", MAD, "        if (!tx_vector(ops, a, e->tx, type, len, subtype, v)) {\n            tx_order(ops, event, type, chosen, first, size);",
+    ("sort-failed-prefix", "mad", MAD,
+     "        if (!tx_vector(ops, a, e->tx, type, len, subtype, v)) {\n            if (!ordered) {\n"
+     "                tx_order(ops, event, type, chosen, first, size);\n            }",
      "        if (!tx_vector(ops, a, e->tx, type, len, subtype, v)) {"),
+    ("sort-ordered-check", "mad", MAD, "if (ordered && v != first && memcmp(v - size + 2, v + 2, len) > 0) {",
+     "if (ordered && v != first && memcmp(first + 2, v + 2, len) > 0) {"),
     ("sort-direction", "mad", MAD, "return memcmp(a->tx_key, b->tx_key, len) > 0;", "return memcmp(a->tx_key, b->tx_key, len) < 0;"),
 ]
 

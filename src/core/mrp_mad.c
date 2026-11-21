@@ -1608,14 +1608,21 @@ static uint8_t *tx_message(const struct mrp_app_ops *ops, struct mrp_port_state 
     }
     uint8_t *first = v;
     struct mrp_attr_inst *chosen = NULL, **tail = &chosen;
+    /* Vectors encoded in ascending order already stand where the sort would put them. */
+    bool ordered = true;
     for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
         const struct appl_entry *e = &appl_table[event][a->appl];
         if (!a->tx_selected || a->attr_type != type || e->tx == TX_MSG_NONE) {
             continue;
         }
         if (!tx_vector(ops, a, e->tx, type, len, subtype, v)) {
-            tx_order(ops, event, type, chosen, first, size);
+            if (!ordered) {
+                tx_order(ops, event, type, chosen, first, size);
+            }
             return NULL;
+        }
+        if (ordered && v != first && memcmp(v - size + 2, v + 2, len) > 0) {
+            ordered = false;
         }
         a->tx_key = v + 2;
         a->tx_next = NULL;
@@ -1623,7 +1630,9 @@ static uint8_t *tx_message(const struct mrp_app_ops *ops, struct mrp_port_state 
         tail = &a->tx_next;
         v += size;
     }
-    tx_order(ops, event, type, chosen, first, size);
+    if (!ordered) {
+        tx_order(ops, event, type, chosen, first, size);
+    }
     return tx_close(ops, buf, v);
 #endif
 }
