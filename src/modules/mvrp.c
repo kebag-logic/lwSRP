@@ -90,6 +90,13 @@ static int mvrp_attr_cmp(uint8_t attr_type, const void *a, const void *b)
     return memcmp(a, b, MVRP_ATTR_LEN_VID);
 }
 
+/* An octet mvrp_attr_cmp compares: the VID's second. */
+static uint8_t mvrp_attr_key(uint8_t attr_type, const void *value)
+{
+    (void)attr_type;
+    return ((const uint8_t *)value)[MVRP_ATTR_LEN_VID - 1u];
+}
+
 static const uint8_t mvrp_group_addr[6] = MRP_ADDR_MVRP;
 
 static const struct mrp_app_ops mvrp_ops_tmpl = {
@@ -99,6 +106,7 @@ static const struct mrp_app_ops mvrp_ops_tmpl = {
     .decode_attr   = mvrp_decode_attr,
     .attr_len      = mvrp_attr_len,
     .attr_cmp      = mvrp_attr_cmp,
+    .attr_key      = mvrp_attr_key,
     .ethertype     = MRP_ETHERTYPE_MVRP,
     .proto_version = MRP_PROTOCOL_VERSION,
     /* group_addr and ctx filled at create time */

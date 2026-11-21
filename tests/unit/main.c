@@ -11,6 +11,7 @@ TestSuite *integration_suite(void);
 TestSuite *milan_suite(void);
 TestSuite *boundaries_suite(void);
 TestSuite *grouping_suite(void);
+TestSuite *key_suite(void);
 
 int main(void)
 {
@@ -24,6 +25,7 @@ int main(void)
     add_suite(suite, milan_suite());
     add_suite(suite, boundaries_suite());
     add_suite(suite, grouping_suite());
+    add_suite(suite, key_suite());
     TestReporter *reporter = create_text_reporter();
     int result = run_test_suite(suite, reporter);
     destroy_test_suite(suite);

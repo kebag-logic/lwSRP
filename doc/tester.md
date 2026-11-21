@@ -26,7 +26,7 @@ behave --dry-run
 | Check | Current result | Meaning |
 | --- | --- | --- |
 | Configure and build | Exit 0. | The host library and required unit target compile. |
-| Default unit target | Exit 0; 102 tests and 26658 assertions. | The [runner](../tests/unit/main.c) executes nine suites. |
+| Default unit target | Exit 0; 104 tests and 26686 assertions. | The [runner](../tests/unit/main.c) executes ten suites. |
 | Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c). |
 | Scenario dry run | Validates step matching only. | It does not execute setup or verify behavior. |
 
@@ -46,6 +46,10 @@ Observer tests require continuous transitions through the failed Flush and its t
 Replacement tests start in IN and received-LeaveAll LV, sweep every allocation in both directions, and require Leave before Join.
 Additional tests pin receive stopping at source and reservation allocations, policy masks, and allocation-free registration without propagation policy.
 Named reversals must fail these regressions after compiling successfully.
+The [key suite](../tests/unit/key_test.c) pairs applications that differ only in [attr_key](../src/include/shish_lan/mrp.h).
+Both take 4000 random steps of reception, declarations, withdrawals, ticks, and transmissions.
+Their indications, attribute states, and transmitted PDUs must match after every step.
+Its values often share a key octet across different identities.
 
 The [build definition](../CMakeLists.txt) requires the unit framework's headers and library for host configuration.
 It rejects an empty suite through an output-based failure rule.
@@ -67,7 +71,7 @@ ctest --test-dir "$LWSRP_MILAN_BUILD" --output-on-failure
 SHLAN_LIBRARY="$LWSRP_MILAN_BUILD/libshlan.so" behave
 ~~~
 
-The enabled build passes 102 tests with 26646 assertions.
+The enabled build passes 104 tests with 26674 assertions.
 It also passes three scenarios and ten steps.
 The [profile suite](../tests/unit/milan_test.c) checks both application options in each build.
 It checks the actual constructor against the build selection.
@@ -213,7 +217,7 @@ python3 tests/check_reversals.py --work-dir "$MILAN_REVERSAL_SCRATCH" --prefix "
 ~~~
 
 The [freestanding check](../tests/check_freestanding.py) uses the configured C compiler and rejects hosted allocation, error, and print headers.
-The [reversal cases](../tests/check_reversals.py) cover destination addresses, LeaveAll isolation, validation, offsets, retry, timing, storage, and registration changes.
+The [reversal cases](../tests/check_reversals.py) cover destination addresses, LeaveAll isolation, validation, offsets, retry, timing, storage, registration changes, and the attribute key.
 They also check callback member order and strict bounded-header initialization.
 Two independent profile reversals delay withdrawal from IN and restart the LV deadline.
 The first must fail both immediate-indication tests while the deadline test still passes.
@@ -221,7 +225,7 @@ The second must fail the deadline test while the immediate-indication tests stil
 Additional reversals check build selection and application scope.
 Five grouping reversals split a Message, omit the PDU EndMark, reverse vector order, drop a vector, and remove the length bound.
 Each must fail its named [grouping tests](../tests/unit/grouping_test.c).
-Both profiles run all 99 reversals.
+Both profiles run all 103 reversals.
 They also pin propagation order, recovery indications, extension handling, range errors, and all reported LeaveAll boundaries.
 Each added behavioral reversal must fail its named regression after successful compilation.
 The [embedded check](../tests/check_embedded.py) exercises the actual module source list with a host compiler in both profiles.

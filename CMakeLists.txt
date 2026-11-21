@@ -63,6 +63,7 @@ add_executable(unit_tests
     tests/unit/milan_test.c
     tests/unit/review_test.c
     tests/unit/grouping_test.c
+    tests/unit/key_test.c
     tests/unit/mrpdu_decoder.c
 )
 target_include_directories(unit_tests PRIVATE ${CGREEN_INCLUDE} src/include src)
