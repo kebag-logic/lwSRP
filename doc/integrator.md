@@ -75,12 +75,14 @@ The default implementation uses the C library.
 The [timer interface](../src/ports/timer.h) defines initialization, one-shot arming, cancellation, removal, and ticking.
 Timers that expire in one tick fire latest registration first.
 By default each tick walks every registered timer.
-Three build options trade code and memory for work that does not grow with the attribute count.
-Set all three with the LWSRP_SCALE option of the [build definition](../CMakeLists.txt), and build every source with the same values.
+Four build options trade code and memory for work that does not grow with the attribute count.
+Set them with the LWSRP_SCALE option of the [build definition](../CMakeLists.txt), and build every source with the same values.
+The lookup buckets set the attribute key.
 
 | Option | Default | Set | Cost when set |
 | --- | --- | --- | --- |
 | [LWSRP_TIMER_SLOTS](../src/ports/timer.h) | 0: each tick walks every timer | A tick visits only its wheel slot's timers. | One pointer a slot; each timer four more words. |
+| [LWSRP_ATTR_KEY](../src/include/shish_lan/mrp.h) | 0: no attr_key callback; each lookup compares every attribute | Each attribute keeps attr_key's octet, compared before attr_cmp and attr_replaces. | One octet an attribute; the callback a type. |
 | [LWSRP_ATTR_BUCKETS](../src/core/mrp_mad.c) | 0: each lookup scans the participant | A lookup scans one bucket by attr_key. | One pointer a bucket a participant; one more an attribute. |
 | [LWSRP_TX_MERGE](../src/core/mrp_mad.c) | 0: each vector is swapped into place | Runs of encoded vectors are merged. | Two more pointers an attribute. |
 
@@ -261,7 +263,7 @@ sequenceDiagram
     Target->>Target: Schedule next output
 ~~~
 
-The [assembler](../src/core/mrp_mad.c#L1663) splits populations across Join-spaced opportunities.
+The [assembler](../src/core/mrp_mad.c#L1681) splits populations across Join-spaced opportunities.
 Previously omitted attributes precede repeated declarations.
 Each PDU holds one Message per attribute type, with values in ascending FirstValue order.
 Size the buffer for the largest single-value Message and the application's LeaveAll preamble.
@@ -272,7 +274,7 @@ Do not treat successful local declaration as proof of network transmission.
 
 The host adds Ethernet headers and selects the physical interface.
 Use the application's [group address and EtherType](../src/include/shish_lan/mrp.h).
-The [stream destination](../src/modules/msrp.c#L430) is 01-80-C2-00-00-0E.
+The [stream destination](../src/modules/msrp.c#L434) is 01-80-C2-00-00-0E.
 It matches [IEEE 802.1Q-2018, clause 35.2.2.1 and Table 8-1](https://standards.ieee.org/ieee/802.1Q/6844/).
 The [address regression](../tests/unit/integration_test.c) also pins the MAC and VLAN destinations.
 
@@ -300,7 +302,7 @@ Deliver every elapsed centisecond, including ticks coalesced by the platform.
 The [timer defaults](../src/include/shish_lan/mrp.h) are Join 20, Leave 60, and LeaveAll 1000 centiseconds.
 The Mark II profile uses Leave 500 centiseconds through [mrp_port_configure](../src/include/shish_lan/mrp.h).
 Combine this interval with the [Milan received-Leave option](#milan-received-leave) for immediate explicit withdrawals.
-The [periodic handler](../src/core/mrp_mad.c#L918) uses 100 centiseconds independently of Join spacing.
+The [periodic handler](../src/core/mrp_mad.c#L932) uses 100 centiseconds independently of Join spacing.
 LeaveAll draws lie strictly between its configured interval and 1.5 times that interval.
 The rules are in [IEEE 802.1Q-2018, clauses 10.7.4.3 and 10.7.4.4](https://standards.ieee.org/ieee/802.1Q/6844/).
 Supply different seeds where independent participants need different timing.
@@ -326,7 +328,7 @@ sequenceDiagram
 ~~~
 
 Call the matching [application destroy operation](../src/include/shish_lan/mrp.h) only after all callbacks and accesses have stopped.
-The [destructor](../src/core/mrp_mad.c#L1018) unlinks all owned timers before releasing storage.
+The [destructor](../src/core/mrp_mad.c#L1032) unlinks all owned timers before releasing storage.
 Other applications may continue ticking afterward.
 Destruction itself does not transmit withdrawals.
 Complete any required network withdrawal before teardown.

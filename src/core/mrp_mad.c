@@ -28,6 +28,9 @@
 #ifndef LWSRP_ATTR_BUCKETS
 #define LWSRP_ATTR_BUCKETS 0u
 #endif
+#if LWSRP_ATTR_BUCKETS && !LWSRP_ATTR_KEY
+#error "LWSRP_ATTR_BUCKETS hashes attr_key: it needs LWSRP_ATTR_KEY"
+#endif
 #if LWSRP_ATTR_BUCKETS
 _Static_assert((LWSRP_ATTR_BUCKETS & (LWSRP_ATTR_BUCKETS - 1u)) == 0u && LWSRP_ATTR_BUCKETS != 0u &&
                LWSRP_ATTR_BUCKETS <= 256u, "LWSRP_ATTR_BUCKETS must be a power of two of at most 256");
@@ -83,7 +86,9 @@ static void on_join_timer(void *arg);
 /* Per-attribute instance: one Applicant SM + one Registrar SM */
 struct mrp_attr_inst {
     uint8_t              attr_type;
+#if LWSRP_ATTR_KEY
     uint8_t              key;          /* attr_key of attr_val, fixed at creation */
+#endif
     /* Largest in-memory value (struct msrp_talker_failed) with margin;
      * see attr_store_len(). */
     _Alignas(max_align_t) uint8_t attr_val[48];
@@ -477,18 +482,25 @@ uint32_t mrp_attr_registered_ports(const struct mrp_app *app,
     return mask;
 }
 
+#if LWSRP_ATTR_KEY
 /* The value's key (attr_key), or 0 for an application without one. */
 static uint8_t key_of(const struct mrp_app_ops *ops, uint8_t type, const void *val)
 {
     return ops->attr_key ? ops->attr_key(type, val) : 0u;
 }
+#endif
 
 static struct mrp_attr_inst *find_attr(struct mrp_port_state *ps, const struct mrp_app_ops *ops,
                                    uint8_t type, const void *val)
 {
+#if LWSRP_ATTR_KEY
     const uint8_t key = key_of(ops, type, val);
     for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
         if (a->key == key && a->attr_type == type && ops->attr_cmp(type, a->attr_val, val) == 0) {
+#else
+    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
+        if (a->attr_type == type && ops->attr_cmp(type, a->attr_val, val) == 0) {
+#endif
 #else
 /* The value's key (attr_key), or 0 for an application without one. */
 static uint8_t key_of(const struct mrp_app_ops *ops, uint8_t type, const void *val)
@@ -581,7 +593,9 @@ static struct mrp_attr_inst *get_or_create_attr(struct mrp_app *app,
     }
 
     a->attr_type = type;
+#if LWSRP_ATTR_KEY
     a->key       = key_of(ops, type, val);
+#endif
     memcpy(a->attr_val, val, attr_store_len(ops, type));
     a->appl       = MRP_APPL_STATE_VO;
     a->reg        = MRP_REG_STATE_MT;
@@ -1133,7 +1147,11 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
 #else
         for (struct mrp_attr_inst *old = *bucket_of(rc->ps, ai->key); old; old = old->key_next) {
 #endif
+#if LWSRP_ATTR_KEY
             if (old != ai && old->reg != MRP_REG_STATE_MT && old->key == ai->key &&
+#else
+            if (old != ai && old->reg != MRP_REG_STATE_MT &&
+#endif
                 rc->app->ops->attr_replaces(old->attr_type,old->attr_val,attr_type,attr_val)) {
                 int r = deliver_event_changed(rc->app, rc->ps, old,
                                                MRP_EVENT_RLV, rc->port_id, false);

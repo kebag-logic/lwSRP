@@ -47,6 +47,7 @@ Replacement tests start in IN and received-LeaveAll LV, sweep every allocation i
 Additional tests pin receive stopping at source and reservation allocations, policy masks, and allocation-free registration without propagation policy.
 Named reversals must fail these regressions after compiling successfully.
 The [key suite](../tests/unit/key_test.c) pairs applications that differ only in [attr_key](../src/include/shish_lan/mrp.h).
+It runs in a build with LWSRP_ATTR_KEY, such as LWSRP_SCALE's, and is empty without it.
 Both take 4000 random steps of reception, declarations, withdrawals, ticks, and transmissions.
 Their indications, attribute states, and transmitted PDUs must match after every step.
 Its values often share a key octet across different identities.
@@ -248,7 +249,8 @@ It changes one behavior at a time, builds, and requires the corresponding check 
 It restores each source before continuing and finishes with a passing build and test run.
 A behavioral mutation that only breaks compilation does not count as detected.
 Every command's return code and output are saved in scratch.
-Set REVERSAL_SCRATCH, MILAN_REVERSAL_SCRATCH, and EMBEDDED_SCRATCH to separate new directories outside the checkout.
+Set REVERSAL_SCRATCH, MILAN_REVERSAL_SCRATCH, KEY_REVERSAL_SCRATCH, MILAN_KEY_REVERSAL_SCRATCH, and EMBEDDED_SCRATCH to separate new directories outside the checkout.
+The attribute key's reversals run only with --scale ON, which builds LWSRP_SCALE; that run holds no other case.
 
 ~~~sh
 python3 tests/check_embedded.py --work-dir "$EMBEDDED_SCRATCH"
@@ -256,6 +258,8 @@ python3 tests/check_freestanding.py
 CC="cc -DLWSRP_MILAN=1" python3 tests/check_freestanding.py
 python3 tests/check_reversals.py --work-dir "$REVERSAL_SCRATCH" --prefix "$CGREEN_PREFIX"
 python3 tests/check_reversals.py --work-dir "$MILAN_REVERSAL_SCRATCH" --prefix "$CGREEN_PREFIX" --milan ON
+python3 tests/check_reversals.py --work-dir "$KEY_REVERSAL_SCRATCH" --prefix "$CGREEN_PREFIX" --scale ON
+python3 tests/check_reversals.py --work-dir "$MILAN_KEY_REVERSAL_SCRATCH" --prefix "$CGREEN_PREFIX" --milan ON --scale ON
 ~~~
 
 The [freestanding check](../tests/check_freestanding.py) uses the configured C compiler and rejects hosted allocation, error, and print headers.

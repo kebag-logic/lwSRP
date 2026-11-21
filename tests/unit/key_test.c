@@ -15,6 +15,7 @@
 #include "shish_lan/mvrp.h"
 #include "shish_lan/mrp_pdu.h"
 #include "ports/timer.h"
+#if LWSRP_ATTR_KEY
 
 Describe(Key);
 BeforeEach(Key) {}
@@ -297,3 +298,10 @@ TestSuite *key_suite(void)
     add_test_with_context(suite, Key, mvrp_keyed_lookups_match_unkeyed_lookups);
     return suite;
 }
+#else
+/* Built without LWSRP_ATTR_KEY, the MAD keeps no key: nothing to compare. */
+TestSuite *key_suite(void)
+{
+    return create_test_suite();
+}
+#endif

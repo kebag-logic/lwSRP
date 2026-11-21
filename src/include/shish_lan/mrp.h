@@ -24,6 +24,20 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/*
+ * 1 gives struct mrp_app_ops its attr_key and the MAD each instance's key,
+ * tested before attr_cmp and attr_replaces; 0 compares every instance. The
+ * lookup buckets (LWSRP_ATTR_BUCKETS) hash the key, so they set it, and so
+ * does LWSRP_SCALE. Build every translation unit with the same value.
+ */
+#ifndef LWSRP_ATTR_KEY
+#if defined(LWSRP_ATTR_BUCKETS) && (LWSRP_ATTR_BUCKETS + 0)
+#define LWSRP_ATTR_KEY 1
+#else
+#define LWSRP_ATTR_KEY 0
+#endif
+#endif
+
 /* ------------------------------------------------------------------ */
 /* §10.7.7 Applicant state machine states — Table 10-3                 */
 /* ------------------------------------------------------------------ */
@@ -239,6 +253,7 @@ struct mrp_app_ops {
      * Other events and the existing LV deadline are unchanged.
      */
     bool milan_rapid_leave;
+#if LWSRP_ATTR_KEY
     /* Optional (may be NULL): one octet of the value octets attr_cmp
      * compares. Values attr_cmp holds equal, and pairs attr_replaces
      * accepts, must share it. The MAD compares it before calling attr_cmp
@@ -246,6 +261,7 @@ struct mrp_app_ops {
      * NULL gives every value the same key.
      */
     uint8_t (*attr_key)(uint8_t attr_type, const void *value);
+#endif
 };
 
 /* Opaque MRP application handle */

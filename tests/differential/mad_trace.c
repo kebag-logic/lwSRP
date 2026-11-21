@@ -226,7 +226,7 @@ static struct mrp_app *tie_create(uint8_t ports)
     ops.attr_has_subtype = tie_subtype;
     ops.attr_mem_len = tie_mem_len;
     ops.attr_replaces = tie_replaces;
-#ifdef TRACE_ATTR_KEY
+#if defined(TRACE_ATTR_KEY) && defined(LWSRP_ATTR_KEY) && LWSRP_ATTR_KEY
     ops.attr_key = tie_key;
 #endif
     ops.milan_rapid_leave = draw(2) != 0u;
