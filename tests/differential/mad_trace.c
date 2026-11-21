@@ -19,7 +19,7 @@
  * planted by the seed.
  *
  * usage: mad_trace <seed> <steps>
- * Build with -DTRACE_ATTR_KEY when mrp.h has attr_key.
+ * Build with -DTRACE_ATTR_KEY when mrp.h has attr_key; it is used where LWSRP_ATTR_KEY builds it.
  */
 #include <stdarg.h>
 #include <stdbool.h>
@@ -204,7 +204,7 @@ static bool tie_replaces(uint8_t old_type, const void *old_value, uint8_t new_ty
     return old_type != new_type && ((const uint8_t *)old_value)[0] == ((const uint8_t *)new_value)[0];
 }
 
-#ifdef TRACE_ATTR_KEY
+#if defined(TRACE_ATTR_KEY) && defined(LWSRP_ATTR_KEY) && LWSRP_ATTR_KEY
 static uint8_t tie_key(uint8_t type, const void *value)
 {
     (void)type;
