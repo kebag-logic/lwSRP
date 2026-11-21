@@ -299,9 +299,6 @@ TestSuite *key_suite(void)
     return suite;
 }
 #else
-/* Built without LWSRP_ATTR_KEY, the MAD keeps no key: nothing to compare. */
-TestSuite *key_suite(void)
-{
-    return create_test_suite();
-}
+/* Built without LWSRP_ATTR_KEY the MAD keeps no key, so there is nothing to compare (tests/unit/main.c). */
+typedef int key_test_unbuilt;
 #endif

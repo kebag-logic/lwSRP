@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 #include <cgreen/cgreen.h>
+#include "shish_lan/mrp.h"
 
 TestSuite *mrp_pdu_suite(void);
 TestSuite *timer_suite(void);
@@ -11,7 +12,9 @@ TestSuite *integration_suite(void);
 TestSuite *milan_suite(void);
 TestSuite *boundaries_suite(void);
 TestSuite *grouping_suite(void);
+#if LWSRP_ATTR_KEY
 TestSuite *key_suite(void);
+#endif
 
 int main(void)
 {
@@ -25,7 +28,9 @@ int main(void)
     add_suite(suite, milan_suite());
     add_suite(suite, boundaries_suite());
     add_suite(suite, grouping_suite());
+#if LWSRP_ATTR_KEY
     add_suite(suite, key_suite());
+#endif
     TestReporter *reporter = create_text_reporter();
     int result = run_test_suite(suite, reporter);
     destroy_test_suite(suite);
