@@ -194,7 +194,7 @@ Its key collides across values, and each received value can replace up to three 
 After each step the trace records a digest of every attribute's states and value, and of the transmit buffer.
 Each driver runs 200 seeds, 20000 steps each for timers and 3000 for MRP.
 Every build gives identical traces in both profiles.
-All 21 planted defects are detected: ten in the timers, five in the lookup buckets, and six in the vector order.
+All 22 planted defects are detected: ten in the timers, five in the lookup buckets, and seven in the vector order.
 
 ## Run the existing codec tests
 

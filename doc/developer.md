@@ -134,6 +134,7 @@ Each declaration follows as a single-value vector, in ascending FirstValue order
 Equal FirstValues keep the attribute list's order.
 By default the encoder swaps each new vector backwards past every greater one.
 With [LWSRP_TX_MERGE](../src/core/mrp_mad.c) set, it writes each vector once, in the list's order, then merges runs of the list by FirstValue.
+Vectors already written in ascending order are left in place, with no merge.
 Only vectors whose place changed are then encoded again in their new place.
 One EndMark closes each Message, and one more closes the PDU.
 Selection keeps the earlier order: omitted values first, then repeats.
