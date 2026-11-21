@@ -105,20 +105,20 @@ VO means Very anxious Observer; VP means Very anxious Passive.
 VN means Very anxious New; AN means Anxious New.
 AA means Anxious Active; QA means Quiet Active.
 Transmit labels describe required protocol actions.
-The [transmit operation](../src/core/mrp_mad.c#L1654) applies these transitions after the host accepts the payload.
+The [transmit operation](../src/core/mrp_mad.c#L1663) applies these transitions after the host accepts the payload.
 
 Comparison: matches the table for the displayed transitions, including the Registrar condition.
 Transmission assumes sufficient frame space, as required by [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3, note 7](https://standards.ieee.org/ieee/802.1Q/6844/).
 
 The [Applicant handler](../src/core/mrp_mad.c#L605) implements the Registrar condition and corrected declaration transitions.
 The [event dispatcher](../src/core/mrp_mad.c#L854) requests transmission for anxious and leaving states.
-The [transactional assembler](../src/core/mrp_mad.c#L1654) preserves state when a required value cannot fit.
+The [transactional assembler](../src/core/mrp_mad.c#L1663) preserves state when a required value cannot fit.
 Optional packing actions are omitted; each encoded vector carries one value.
 
 ### MRPDU layout
 
 Reference: [IEEE 802.1Q-2018, clauses 10.8.1.2 and 10.8.2](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [Message writer](../src/core/mrp_mad.c#L1462) and [PDU writer](../src/core/mrp_mad.c#L1632).
+Evidence: [Message writer](../src/core/mrp_mad.c#L1462) and [PDU writer](../src/core/mrp_mad.c#L1641).
 
 ~~~mermaid
 flowchart LR
@@ -281,7 +281,7 @@ Begin resets either state to Passive.
 Begin, reception, and expiry restart the timer; expiry requests transmission.
 Active transmission requires a LeaveAll message and local LeaveAll processing.
 
-The [transmit operation](../src/core/mrp_mad.c#L1654) emits one LeaveAll vector for each supported attribute type.
+The [transmit operation](../src/core/mrp_mad.c#L1663) emits one LeaveAll vector for each supported attribute type.
 Acceptance makes the participant Passive and delivers local LeaveAll events.
 Refusal preserves the pending payload and does not age registrations through an unsent LeaveAll.
 The [timer draw](../src/core/mrp_mad.c#L872) lies strictly between the configured interval and 1.5 times that interval.
