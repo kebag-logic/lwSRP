@@ -85,7 +85,7 @@ They are not a complete conformance model or evidence of tested behavior.
 ### Applicant declarations
 
 Reference: [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [declaration rows](../src/core/mrp_mad.c#L174) and [Applicant handler](../src/core/mrp_mad.c#L548).
+Evidence: [declaration rows](../src/core/mrp_mad.c#L195) and [Applicant handler](../src/core/mrp_mad.c#L605).
 
 ~~~mermaid
 stateDiagram-v2
@@ -145,7 +145,7 @@ The [grouping tests](../tests/unit/grouping_test.c) pin the bytes with an [indep
 ### Applicant observation
 
 Reference: [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [receive-event rows](../src/core/mrp_mad.c#L223).
+Evidence: [receive-event rows](../src/core/mrp_mad.c#L244).
 
 ~~~mermaid
 stateDiagram-v2
@@ -164,9 +164,9 @@ These names come from the [state enum](../src/include/shish_lan/mrp.h).
 The prefix r marks a received event.
 Shared means the point-to-point subset is disabled and the operational MAC is not point-to-point.
 Comparison: matches the table for the displayed transitions with that condition.
-Local Join moves AO to AP and QO to QP in the [Applicant table](../src/core/mrp_mad.c#L165).
+Local Join moves AO to AP and QO to QP in the [Applicant table](../src/core/mrp_mad.c#L186).
 
-The [Applicant handler](../src/core/mrp_mad.c#L548) checks the configured point-to-point condition.
+The [Applicant handler](../src/core/mrp_mad.c#L605) checks the configured point-to-point condition.
 Received JoinIn leaves LA unchanged.
 Received In quiets AA only on point-to-point links.
 The conditions follow [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3, notes 3–5](https://standards.ieee.org/ieee/802.1Q/6844/).
@@ -174,7 +174,7 @@ The conditions follow [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3, notes 3–5]
 ### Applicant withdrawal
 
 Reference: [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [withdrawal row](../src/core/mrp_mad.c#L188) and [transmit rows](../src/core/mrp_mad.c#L195).
+Evidence: [withdrawal row](../src/core/mrp_mad.c#L209) and [transmit rows](../src/core/mrp_mad.c#L216).
 
 ~~~mermaid
 stateDiagram-v2
@@ -189,7 +189,7 @@ stateDiagram-v2
 LA means Leaving Active; LO means Leaving Observer.
 See the [state enum](../src/include/shish_lan/mrp.h) for all twelve states.
 Comparison: matches the table for the displayed transitions when the frame has space.
-The [transmit rows](../src/core/mrp_mad.c#L195) now match those displayed transitions.
+The [transmit rows](../src/core/mrp_mad.c#L216) now match those displayed transitions.
 Full payloads defer omitted values and request another Join-spaced opportunity.
 A LeaveAll transmission uses the separate full-payload event for omitted values.
 The [transmit tests](../tests/unit/transmit_test.c) check fairness across a split population.
@@ -201,7 +201,7 @@ Reference: [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3, notes 1–4 and 12](htt
 ### Registrar
 
 Reference: [IEEE 802.1Q-2018, clause 10.7.8, Table 10-4](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [Registrar table](../src/core/mrp_mad.c#L341) and [indication handler](../src/core/mrp_mad.c#L660).
+Evidence: [Registrar table](../src/core/mrp_mad.c#L362) and [indication handler](../src/core/mrp_mad.c#L717).
 
 ~~~mermaid
 stateDiagram-v2
@@ -230,10 +230,10 @@ Unchanged values issue no additional Join indication or propagation callback, ma
 Changed Listener or Talker values in IN or LV indicate and propagate the update.
 This also applies after received or transmitted LeaveAll.
 The [recovery regression](../tests/unit/review_test.c) checks both events and cancellation beyond the original deadline.
-Evidence: [Registrar Join rows](../src/core/mrp_mad.c#L369).
+Evidence: [Registrar Join rows](../src/core/mrp_mad.c#L390).
 
 The optional [milan_rapid_leave](../src/include/shish_lan/mrp.h) changes only received Leave in IN.
-The [Registrar handler](../src/core/mrp_mad.c#L660) selects this transition before applying the normal indication and propagation actions.
+The [Registrar handler](../src/core/mrp_mad.c#L717) selects this transition before applying the normal indication and propagation actions.
 The option is copied at application creation; its default is false.
 The [MSRP build setting](integrator.md#milan-received-leave) enables it for stream applications.
 VLAN and MAC applications retain the default table.
