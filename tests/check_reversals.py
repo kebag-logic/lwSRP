@@ -351,11 +351,17 @@ def failed_scenarios(output):
     return names
 
 
+#: The reversals of the attribute key, which only a build with LWSRP_ATTR_KEY (LWSRP_SCALE) compiles.
+NEEDS_KEY = {"attr-key-unset", "attr-key-lookup-inverted", "attr-key-replacement-inverted",
+             "msrp-key-outside-compare"}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--work-dir", type=Path, required=True)
     parser.add_argument("--prefix", type=Path, required=True)
     parser.add_argument("--milan", choices=["OFF", "ON"], default="OFF")
+    parser.add_argument("--scale", choices=["OFF", "ON"], default="OFF")
     args = parser.parse_args()
     work = args.work_dir.resolve()
     if work.is_relative_to(ROOT) or work.exists():
@@ -386,7 +392,7 @@ def main():
 
     rc, _ = run("configure", ["cmake", "-S", str(source), "-B", str(build),
                               "-DCMAKE_BUILD_TYPE=Release", f"-DCMAKE_PREFIX_PATH={args.prefix.resolve()}",
-                              f"-DLWSRP_MILAN={args.milan}"])
+                              f"-DLWSRP_MILAN={args.milan}", f"-DLWSRP_SCALE={args.scale}"])
     if rc:
         return 1
     build_command = ["cmake", "--build", str(build), "--parallel", "2"]
@@ -397,6 +403,11 @@ def main():
         return 1
     failures = 0
     for label, name, old, new, check in CASES:
+        if label in NEEDS_KEY and args.scale == "OFF":
+            print(f"SKIP {label}: the attribute key is built only with LWSRP_ATTR_KEY (run with --scale ON)")
+            continue
+        if label not in NEEDS_KEY and args.scale == "ON":
+            continue  # the default build's run holds every other reversal; some target code the scale build replaces
         path = source / name
         original = path.read_text()
         if old not in original:

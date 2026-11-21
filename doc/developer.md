@@ -52,6 +52,7 @@ The optional [attr_mem_len](../src/include/shish_lan/mrp.h) callback gives the s
 The [stream adapter](../src/modules/msrp.c) uses host-endian Talker structures and nine stored bytes for Listeners.
 The [attr_cmp](../src/include/shish_lan/mrp.h) callback defines identity.
 The optional [attr_key](../src/include/shish_lan/mrp.h) callback returns one octet of the octets attr_cmp compares.
+It exists only in a build with [LWSRP_ATTR_KEY](../src/include/shish_lan/mrp.h) set, which the lookup buckets need and set.
 Equal identities and replacement pairs must share that octet.
 The [MAD](../src/core/mrp_mad.c) stores it at creation and compares it before calling attr_cmp or attr_replaces.
 With [LWSRP_ATTR_BUCKETS](../src/core/mrp_mad.c) set, each participant also keeps its attributes in lookup buckets by that octet.
@@ -85,7 +86,7 @@ They are not a complete conformance model or evidence of tested behavior.
 ### Applicant declarations
 
 Reference: [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [declaration rows](../src/core/mrp_mad.c#L195) and [Applicant handler](../src/core/mrp_mad.c#L605).
+Evidence: [declaration rows](../src/core/mrp_mad.c#L200) and [Applicant handler](../src/core/mrp_mad.c#L619).
 
 ~~~mermaid
 stateDiagram-v2
@@ -146,7 +147,7 @@ The [grouping tests](../tests/unit/grouping_test.c) pin the bytes with an [indep
 ### Applicant observation
 
 Reference: [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [receive-event rows](../src/core/mrp_mad.c#L244).
+Evidence: [receive-event rows](../src/core/mrp_mad.c#L249).
 
 ~~~mermaid
 stateDiagram-v2
@@ -165,9 +166,9 @@ These names come from the [state enum](../src/include/shish_lan/mrp.h).
 The prefix r marks a received event.
 Shared means the point-to-point subset is disabled and the operational MAC is not point-to-point.
 Comparison: matches the table for the displayed transitions with that condition.
-Local Join moves AO to AP and QO to QP in the [Applicant table](../src/core/mrp_mad.c#L186).
+Local Join moves AO to AP and QO to QP in the [Applicant table](../src/core/mrp_mad.c#L191).
 
-The [Applicant handler](../src/core/mrp_mad.c#L605) checks the configured point-to-point condition.
+The [Applicant handler](../src/core/mrp_mad.c#L619) checks the configured point-to-point condition.
 Received JoinIn leaves LA unchanged.
 Received In quiets AA only on point-to-point links.
 The conditions follow [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3, notes 3–5](https://standards.ieee.org/ieee/802.1Q/6844/).
@@ -175,7 +176,7 @@ The conditions follow [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3, notes 3–5]
 ### Applicant withdrawal
 
 Reference: [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [withdrawal row](../src/core/mrp_mad.c#L209) and [transmit rows](../src/core/mrp_mad.c#L216).
+Evidence: [withdrawal row](../src/core/mrp_mad.c#L214) and [transmit rows](../src/core/mrp_mad.c#L221).
 
 ~~~mermaid
 stateDiagram-v2
@@ -190,7 +191,7 @@ stateDiagram-v2
 LA means Leaving Active; LO means Leaving Observer.
 See the [state enum](../src/include/shish_lan/mrp.h) for all twelve states.
 Comparison: matches the table for the displayed transitions when the frame has space.
-The [transmit rows](../src/core/mrp_mad.c#L216) now match those displayed transitions.
+The [transmit rows](../src/core/mrp_mad.c#L221) now match those displayed transitions.
 Full payloads defer omitted values and request another Join-spaced opportunity.
 A LeaveAll transmission uses the separate full-payload event for omitted values.
 The [transmit tests](../tests/unit/transmit_test.c) check fairness across a split population.
@@ -202,7 +203,7 @@ Reference: [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3, notes 1–4 and 12](htt
 ### Registrar
 
 Reference: [IEEE 802.1Q-2018, clause 10.7.8, Table 10-4](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [Registrar table](../src/core/mrp_mad.c#L362) and [indication handler](../src/core/mrp_mad.c#L717).
+Evidence: [Registrar table](../src/core/mrp_mad.c#L367) and [indication handler](../src/core/mrp_mad.c#L731).
 
 ~~~mermaid
 stateDiagram-v2
@@ -231,10 +232,10 @@ Unchanged values issue no additional Join indication or propagation callback, ma
 Changed Listener or Talker values in IN or LV indicate and propagate the update.
 This also applies after received or transmitted LeaveAll.
 The [recovery regression](../tests/unit/review_test.c) checks both events and cancellation beyond the original deadline.
-Evidence: [Registrar Join rows](../src/core/mrp_mad.c#L390).
+Evidence: [Registrar Join rows](../src/core/mrp_mad.c#L395).
 
 The optional [milan_rapid_leave](../src/include/shish_lan/mrp.h) changes only received Leave in IN.
-The [Registrar handler](../src/core/mrp_mad.c#L717) selects this transition before applying the normal indication and propagation actions.
+The [Registrar handler](../src/core/mrp_mad.c#L731) selects this transition before applying the normal indication and propagation actions.
 The option is copied at application creation; its default is false.
 The [MSRP build setting](integrator.md#milan-received-leave) enables it for stream applications.
 VLAN and MAC applications retain the default table.

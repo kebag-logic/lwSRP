@@ -75,12 +75,14 @@ The default implementation uses the C library.
 The [timer interface](../src/ports/timer.h) defines initialization, one-shot arming, cancellation, removal, and ticking.
 Timers that expire in one tick fire latest registration first.
 By default each tick walks every registered timer.
-Three build options trade code and memory for work that does not grow with the attribute count.
-Set all three with the LWSRP_SCALE option of the [build definition](../CMakeLists.txt), and build every source with the same values.
+Four build options trade code and memory for work that does not grow with the attribute count.
+Set them with the LWSRP_SCALE option of the [build definition](../CMakeLists.txt), and build every source with the same values.
+The lookup buckets set the attribute key.
 
 | Option | Default | Set | Cost when set |
 | --- | --- | --- | --- |
 | [LWSRP_TIMER_SLOTS](../src/ports/timer.h) | 0: each tick walks every timer | A tick visits only its wheel slot's timers. | One pointer a slot; each timer four more words. |
+| [LWSRP_ATTR_KEY](../src/include/shish_lan/mrp.h) | 0: no attr_key callback; each lookup compares every attribute | Each attribute keeps attr_key's octet, compared before attr_cmp and attr_replaces. | One octet an attribute; the callback a type. |
 | [LWSRP_ATTR_BUCKETS](../src/core/mrp_mad.c) | 0: each lookup scans the participant | A lookup scans one bucket by attr_key. | One pointer a bucket a participant; one more an attribute. |
 | [LWSRP_TX_MERGE](../src/core/mrp_mad.c) | 0: each vector is swapped into place | Runs of encoded vectors are merged. | Two more pointers an attribute. |
 
@@ -275,7 +277,7 @@ Do not treat successful local declaration as proof of network transmission.
 
 The host adds Ethernet headers and selects the physical interface.
 Use the application's [group address and EtherType](../src/include/shish_lan/mrp.h).
-The [stream destination](../src/modules/msrp.c#L430) is 01-80-C2-00-00-0E.
+The [stream destination](../src/modules/msrp.c#L434) is 01-80-C2-00-00-0E.
 It matches [IEEE 802.1Q-2018, clause 35.2.2.1 and Table 8-1](https://standards.ieee.org/ieee/802.1Q/6844/).
 The [address regression](../tests/unit/integration_test.c) also pins the MAC and VLAN destinations.
 
