@@ -24,19 +24,25 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE = "08ee86e812a0eb5e1dc6cd61b494d8baf3491348"
 FLAGS = ["-O2", "-std=c11", "-Wall", "-Wextra", "-Werror"]
 
-#: Each driver and the library sources it links, under src/.
+#: Each driver, the library sources it links under src/, and its steps a seed.
 PROGRAMS = {
-    "timer": ("tests/differential/timer_trace.c", ["ports/timer.c"]),
+    "timer": ("tests/differential/timer_trace.c", ["ports/timer.c"], 20000),
+    "mad": ("tests/differential/mad_trace.c", ["core/mrp_mad.c", "core/mrp_pdu.c", "ports/timer.c",
+                                               "modules/msrp.c", "modules/mvrp.c", "modules/mmrp.c"], 3000),
 }
 
-#: The checkout's builds: the defaults, then a four-slot wheel started just
-#: short of the tick counter's wrap, so whole turns and the wrap both show.
+#: The checkout's builds: the defaults; a four-slot wheel started just short
+#: of the tick counter's wrap, so whole turns and the wrap both show; and one
+#: lookup bucket (every instance in one, as the list was) and 256.
 CONFIGS = {
     "default": [],
     "slots4-wrap": ["-DLWSRP_TIMER_SLOTS=4u", "-DLWSRP_TIMER_EPOCH=0xFFFFFF00u"],
+    "buckets1": ["-DLWSRP_ATTR_BUCKETS=1u"],
+    "buckets256": ["-DLWSRP_ATTR_BUCKETS=256u"],
 }
 
 TIMER = "ports/timer.c"
+MAD = "core/mrp_mad.c"
 
 #: Each defect reverses one rule the traces must keep: (name, program, file
 #: under src/, original text, planted text).
@@ -59,6 +65,32 @@ MUTANTS = [
     ("timer-removed-armed", "timer", TIMER, "    if (t->at) {\n        unlink_timer(t);\n    }\n    t->cs = 0;",
      "    t->cs = 0;"),
     ("timer-removed-registered", "timer", TIMER, "    t->link = NULL;\n    t->order = 0;\n}", "    t->link = NULL;\n}"),
+    # The lookup index: each bucket in the list's order, every instance in its key's bucket.
+    ("index-bucket-tail", "mad", MAD,
+     "    a->key_next   = *bucket_of(ps, a->key);\n    ps->by_key[a->key % LWSRP_ATTR_BUCKETS] = a;",
+     "    struct mrp_attr_inst **end = &ps->by_key[a->key % LWSRP_ATTR_BUCKETS];\n"
+     "    while (*end) { end = &(*end)->key_next; }\n    a->key_next = NULL;\n    *end = a;"),
+    ("index-reclaim-head", "mad", MAD, "            while (*in != a) {", "            while (false) {"),
+    ("index-replacement-bucket", "mad", MAD,
+     "for (struct mrp_attr_inst *old = *bucket_of(rc->ps, ai->key); old; old = old->key_next) {",
+     "for (struct mrp_attr_inst *old = *bucket_of(rc->ps, (uint8_t)(ai->key + 1u)); old; old = old->key_next) {"),
+    ("index-registered-bucket", "mad", MAD,
+     "for (const struct mrp_attr_inst *a = *bucket_of(ps, key); a; a = a->key_next) {",
+     "for (const struct mrp_attr_inst *a = *bucket_of(ps, (uint8_t)(key + 1u)); a; a = a->key_next) {"),
+    ("index-lookup-bucket", "mad", MAD,
+     "    for (struct mrp_attr_inst *a = *bucket_of(ps, key); a; a = a->key_next) {\n        if (a->key == key && a->attr_type == type",
+     "    for (struct mrp_attr_inst *a = *bucket_of(ps, (uint8_t)(key ^ 1u)); a; a = a->key_next) {\n        if (a->key == key && a->attr_type == type"),
+    # The build's order: ascending FirstValue, equal values in the list's order.
+    ("sort-merge-ties", "mad", MAD, "struct mrp_attr_inst **from = tx_after(a, b, len) ? &b : &a;",
+     "struct mrp_attr_inst **from = tx_after(b, a, len) ? &a : &b;"),
+    ("sort-run-reversal", "mad", MAD, "        if (list && tx_after(run, list, len)) {\n            while (list && tx_after(run, list, len)) {",
+     "        if (list && !tx_after(list, run, len)) {\n            while (list && !tx_after(list, run, len)) {"),
+    ("sort-final-merge", "mad", MAD, "sorted = sorted ? tx_merge(pending[k], sorted, len) : pending[k];",
+     "sorted = sorted ? tx_merge(sorted, pending[k], len) : pending[k];"),
+    ("sort-reencode", "mad", MAD, "        if (a->tx_key != v + 2) {", "        if (false) {"),
+    ("sort-failed-prefix", "mad", MAD, "        if (!tx_vector(ops, a, e->tx, type, len, subtype, v)) {\n            tx_order(ops, event, type, chosen, first, size);",
+     "        if (!tx_vector(ops, a, e->tx, type, len, subtype, v)) {"),
+    ("sort-direction", "mad", MAD, "return memcmp(a->tx_key, b->tx_key, len) > 0;", "return memcmp(a->tx_key, b->tx_key, len) < 0;"),
 ]
 
 
@@ -68,16 +100,23 @@ def run(command, log, cwd=None, timeout=600):
     return result.returncode
 
 
-def build(work, label, src, program, extra):
-    driver, sources = PROGRAMS[program]
+def build(work, label, src, program, extra, milan):
+    driver, sources, _ = PROGRAMS[program]
     exe = work / f"{program}-{label}"
+    # A base revision before the attribute key builds the driver without it.
+    keyed = "attr_key" in (src / "include/shish_lan/mrp.h").read_text()
+    extra = [*extra, *(["-DTRACE_ATTR_KEY"] if keyed else []), f"-DLWSRP_MILAN={int(milan == 'ON')}"]
     rc = run(["cc", *FLAGS, *extra, f"-I{src}", f"-I{src / 'include'}", "-o", str(exe), str(ROOT / driver),
               *[str(src / s) for s in sources]], work / f"build-{program}-{label}.log")
     return exe if rc == 0 else None
 
 
 def trace(exe, seed, steps):
-    result = subprocess.run([str(exe), str(seed), str(steps)], capture_output=True, timeout=600)
+    """A run's status and trace; a run that does not end is a failed run (a corrupted list can loop)."""
+    try:
+        result = subprocess.run([str(exe), str(seed), str(steps)], capture_output=True, timeout=60)
+    except subprocess.TimeoutExpired as late:
+        return -9, late.stdout or b""
     return result.returncode, result.stdout
 
 
@@ -93,7 +132,8 @@ def main():
     parser.add_argument("--work-dir", type=Path, required=True)
     parser.add_argument("--base", default=BASE, help="the revision whose behaviour is the reference")
     parser.add_argument("--seeds", type=int, default=200)
-    parser.add_argument("--steps", type=int, default=20000)
+    parser.add_argument("--steps", type=int, help="steps a seed for every driver (default: each driver's own)")
+    parser.add_argument("--milan", choices=["OFF", "ON"], default="OFF")
     parser.add_argument("--no-mutants", action="store_true", help="compare only; plant nothing")
     args = parser.parse_args()
     work = args.work_dir.resolve()
@@ -107,36 +147,39 @@ def main():
        run(["tar", "-xf", str(archive), "-C", str(base)], work / "extract.log"):
         print(f"FAIL the base revision {args.base} cannot be read")
         return 1
-    problems, rows, expected_of = [], [], {}
-    for program in PROGRAMS:
-        reference = build(work, "base", base / "src", program, [])
+    problems, rows, expected_of, references = [], [], {}, {}
+    for program, (_, _, default_steps) in PROGRAMS.items():
+        steps = args.steps or default_steps
+        reference = build(work, "base", base / "src", program, [], args.milan)
         if not reference:
             problems.append(f"{program}: the base build fails")
             continue
-        expected = {}
+        references[program] = reference
+        expected, lines = {}, 0
         for seed in range(1, args.seeds + 1):
-            rc, out = trace(reference, seed, args.steps)
+            rc, out = trace(reference, seed, steps)
             if rc:
                 problems.append(f"{program} base seed {seed}: rc={rc}")
-            expected[seed] = out
+            expected[seed] = hashlib.sha256(out).digest()
+            lines += out.count(b"\n")
         expected_of[program] = expected
         for config, extra in CONFIGS.items():
-            candidate = build(work, config, ROOT / "src", program, extra)
+            candidate = build(work, config, ROOT / "src", program, extra, args.milan)
             if not candidate:
                 problems.append(f"{program} {config}: the checkout's build fails")
                 continue
             same = 0
             digest = hashlib.sha256()
             for seed in range(1, args.seeds + 1):
-                rc, out = trace(candidate, seed, args.steps)
-                digest.update(out)
-                if rc == 0 and out == expected[seed]:
+                rc, out = trace(candidate, seed, steps)
+                mine = hashlib.sha256(out).digest()
+                digest.update(mine)
+                if rc == 0 and mine == expected[seed]:
                     same += 1
                 else:
                     problems.append(f"{program} {config} seed {seed}: rc={rc}, "
-                                    f"{first_difference(expected[seed], out)}")
-            lines = sum(out.count(b"\n") for out in expected.values())
-            rows.append({"program": program, "config": config, "seeds": args.seeds, "steps": args.steps,
+                                    f"{first_difference(trace(reference, seed, steps)[1], out)}")
+            rows.append({"program": program, "config": config, "seeds": args.seeds, "steps": steps,
                          "identical": same, "trace_lines": lines, "sha256": digest.hexdigest()})
     print("| Driver | Build | Seeds | Steps a seed | Trace lines | Identical | Traces' sha256 |")
     print("| --- | --- | --- | --- | --- | --- | --- |")
@@ -154,14 +197,14 @@ def main():
                 problems.append(f"mutant {name}: its target is missing")
                 continue
             target.write_text(text.replace(old, new, 1))
-            exe = build(work, f"mutant-{name}", tree / "src", program, [])
+            exe = build(work, f"mutant-{name}", tree / "src", program, [], args.milan)
             if not exe:
                 problems.append(f"mutant {name}: the build fails, which is no behavioural kill")
                 continue
             seen = None
             for seed in range(1, args.seeds + 1):
-                rc, out = trace(exe, seed, args.steps)
-                if rc != 0 or out != expected_of.get(program, {}).get(seed):
+                rc, out = trace(exe, seed, args.steps or PROGRAMS[program][2])
+                if rc != 0 or hashlib.sha256(out).digest() != expected_of.get(program, {}).get(seed):
                     seen = seed
                     break
             print(f"{'KILLED' if seen else 'SURVIVED'} {name}" + (f" at seed {seen}" if seen else ""), flush=True)
@@ -170,7 +213,7 @@ def main():
             else:
                 problems.append(f"mutant {name} survived {args.seeds} seeds")
             shutil.rmtree(tree)
-    (work / "differential.json").write_text(json.dumps({"base": args.base, "rows": rows, "killed": killed,
+    (work / "differential.json").write_text(json.dumps({"base": args.base, "milan": args.milan, "rows": rows, "killed": killed,
                                                         "problems": problems}, indent=2) + "\n")
     print(f"Drivers: {len(PROGRAMS)}; builds: {len(rows)}; mutants killed: {len(killed)} of "
           f"{0 if args.no_mutants else len(MUTANTS)}; problems: {len(problems)}")

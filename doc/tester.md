@@ -114,24 +114,34 @@ The switch scenarios make no transmit calls.
 ## Differential traces
 
 The [differential check](../tests/check_differential.py) proves that a change keeps a base revision's behaviour exactly.
-Each [trace driver](../tests/differential/timer_trace.c) prints one random life of a module.
+Each trace driver prints one random life of a module.
 The trace holds every call, its result, every callback with its arguments, and every transmitted octet.
 The check builds each driver against the base revision's sources and against this checkout's.
 Both run the same seeds, and every pair of traces must be byte-identical.
 The checkout is also built with a four-slot timer wheel started just short of the tick counter's wrap.
+It is built with one lookup bucket, as the plain list was, and with 256 buckets.
 Then each planted defect in the check's list is applied to a copy of the sources.
 Some seed's trace must then differ from the base's, or the defect counts as surviving.
+A run that does not end counts as differing.
 A defect that only breaks compilation does not count as detected.
 Set DIFFERENTIAL_SCRATCH to a new directory outside the checkout.
 
 ~~~sh
 python3 tests/check_differential.py --work-dir "$DIFFERENTIAL_SCRATCH"
+python3 tests/check_differential.py --work-dir "$MILAN_DIFFERENTIAL_SCRATCH" --milan ON
 ~~~
 
-The timer driver registers, arms, disarms, removes, and ticks 48 timers at random.
+The [timer driver](../tests/differential/timer_trace.c) registers, arms, disarms, removes, and ticks 48 timers at random.
 Its callbacks arm, disarm, and register other timers and themselves, as the MRP callbacks do.
-Its 200 seeds of 20000 steps each give identical traces in both builds.
-All ten timer defects are detected.
+The [MRP driver](../tests/differential/mad_trace.c) runs the stream, VLAN, or MAC application, or a test application, on one to three ports.
+It receives random PDUs, declares and withdraws, transmits at seven capacities, ticks, reclaims, and changes roles.
+Its seeds refuse some allocations and sends, and its test application refuses to encode one value.
+The test application encodes one octet of a two-octet value, so equal FirstValues share a Message.
+Its key collides across values, and each received value can replace up to three registrations.
+After each step the trace records a digest of every attribute's states and value, and of the transmit buffer.
+Each driver runs 200 seeds, 20000 steps each for timers and 3000 for MRP.
+Every build gives identical traces in both profiles.
+All 21 planted defects are detected: ten in the timers, five in the lookup buckets, and six in the vector order.
 
 ## Run the existing codec tests
 
