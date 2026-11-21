@@ -74,6 +74,8 @@ The default implementation uses the C library.
 The [timer interface](../src/ports/timer.h) defines initialization, one-shot arming, cancellation, removal, and ticking.
 A tick visits only the timers that expire in it, through a wheel of [LWSRP_TIMER_SLOTS](../src/ports/timer.h) slots.
 Timers that expire in one tick fire latest registration first.
+Each wheel slot costs one pointer of static storage, and each timer four more words than a bare countdown.
+Each participant holds [LWSRP_ATTR_BUCKETS](../src/core/mrp_mad.c) lookup pointers, and each attribute three more pointers.
 A fixed pool can replace the default heap.
 Allocation failure returns a negative result.
 Earlier received attributes may remain applied when a later allocation fails.

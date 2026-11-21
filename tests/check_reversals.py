@@ -201,14 +201,14 @@ CASES = [
     ('flush-snapshot-policy', 'src/core/mrp_mad.c', 'map_publish(app, port_id, ai->attr_type, ind_value, join, reserved);', 'map_publish(app, port_id, ai->attr_type, ai->attr_val, join, reserved);', 'unit'),
     ('flush-timer-completion', 'src/core/mrp_mad.c', '    if (e->ind == REG_IND_LV) {', '    if (e->ind == REG_IND_LV && ev == MRP_EVENT_FLUSH) {', 'unit'),
     # Issue #17: one Message per AttributeType, ascending vectors, one EndMark each.
-    ("grouped-message-split", MAD, "        v += size;\n    }\n    return tx_close(ops, buf, v);",
-     "        v += size;\n        /* Plant: close the Message after every vector. */\n"
-     "        buf = tx_close(ops, buf, v);\n        v = first = tx_open(ops, type, buf);\n"
-     "    }\n    return tx_close(ops, buf, v);", "unit"),
+    ("grouped-message-split", MAD, "        tail = &a->tx_next;\n        v += size;\n    }",
+     "        tail = &a->tx_next;\n        v += size;\n        /* Plant: close the Message after every vector. */\n"
+     "        tx_order(ops, event, type, chosen, first, size);\n        buf = tx_close(ops, buf, v);\n"
+     "        v = first = tx_open(ops, type, buf);\n        chosen = NULL;\n        tail = &chosen;\n    }", "unit"),
     ("grouped-endmark-count", MAD, "pdu[off++] = 0; pdu[off++] = 0; /* MRPDU EndMark */",
      "/* Plant: omit the MRPDU EndMark. */", "unit"),
-    ("grouped-vector-order", MAD, "memcmp(at - size + 2, at + 2, len) > 0",
-     "memcmp(at - size + 2, at + 2, len) < 0", "unit"),
+    ("grouped-vector-order", MAD, "return memcmp(a->tx_key, b->tx_key, len) > 0;",
+     "return memcmp(a->tx_key, b->tx_key, len) < 0;", "unit"),
     ("grouped-dropped-vector", MAD, "a->attr_type != type || e->tx == TX_MSG_NONE",
      "a->attr_type != type || !a->next || e->tx == TX_MSG_NONE", "unit"),
     ("grouped-list-length-reach", MAD, "size_t room = hdr == 4u && capacity > 0xFFFFu ? 0xFFFFu : capacity;",
