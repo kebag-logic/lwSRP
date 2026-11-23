@@ -16,7 +16,7 @@ The [root build definition](../CMakeLists.txt) selects between host and embedded
 | C language | Requires [C11 draft](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf). |
 | [CMAKE_BUILD_TYPE](https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html) set to Debug | Adds compiler debugging information through [CMake](https://cmake.org/cmake/help/latest/). |
 | Export compile commands | Enabled by the [build definition](../CMakeLists.txt). |
-| Unit dependency found | Builds the [unit runner](../tests/unit/main.c) with nine suites. |
+| Unit dependency found | Builds the [unit runner](../tests/unit/main.c) with ten suites. |
 | Unit dependency absent | Host configuration fails. Headers and library are required. |
 | [ZEPHYR_BASE](../CMakeLists.txt) defined | Selects the module branch and returns before host configuration. |
 | [CONFIG_LWSRP](../Kconfig.zephyr) enabled | Builds protocol sources and default allocation and timer ports. |
@@ -147,6 +147,9 @@ Register [mrp_set_observer](../src/include/shish_lan/mrp.h) before events when t
 Use [mrp_attr_visit](../src/include/shish_lan/mrp.h) for current attribute state.
 Use [mrp_port_status](../src/include/shish_lan/mrp.h) for LeaveAll and periodic state.
 The observer reports changed Applicant or Registrar states only.
+An accepted LeaveAll reports each Applicant change as txLA! or txLAF!, and a fitted value's Registrar change as txLA!.
+Its local rLA! then reports the remaining Registrar changes, with the Applicant state unchanged.
+This follows [issue #20](https://github.com/kebag-logic/lwSRP/issues/20).
 Callbacks run synchronously.
 Copy values that must survive the callback.
 
@@ -248,7 +251,7 @@ sequenceDiagram
     Target->>Target: Schedule next output
 ~~~
 
-The [assembler](../src/core/mrp_mad.c#L1410) splits populations across Join-spaced opportunities.
+The [assembler](../src/core/mrp_mad.c#L1415) splits populations across Join-spaced opportunities.
 Previously omitted attributes precede repeated declarations.
 Each PDU holds one Message per attribute type, with values in ascending FirstValue order.
 Size the buffer for the largest single-value Message and the application's LeaveAll preamble.
@@ -287,7 +290,7 @@ Deliver every elapsed centisecond, including ticks coalesced by the platform.
 The [timer defaults](../src/include/shish_lan/mrp.h) are Join 20, Leave 60, and LeaveAll 1000 centiseconds.
 The Mark II profile uses Leave 500 centiseconds through [mrp_port_configure](../src/include/shish_lan/mrp.h).
 Combine this interval with the [Milan received-Leave option](#milan-received-leave) for immediate explicit withdrawals.
-The [periodic handler](../src/core/mrp_mad.c#L819) uses 100 centiseconds independently of Join spacing.
+The [periodic handler](../src/core/mrp_mad.c#L824) uses 100 centiseconds independently of Join spacing.
 LeaveAll draws lie strictly between its configured interval and 1.5 times that interval.
 The rules are in [IEEE 802.1Q-2018, clauses 10.7.4.3 and 10.7.4.4](https://standards.ieee.org/ieee/802.1Q/6844/).
 Supply different seeds where independent participants need different timing.
@@ -313,7 +316,7 @@ sequenceDiagram
 ~~~
 
 Call the matching [application destroy operation](../src/include/shish_lan/mrp.h) only after all callbacks and accesses have stopped.
-The [destructor](../src/core/mrp_mad.c#L919) unlinks all owned timers before releasing storage.
+The [destructor](../src/core/mrp_mad.c#L924) unlinks all owned timers before releasing storage.
 Other applications may continue ticking afterward.
 Destruction itself does not transmit withdrawals.
 Complete any required network withdrawal before teardown.

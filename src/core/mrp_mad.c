@@ -766,6 +766,21 @@ static void broadcast_event(struct mrp_app *app, struct mrp_port_state *ps,
         deliver_event(app, ps, a, ev, port_id);
 }
 
+/*
+ * 10.7.6.6: a committed sLA gives rise to rLA! against every Registrar of the
+ * participant (Table 10-4). Each Applicant took that LeaveAll as its txLA! or
+ * txLAF! (Table 10-3), so no Applicant takes it again (issue #20).
+ */
+static void sla_registrars(struct mrp_app *app, struct mrp_port_state *ps, uint8_t port_id)
+{
+    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
+        enum mrp_reg_state reg_from = a->reg;
+        /* No rLA! cell indicates, so nothing is reserved and nothing can fail. */
+        (void)reg_event(app, a, MRP_EVENT_RLA, port_id, false);
+        observe(app, a, MRP_EVENT_RLA, port_id, a->appl, reg_from);
+    }
+}
+
 /* ------------------------------------------------------------------ */
 /* LeaveAll state machine — Table 10-5                                 */
 /* ------------------------------------------------------------------ */
@@ -776,23 +791,13 @@ static uint32_t leaveall_draw(struct mrp_port_state *ps)
     return ps->leaveall_cs + 1u + ps->random % (ps->leaveall_cs / 2u - 1u);
 }
 
-static void la_event(struct mrp_app *app, struct mrp_port_state *ps,
-                     enum mrp_event ev, uint8_t port_id)
+/* Table 10-5's tx! cell is mrp_transmit's commit of a LeaveAll PDU. */
+static void la_event(struct mrp_port_state *ps, enum mrp_event ev)
 {
     switch (ev) {
     case MRP_EVENT_BEGIN:
         ps->la = MRP_LA_STATE_PASSIVE;
         shlan_timer_arm(&ps->la_timer, leaveall_draw(ps));
-        break;
-
-    case MRP_EVENT_TX:
-        if (ps->la == MRP_LA_STATE_ACTIVE) {
-            /* sLA: send LeaveAll, reset timer, go Passive */
-            ps->la = MRP_LA_STATE_PASSIVE;
-            shlan_timer_arm(&ps->la_timer, leaveall_draw(ps));
-            /* Also generate rLA! for all local Applicant/Registrar SMs */
-            broadcast_event(app, ps, MRP_EVENT_RLA, port_id);
-        }
         break;
 
     case MRP_EVENT_RLA:
@@ -858,7 +863,7 @@ static void on_la_timer(void *arg)
 {
     struct mrp_port_timer_arg *a  = (struct mrp_port_timer_arg *)arg;
     struct mrp_port_state     *ps = &priv_of(a->app)->ports[a->port_id];
-    la_event(a->app, ps, MRP_EVENT_LEAVEALLTIMER, a->port_id);
+    la_event(ps, MRP_EVENT_LEAVEALLTIMER);
 }
 
 static void on_pt_timer(void *arg)
@@ -910,7 +915,7 @@ struct mrp_app *mrp_app_create(const struct mrp_app_ops *ops, uint8_t n_ports)
         shlan_timer_init(&ps->la_timer, on_la_timer, &ps->timer_arg);
         shlan_timer_init(&ps->pt_timer, on_pt_timer, &ps->timer_arg);
         shlan_timer_init(&ps->join_timer, on_join_timer, &ps->timer_arg);
-        la_event(app, ps, MRP_EVENT_BEGIN, p);
+        la_event(ps, MRP_EVENT_BEGIN);
         pt_event(app, ps, MRP_EVENT_BEGIN, p);
     }
     return app;
@@ -1069,7 +1074,7 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
 static void rx_on_leaveall(void *raw_ctx, uint8_t attr_type)
 {
     struct rx_ctx *rc = (struct rx_ctx *)raw_ctx;
-    la_event(rc->app, rc->ps, MRP_EVENT_RLA, rc->port_id);
+    la_event(rc->ps, MRP_EVENT_RLA);
     for (struct mrp_attr_inst *a = rc->ps->attrs; a; a = a->next) {
         if (a->attr_type == attr_type) {
             deliver_event(rc->app, rc->ps, a, MRP_EVENT_RLA, rc->port_id);
@@ -1137,7 +1142,7 @@ void mrp_port_role_change(struct mrp_app *app, uint8_t port_id, bool flush)
     enum mrp_event    ev   = flush ? MRP_EVENT_FLUSH : MRP_EVENT_REDECLARE;
     broadcast_event(app, ps, ev, port_id);
     if (flush)
-        la_event(app, ps, MRP_EVENT_LEAVEALLTIMER, port_id); /* §10.7.5.22 */
+        la_event(ps, MRP_EVENT_LEAVEALLTIMER); /* §10.7.5.22 */
 }
 
 void mrp_set_periodic(struct mrp_app *app, uint8_t port_id, bool enable)
@@ -1524,8 +1529,8 @@ int mrp_transmit(struct mrp_app *app, uint8_t port_id,
     }
     if (la) {
         ps->la = MRP_LA_STATE_PASSIVE;
-        // 10.7.6.6: the committed sLA also signals rLA locally.
-        broadcast_event(app, ps, MRP_EVENT_RLA, port_id);
+        // 10.7.6.6: the committed sLA also signals rLA to every Registrar.
+        sla_registrars(app, ps, port_id);
     }
     if (ps->periodic_owed) {
         ps->periodic_owed = false;

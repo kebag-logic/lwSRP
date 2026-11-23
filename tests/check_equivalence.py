@@ -7,6 +7,10 @@ Both runs preload tests/unit/transmit_trace.c, which decodes every offered
 MRPDU with the test-side decoder (IEEE 802.1Q-2018 10.8.1.2 and 10.8.2).
 Each transmit opportunity must return the same result and offer PDUs whose
 decoded events are equal. The checkout's PDUs must also have the grouped form.
+The candidate run may fail only the assertions listed in REVISED, whose
+expectations a later issue corrected; every opportunity is still compared.
+Each suite must also end normally: rc 0, or the runner's rc 1 for failed
+assertions, with its completion line. A signal or a timeout is a failure.
 """
 
 import argparse
@@ -14,19 +18,77 @@ from collections import OrderedDict
 import json
 import os
 from pathlib import Path
+import re
 import shutil
+import signal
 import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "9197193e47a6bb1c45a56d90a18c1784123aba44"
+# Base assertions that pinned behaviour a later issue corrected: the test, the
+# assertion's message, and that issue.
+REVISED = {
+    "full_leaveall_reports_each_required_transition": (
+        "Expected [local_rla] to [equal] [1]",
+        "issue #20: no Applicant takes the local rLA! of its own LeaveAll (IEEE 802.1Q-2018 10.7.6.6)"),
+}
+# The unit runner's report of one failed assertion or one abnormal test end.
+REPORT = re.compile(r"^\S+:\d+: (Failure|Exception): \S+ -> (\S+) *\n\t(.*)$", re.M)
+# The runner's last line, printed only when every suite has run.
+COMPLETED = re.compile(r'^Completed "main": (.*) in \d+ms\.$', re.M)
+COUNT = re.compile(r"(\d+) (failure|exception)")
+TIMEOUT = "timeout"
 
 
-def run(label, command, work, env=None, cwd=None):
-    result = subprocess.run(command, cwd=cwd, env=env, capture_output=True, text=True, timeout=600)
+def run(label, command, work, env=None, cwd=None, timeout=600):
+    """Return the exit status, or TIMEOUT once the command is killed at its limit."""
+    try:
+        result = subprocess.run(command, cwd=cwd, env=env, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired as expired:
+        output = [part.decode(errors="replace") if isinstance(part, bytes) else part or ""
+                  for part in (expired.stdout, expired.stderr)]
+        (work / f"{label}.log").write_text("".join(output))
+        print(f"{label}: timed out after {timeout} s", flush=True)
+        return TIMEOUT
     (work / f"{label}.log").write_text(result.stdout + result.stderr)
     print(f"{label}: rc={result.returncode}", flush=True)
     return result.returncode
+
+
+def judge_suite(name, rc, log, timeout):
+    """Return the revised tests that failed, and a problem or None.
+
+    Only a normal runner exit is judged by its log. A signal, a timeout or an
+    unknown status fails whatever the log reports. So does a suite whose
+    completion line is missing or disagrees with the listed reports.
+    """
+    if rc == TIMEOUT:
+        return [], f"{name} unit suite: timed out after {timeout} s"
+    if rc < 0:
+        known = {member.value: member.name for member in signal.Signals}
+        return [], f"{name} unit suite: ended by signal {-rc} ({known.get(-rc, 'unnamed')})"
+    if rc not in (0, 1):
+        return [], f"{name} unit suite: rc={rc}"
+    completed = COMPLETED.findall(log)
+    if len(completed) != 1:
+        return [], f"{name} unit suite: rc={rc} without the runner's completion line"
+    counts = {kind: int(number) for number, kind in COUNT.findall(completed[0])}
+    reports = REPORT.findall(log)
+    listed = {kind: sum(1 for report in reports if report[0] == kind.capitalize())
+              for kind in ("failure", "exception")}
+    if rc != int(bool(reports)) or any(counts.get(kind, 0) != listed[kind] for kind in listed):
+        return [], f"{name} unit suite: rc={rc}, completion line '{completed[0]}' and {len(reports)} reports disagree"
+    if not reports:
+        return [], None
+    if name != "candidate":
+        return [], f"{name} unit suite: rc={rc}"
+    unrevised = list(OrderedDict.fromkeys(
+        f"{test}: {kind} '{message.strip()}'" for kind, test, message in reports
+        if kind != "Failure" or REVISED.get(test, ("",))[0] != message.strip()))
+    if unrevised:
+        return [], f"{name} unit suite: rc={rc}; not revised: " + "; ".join(unrevised)
+    return sorted({test for _, test, _ in reports}), None
 
 
 def read_trace(path):
@@ -104,6 +166,7 @@ def main():
     parser.add_argument("--prefix", type=Path, required=True, help="unit framework prefix")
     parser.add_argument("--base", default=BASE, help="revision whose encoder and suite are the reference")
     parser.add_argument("--milan", choices=["OFF", "ON"], default="OFF")
+    parser.add_argument("--suite-timeout", type=int, default=600, help="seconds allowed for each unit suite")
     args = parser.parse_args()
     work = args.work_dir.resolve()
     if work.is_relative_to(ROOT) or work.exists():
@@ -140,11 +203,17 @@ def main():
         env["LD_PRELOAD"] = str(shim)
         env["LWSRP_TRANSMIT_TRACE"] = str(traces[name])
         # Compare even after a failing suite: the trace locates the first difference.
-        suites[name] = run(f"unit-{name}", [str(build / "unit_tests")], work, env, cwd=build)
+        suites[name] = run(f"unit-{name}", [str(build / "unit_tests")], work, env, cwd=build,
+                           timeout=args.suite_timeout)
     rows, problems = compare(read_trace(traces["base"]), read_trace(traces["candidate"]))
-    problems += [f"{name} unit suite: rc={rc}" for name, rc in suites.items() if rc]
-    (work / "equivalence.json").write_text(json.dumps({"base": args.base, "milan": args.milan,
-                                                       "rows": rows, "problems": problems}, indent=2) + "\n")
+    revised = []
+    for name, rc in suites.items():
+        failed, problem = judge_suite(name, rc, (work / f"unit-{name}.log").read_text(), args.suite_timeout)
+        revised += failed
+        if problem:
+            problems.append(problem)
+    (work / "equivalence.json").write_text(json.dumps({"base": args.base, "milan": args.milan, "rows": rows,
+                                                       "revised": revised, "problems": problems}, indent=2) + "\n")
     print("| Scenario | Opportunities | PDUs | Byte-identical | Layout-only | Different |")
     print("| --- | --- | --- | --- | --- | --- |")
     for row in rows:
@@ -155,6 +224,8 @@ def main():
     print(f"Scenarios: {len(rows)}; opportunities: {totals['opportunities']}; PDUs: {totals['sends']}; "
           f"byte-identical: {totals['identical']}; layout-only: {totals['layout_only']}; "
           f"different: {totals['different']}; problems: {len(problems)}")
+    for test in revised:
+        print(f"REVISED {test}: {REVISED[test][1]}")
     for problem in problems:
         print(f"FAIL {problem}")
     return int(bool(problems) or totals["sends"] == 0)
