@@ -1,0 +1,189 @@
+{
+  "race": {
+    "8x8": {
+      "withdrawals": 387,
+      "inputs": 9,
+      "worst_ms": 190,
+      "over_240": 0,
+      "peer_mismatches": 0,
+      "held": "OWN-LA held inputs=9 span_ms=90190 board_frames=101 board_leavealls=5 peer_leavealls=2"
+    },
+    "1x1_tdm8": {
+      "withdrawals": 86,
+      "inputs": 2,
+      "worst_ms": 190,
+      "over_240": 0,
+      "peer_mismatches": 0,
+      "held": "OWN-LA held inputs=2 span_ms=90190 board_frames=101 board_leavealls=5 peer_leavealls=2"
+    }
+  },
+  "budget": {
+    "1x1": {
+      "summary": "99 groups graded, 0 refusals, 7 budget misses (7 of 964 probe instances, 4 of 94 paths), 0 of 162007 work passes over the per-pass share 2.000 ms (200,000 CPU cycles)",
+      "mrpdu_rows": 6,
+      "worst_mrpdu_ms": 2.438,
+      "recorded_misses": [
+        {
+          "path": "a response with 7 frames owed ahead of it",
+          "probe": "`backlog.owed.if0`",
+          "ms": 62.855,
+          "bound": "20",
+          "grade": "MISS ceiling"
+        },
+        {
+          "path": "an ACMP command behind the owed input",
+          "probe": "`backlog.owed_behind0.if0`",
+          "ms": 63.021,
+          "bound": "20",
+          "grade": "MISS ceiling"
+        },
+        {
+          "path": "an ACMP command behind the owed input",
+          "probe": "`backlog.owed_behind1.if0`",
+          "ms": 63.184,
+          "bound": "20",
+          "grade": "MISS ceiling"
+        },
+        {
+          "path": "an ACMP command behind the owed input",
+          "probe": "`backlog.owed_behind2.if0`",
+          "ms": 63.349,
+          "bound": "20",
+          "grade": "MISS ceiling"
+        },
+        {
+          "path": "an ACMP command behind the owed input",
+          "probe": "`backlog.owed_behind3.if0`",
+          "ms": 63.512,
+          "bound": "20",
+          "grade": "MISS ceiling"
+        },
+        {
+          "path": "ACMP record released under the composed load, last",
+          "probe": "`backlog-owed.service.acmp.last.if0`",
+          "ms": 62.059,
+          "bound": "20",
+          "grade": "MISS ceiling"
+        },
+        {
+          "path": "AECP record released under the composed load, last",
+          "probe": "`backlog-owed.service.aecp.last.if0`",
+          "ms": 61.817,
+          "bound": "20",
+          "grade": "MISS ceiling"
+        }
+      ],
+      "own_leaveall": [],
+      "every": "16 groups graded, 0 refusals, 0 budget misses (0 of 280 probe instances, 0 of 7 paths), 0 of 24839 work passes over the per-pass share 2.000 ms (200,000 CPU cycles)",
+      "later": "8 groups graded, 0 refusals, 0 budget misses (0 of 56 probe instances, 0 of 7 paths), 0 of 16592 work passes over the per-pass share 2.000 ms (200,000 CPU cycles)"
+    },
+    "8x8-1if": {
+      "summary": "98 groups graded, 0 refusals, 7 budget misses (7 of 963 probe instances, 4 of 87 paths), 0 of 285420 work passes over the per-pass share 2.000 ms (200,000 CPU cycles)",
+      "mrpdu_rows": 12,
+      "worst_mrpdu_ms": 1.581,
+      "recorded_misses": [
+        {
+          "path": "a response with 7 frames owed ahead of it",
+          "probe": "`backlog.owed.if0`",
+          "ms": 63.226,
+          "bound": "20",
+          "grade": "MISS ceiling"
+        },
+        {
+          "path": "an ACMP command behind the owed input",
+          "probe": "`backlog.owed_behind0.if0`",
+          "ms": 63.439,
+          "bound": "20",
+          "grade": "MISS ceiling"
+        },
+        {
+          "path": "an ACMP command behind the owed input",
+          "probe": "`backlog.owed_behind1.if0`",
+          "ms": 63.65,
+          "bound": "20",
+          "grade": "MISS ceiling"
+        },
+        {
+          "path": "an ACMP command behind the owed input",
+          "probe": "`backlog.owed_behind2.if0`",
+          "ms": 63.862,
+          "bound": "20",
+          "grade": "MISS ceiling"
+        },
+        {
+          "path": "an ACMP command behind the owed input",
+          "probe": "`backlog.owed_behind3.if0`",
+          "ms": 64.072,
+          "bound": "20",
+          "grade": "MISS ceiling"
+        },
+        {
+          "path": "ACMP record released under the composed load, last",
+          "probe": "`backlog-owed.service.acmp.last.if0`",
+          "ms": 62.226,
+          "bound": "20",
+          "grade": "MISS ceiling"
+        },
+        {
+          "path": "AECP record released under the composed load, last",
+          "probe": "`backlog-owed.service.aecp.last.if0`",
+          "ms": 61.576,
+          "bound": "20",
+          "grade": "MISS ceiling"
+        }
+      ],
+      "own_leaveall": [
+        {
+          "path": "an MRPDU its leaveall timer owes, the longest",
+          "probe": "`save-burst.mrpdu.leaveall.if0`",
+          "ms": 0.541,
+          "bound": "49",
+          "grade": "fits"
+        },
+        {
+          "path": "an MRPDU its leaveall timer owes, the longest",
+          "probe": "`save-held.mrpdu.leaveall.if0`",
+          "ms": 0.57,
+          "bound": "49",
+          "grade": "fits"
+        },
+        {
+          "path": "an MRPDU its leaveall timer owes, the longest",
+          "probe": "`save-starved.mrpdu.leaveall.if0`",
+          "ms": 0.595,
+          "bound": "49",
+          "grade": "fits"
+        }
+      ],
+      "every": "16 groups graded, 0 refusals, 0 budget misses (0 of 728 probe instances, 0 of 7 paths), 0 of 21675 work passes over the per-pass share 2.000 ms (200,000 CPU cycles)",
+      "later": "8 groups graded, 0 refusals, 0 budget misses (0 of 56 probe instances, 0 of 7 paths), 0 of 13609 work passes over the per-pass share 2.000 ms (200,000 CPU cycles)"
+    }
+  },
+  "firmware": {
+    "0": {
+      "exit": 0,
+      "ok_rows": 90,
+      "terminal": "PASS"
+    },
+    "1": {
+      "exit": 0,
+      "ok_rows": 826,
+      "terminal": "PASS"
+    },
+    "2": {
+      "exit": 0,
+      "ok_rows": 385,
+      "terminal": "PASS"
+    },
+    "3": {
+      "exit": 0,
+      "ok_rows": 543,
+      "terminal": "PASS"
+    }
+  },
+  "image_comparison": {
+    "matching_rows": 20,
+    "scope": "published comparison; binaries not independently rebuilt"
+  },
+  "consumer_gitlink": "25b5a7400ff618fa1404e452668ed6902daa5f74"
+}

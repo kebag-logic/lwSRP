@@ -1,0 +1,11 @@
+Source: public evidence commit bd72ffb4172b86e803a9c953681f550f151bbb88
+
+Old timeout control OFF:
+usage: check_equivalence.py [-h] --work-dir WORK_DIR --prefix PREFIX
+                            [--base BASE] [--milan {OFF,ON}]
+check_equivalence.py: error: unrecognized arguments: --suite-timeout 480
+
+Old timeout control ON:
+usage: check_equivalence.py [-h] --work-dir WORK_DIR --prefix PREFIX
+                            [--base BASE] [--milan {OFF,ON}]
+check_equivalence.py: error: unrecognized arguments: --suite-timeout 480

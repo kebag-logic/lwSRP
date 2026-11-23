@@ -1,0 +1,7 @@
+{
+  "url": "https://github.com/kebag-logic/lwSRP/pull/21",
+  "head": "25b5a7400ff618fa1404e452668ed6902daa5f74",
+  "claim": "Every control still finds no decoded difference. Against the gate at `c035764f`, the signal, timeout and\nother-assertion controls fail in both profiles: that gate accepted them.",
+  "hosted_workflow_runs": [],
+  "scope": "Read-only public metadata snapshot; no executed hosted job inferred."
+}

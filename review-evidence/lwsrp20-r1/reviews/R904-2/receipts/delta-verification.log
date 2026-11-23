@@ -1,0 +1,15 @@
+PASS exact head, exact tree, unchanged production inputs and receipt execution inputs
+PASS 247 published round-2 files match the publication manifest
+Signature scope: publication commit has no embedded signature; hashes establish content integrity, not signer authentication
+OFF fix {'revised': 0, 'signal': 1, 'timeout': 1, 'other-assertion': 1, 'other-test': 1}
+OFF head {'revised': 0, 'signal': 1, 'timeout': 1, 'other-assertion': 1, 'other-test': 1}
+OFF c035764f {'revised': 0, 'signal': 0, 'timeout': 2, 'other-assertion': 0, 'other-test': 1}
+ON fix {'revised': 0, 'signal': 1, 'timeout': 1, 'other-assertion': 1, 'other-test': 1}
+ON head {'revised': 0, 'signal': 1, 'timeout': 1, 'other-assertion': 1, 'other-test': 1}
+ON c035764f {'revised': 0, 'signal': 0, 'timeout': 2, 'other-assertion': 0, 'other-test': 1}
+PASS 156 additional suite-ending cases, plus published control log regrading
+PASS 110 unique reversals, every named reversal killed once in each published profile
+PASS merge: every round-1 plant unchanged; every main plant retained except two already retargeted in round 1
+PASS merge: named required failures not removed; scenario files byte-identical to main
+PR claim discrepancy: old timeout control exits 2 before a suite runs; it is not accepted by the old gate
+PASS final checkout: 67 tracked blobs and modes; index equals head; 0 gitlinks; no untracked files

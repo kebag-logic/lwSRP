@@ -1,0 +1,17 @@
+{"profile": 0, "case": "baseline", "build_rc": 0, "suite_rc": 0, "failed_scenarios": [], "grade": "PASS"}
+{"profile": 0, "case": "scenario-disable-dispatch", "build_rc": 0, "suite_rc": 1, "failed_scenarios": ["Disable a port"], "grade": "PASS"}
+{"profile": 0, "case": "scenario-disable-mapping", "build_rc": 0, "suite_rc": 1, "failed_scenarios": ["Disable a port"], "grade": "PASS"}
+{"profile": 0, "case": "scenario-disable-port", "build_rc": 0, "suite_rc": 1, "failed_scenarios": ["Disable a port"], "grade": "PASS"}
+{"profile": 0, "case": "scenario-enable-dispatch", "build_rc": 0, "suite_rc": 1, "failed_scenarios": ["Disable a port", "Enable a port"], "grade": "PASS"}
+{"profile": 0, "case": "scenario-connect-noop", "build_rc": 0, "suite_rc": 1, "failed_scenarios": ["Disable a port", "Enable a port", "Reject an out-of-range port"], "grade": "PASS"}
+{"profile": 0, "case": "scenario-connect-dispatch", "build_rc": 0, "suite_rc": 1, "failed_scenarios": ["Disable a port", "Enable a port", "Reject an out-of-range port"], "grade": "PASS"}
+{"profile": 0, "case": "scenario-disconnect-dispatch", "build_rc": 0, "suite_rc": 1, "failed_scenarios": ["Enable a port"], "grade": "PASS"}
+{"profile": 1, "case": "baseline", "build_rc": 0, "suite_rc": 0, "failed_scenarios": [], "grade": "PASS"}
+{"profile": 1, "case": "scenario-disable-dispatch", "build_rc": 0, "suite_rc": 1, "failed_scenarios": ["Disable a port"], "grade": "PASS"}
+{"profile": 1, "case": "scenario-disable-mapping", "build_rc": 0, "suite_rc": 1, "failed_scenarios": ["Disable a port"], "grade": "PASS"}
+{"profile": 1, "case": "scenario-disable-port", "build_rc": 0, "suite_rc": 1, "failed_scenarios": ["Disable a port"], "grade": "PASS"}
+{"profile": 1, "case": "scenario-enable-dispatch", "build_rc": 0, "suite_rc": 1, "failed_scenarios": ["Disable a port", "Enable a port"], "grade": "PASS"}
+{"profile": 1, "case": "scenario-connect-noop", "build_rc": 0, "suite_rc": 1, "failed_scenarios": ["Disable a port", "Enable a port", "Reject an out-of-range port"], "grade": "PASS"}
+{"profile": 1, "case": "scenario-connect-dispatch", "build_rc": 0, "suite_rc": 1, "failed_scenarios": ["Disable a port", "Enable a port", "Reject an out-of-range port"], "grade": "PASS"}
+{"profile": 1, "case": "scenario-disconnect-dispatch", "build_rc": 0, "suite_rc": 1, "failed_scenarios": ["Enable a port"], "grade": "PASS"}
+PASS 2 baselines and all 14 named scenario plants; four concurrent lightweight jobs; no production edits
