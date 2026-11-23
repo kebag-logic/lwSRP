@@ -1,0 +1,125 @@
+{
+  "issue": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Action completed."
+      }
+    ],
+    "structuredContent": {
+      "issue": {
+        "id": 6556644021,
+        "url": "https://github.com/kebag-logic/lwSRP/issues/20",
+        "title": "A Listener withdrawn just after the local LeaveAll is never sent as Lv",
+        "issue_number": 20,
+        "body": "Found by the in-house qualification on milan-fpga's merged split image (dev-soft-core, lwSRP `08ee86e8`), 8x8/1if, on 1 input of 9.\n\n**Observed.** A Listener was still registered at the talker 6 s after the UNBIND.\n- For the other inputs, the board sends the Listener Lv 3-5 ms before the UNBIND response.\n- For this input, the board had sent a LeaveAll PDU 129 ms before the UNBIND. That PDU carried the Listener's JoinMt Ready, so the talker registered it again.\n- After the UNBIND, the board's MSRP PDUs (+0.061 s, +0.251 s, then each second) carry no Listener Lv, through 23 s.\n\n**Path, by reading (cause not isolated).** `src/core/mrp_mad.c`:\n- each attribute sent in a LeaveAll PDU gets txLA! (QA stays QA, and the Join is sent);\n- the committed sLA then broadcasts the local rLA! (802.1Q-2018 10.7.6.6), which takes QA to VP;\n- Lv! in VP goes to VO with no message, and VO with an MT registrar is freed.\n\nSo the declaration that rode in the LeaveAll PDU is never withdrawn on the wire. The talker keeps it until its next LeaveAll period plus LeaveTime.\n\n**Clauses.** Milan v1.2 4.2.7.2.2 and Table 4.3; IEEE 802.1Q-2018 10.7.6.6, Table 10-3 (and its note 9 on a withdrawal race).\n\n**Acceptance (after the conformance ruling on the event order).**\n- The required order of the local rLA! and the transmit-state transitions is published, with its clauses.\n- The own-LeaveAll/withdraw race is reproduced in a unit test and on the board, and the Lv is sent.\n",
+        "state": "open",
+        "user": {
+          "login": "Mister-M-alt",
+          "name": "Mister-M-alt",
+          "email": null,
+          "avatar_url": "https://avatars.githubusercontent.com/u/161579364?v=4",
+          "id": 161579364
+        },
+        "assignees": null,
+        "labels": null,
+        "milestone": null,
+        "state_reason": null,
+        "comments": 3,
+        "created_at": "2026-11-23T09:53:31Z",
+        "updated_at": "2026-11-23T16:14:18Z",
+        "closed_at": null,
+        "display_url": "https://github.com/kebag-logic/lwSRP/issues/20",
+        "display_title": "A Listener withdrawn just after the local LeaveAll is never sent as Lv"
+      },
+      "url": "https://github.com/kebag-logic/lwSRP/issues/20",
+      "title": "A Listener withdrawn just after the local LeaveAll is never sent as Lv",
+      "display_url": "https://github.com/kebag-logic/lwSRP/issues/20",
+      "display_title": "A Listener withdrawn just after the local LeaveAll is never sent as Lv"
+    },
+    "isError": false
+  },
+  "comments": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Action completed."
+      }
+    ],
+    "structuredContent": {
+      "comments": [
+        {
+          "url": "https://github.com/kebag-logic/lwSRP/issues/20#issuecomment-7097311763",
+          "body": "[A10] Conformance ruling: **DEFECT**. Applying the local rLA! after the LeaveAll PDU's own messages has no support in IEEE 802.1Q-2018.\n\nGrounds:\n- Table 10-3: on txLA!, QA sends sJ and does not change state; on txLAF!, QA goes to VP, the same as rLA!. Applying rLA! after txLA! makes the two rows indistinguishable.\n- 10.6: the Applicant minimizes state changes for attributes redeclared in the LeaveAll PDU. VP means \"no Join sent since the last LeaveAll\", which is false here.\n- 10.8 NOTE 2 and 10.7.9: the LeaveAll event precedes the messages it provokes.\n- Table 10-3 note 9 does not apply: a Join was sent after the LeaveAll.\n\nRequired sequence: at an own-LeaveAll opportunity each Applicant gets exactly one of txLA! (fits) or txLAF! (omitted), and no later rLA!. Registrars and the LeaveAll machine still take the LeaveAll (10.7.6.6; Table 10-4 \"rLv! || rLA! || txLA!\"; Table 10-5). Then QA -txLA!/sJ-> QA, Lv! -> LA, and tx!/sL -> VO: the Leave is sent.\n\nAcceptance:\n- **Unit, fitting attribute:** LeaveAll + Join in the PDU, QA -> QA, no Applicant rLA!, Registrar IN -> LV. This replaces the \"QA -> QA -> VP\" expectation in `tests/unit/review_test.c`.\n- **Unit, withdrawal:** Lv! -> LA; the next PDU carries Lv; VO.\n- **Unit, omitted attribute:** txLAF! -> VP; Lv! -> VO, with no Lv and no later Join.\n- **Unit, Lv! before the LeaveAll:** LA -txLA!-> LO, no Join.\n- **On the wire, 8x8/1if:** a withdrawal 5-200 ms after the board's LeaveAll PDU carrying the Listener Join, 20 of 20 across all inputs. The Lv goes out within 240 ms (Milan v1.2 Table 4.3) and the talker deregisters (4.2.7.2.2).\n- **On the wire, no withdrawal:** registration uninterrupted across the board's LeaveAlls.\n",
+          "user": {
+            "login": "Mister-M-alt",
+            "name": "Mister-M-alt",
+            "email": null,
+            "avatar_url": "https://avatars.githubusercontent.com/u/161579364?v=4",
+            "id": 161579364
+          },
+          "id": 7097311763,
+          "pull_request_review_id": null,
+          "in_reply_to_id": null,
+          "created_at": null,
+          "updated_at": null,
+          "review": null,
+          "side": null,
+          "line": null,
+          "start_line": null,
+          "path": null,
+          "body_html": "<p dir=\"auto\">[A10] Conformance ruling: <strong>DEFECT</strong>. Applying the local rLA! after the LeaveAll PDU's own messages has no support in IEEE 802.1Q-2018.</p>\n<p dir=\"auto\">Grounds:</p>\n<ul dir=\"auto\">\n<li>Table 10-3: on txLA!, QA sends sJ and does not change state; on txLAF!, QA goes to VP, the same as rLA!. Applying rLA! after txLA! makes the two rows indistinguishable.</li>\n<li>10.6: the Applicant minimizes state changes for attributes redeclared in the LeaveAll PDU. VP means \"no Join sent since the last LeaveAll\", which is false here.</li>\n<li>10.8 NOTE 2 and 10.7.9: the LeaveAll event precedes the messages it provokes.</li>\n<li>Table 10-3 note 9 does not apply: a Join was sent after the LeaveAll.</li>\n</ul>\n<p dir=\"auto\">Required sequence: at an own-LeaveAll opportunity each Applicant gets exactly one of txLA! (fits) or txLAF! (omitted), and no later rLA!. Registrars and the LeaveAll machine still take the LeaveAll (10.7.6.6; Table 10-4 \"rLv! || rLA! || txLA!\"; Table 10-5). Then QA -txLA!/sJ-&gt; QA, Lv! -&gt; LA, and tx!/sL -&gt; VO: the Leave is sent.</p>\n<p dir=\"auto\">Acceptance:</p>\n<ul dir=\"auto\">\n<li><strong>Unit, fitting attribute:</strong> LeaveAll + Join in the PDU, QA -&gt; QA, no Applicant rLA!, Registrar IN -&gt; LV. This replaces the \"QA -&gt; QA -&gt; VP\" expectation in <code class=\"notranslate\">tests/unit/review_test.c</code>.</li>\n<li><strong>Unit, withdrawal:</strong> Lv! -&gt; LA; the next PDU carries Lv; VO.</li>\n<li><strong>Unit, omitted attribute:</strong> txLAF! -&gt; VP; Lv! -&gt; VO, with no Lv and no later Join.</li>\n<li><strong>Unit, Lv! before the LeaveAll:</strong> LA -txLA!-&gt; LO, no Join.</li>\n<li><strong>On the wire, 8x8/1if:</strong> a withdrawal 5-200 ms after the board's LeaveAll PDU carrying the Listener Join, 20 of 20 across all inputs. The Lv goes out within 240 ms (Milan v1.2 Table 4.3) and the talker deregisters (4.2.7.2.2).</li>\n<li><strong>On the wire, no withdrawal:</strong> registration uninterrupted across the board's LeaveAlls.</li>\n</ul>"
+        },
+        {
+          "url": "https://github.com/kebag-logic/lwSRP/issues/20#issuecomment-7097328174",
+          "body": "[A832] TAKEN",
+          "user": {
+            "login": "Mister-M-alt",
+            "name": "Mister-M-alt",
+            "email": null,
+            "avatar_url": "https://avatars.githubusercontent.com/u/161579364?v=4",
+            "id": 161579364
+          },
+          "id": 7097328174,
+          "pull_request_review_id": null,
+          "in_reply_to_id": null,
+          "created_at": null,
+          "updated_at": null,
+          "review": null,
+          "side": null,
+          "line": null,
+          "start_line": null,
+          "path": null,
+          "body_html": "<p dir=\"auto\">[A832] TAKEN</p>"
+        },
+        {
+          "url": "https://github.com/kebag-logic/lwSRP/issues/20#issuecomment-7106824505",
+          "body": "[A832] REVIEW READY\n\nHead `c035764f` on `20-own-leaveall-lv`, from `08ee86e8`: two commits, not pushed; the PR body is with the manager.\n\n**Fix** (`src/core/mrp_mad.c`). At a committed own-LeaveAll MRPDU each Applicant takes exactly one of txLA! or txLAF!. The sLA's rLA! goes to every Registrar and to no Applicant (IEEE 802.1Q-2018 10.7.6.6, Tables 10-3 to 10-5). An unreachable copy of the old broadcast in `la_event` is removed. The received-LeaveAll path is unchanged. The VLAN, MAC and stream applications share the one commit path.\n\n**The ruling's rows as unit tests.** Fitting attribute (replacing the \"QA -> QA -> VP\" expectation) and withdrawal fail at `08ee86e8` and pass here. Omitted attribute and Lv! before the LeaveAll pass at both. Every Applicant state's txLA! and txLAF! cells are also pinned.\n\n**Gates.** lwSRP's unit target (108 tests, both profiles), sanitizers, 102 reversals, the equivalence check (no decoded event differs) and the documentation checks all pass.\n\n**Consumer** (milan-fpga `dev-soft-core` `854bd723` with this pin, in a scratch clone):\n- A host-level two-station reproduction withdraws each of the nine inputs at 8x8/1if 5-200 ms after the board's own LeaveAll MRPDU that carried its Join. Every Lv leaves within 190 ms (Milan v1.2 Table 4.3: 240 ms), and the talker side deregisters on it. With `08ee86e8`, 351 of 387 withdrawals were never sent as Lv.\n- With nothing withdrawn, no Listener is deregistered across either station's LeaveAlls.\n- The firmware gate and the coverage ratchet hold. So do the CPU service budget at 1x1/1if and 8x8/1if (its per-pass share, load, the 49 ms MRPDU bound and the notice bounds, the board's own LeaveAll included), the image ledger and the two-placement comparison.\n\n**For the pin bump.** The comparison's Applicant grade still models an own LeaveAll as txLA! with an rLA! before or after it. A change to the ruling's model is tested against both halves and all 16 plants. The `srptx` leg is red at `854bd723` before this change, with the same finding kinds; that is reported separately.\n",
+          "user": {
+            "login": "Mister-M-alt",
+            "name": "Mister-M-alt",
+            "email": null,
+            "avatar_url": "https://avatars.githubusercontent.com/u/161579364?v=4",
+            "id": 161579364
+          },
+          "id": 7106824505,
+          "pull_request_review_id": null,
+          "in_reply_to_id": null,
+          "created_at": null,
+          "updated_at": null,
+          "review": null,
+          "side": null,
+          "line": null,
+          "start_line": null,
+          "path": null,
+          "body_html": "<p dir=\"auto\">[A832] REVIEW READY</p>\n<p dir=\"auto\">Head <code class=\"notranslate\">c035764f</code> on <code class=\"notranslate\">20-own-leaveall-lv</code>, from <code class=\"notranslate\">08ee86e8</code>: two commits, not pushed; the PR body is with the manager.</p>\n<p dir=\"auto\"><strong>Fix</strong> (<code class=\"notranslate\">src/core/mrp_mad.c</code>). At a committed own-LeaveAll MRPDU each Applicant takes exactly one of txLA! or txLAF!. The sLA's rLA! goes to every Registrar and to no Applicant (IEEE 802.1Q-2018 10.7.6.6, Tables 10-3 to 10-5). An unreachable copy of the old broadcast in <code class=\"notranslate\">la_event</code> is removed. The received-LeaveAll path is unchanged. The VLAN, MAC and stream applications share the one commit path.</p>\n<p dir=\"auto\"><strong>The ruling's rows as unit tests.</strong> Fitting attribute (replacing the \"QA -&gt; QA -&gt; VP\" expectation) and withdrawal fail at <code class=\"notranslate\">08ee86e8</code> and pass here. Omitted attribute and Lv! before the LeaveAll pass at both. Every Applicant state's txLA! and txLAF! cells are also pinned.</p>\n<p dir=\"auto\"><strong>Gates.</strong> lwSRP's unit target (108 tests, both profiles), sanitizers, 102 reversals, the equivalence check (no decoded event differs) and the documentation checks all pass.</p>\n<p dir=\"auto\"><strong>Consumer</strong> (milan-fpga <code class=\"notranslate\">dev-soft-core</code> <code class=\"notranslate\">854bd723</code> with this pin, in a scratch clone):</p>\n<ul dir=\"auto\">\n<li>A host-level two-station reproduction withdraws each of the nine inputs at 8x8/1if 5-200 ms after the board's own LeaveAll MRPDU that carried its Join. Every Lv leaves within 190 ms (Milan v1.2 Table 4.3: 240 ms), and the talker side deregisters on it. With <code class=\"notranslate\">08ee86e8</code>, 351 of 387 withdrawals were never sent as Lv.</li>\n<li>With nothing withdrawn, no Listener is deregistered across either station's LeaveAlls.</li>\n<li>The firmware gate and the coverage ratchet hold. So do the CPU service budget at 1x1/1if and 8x8/1if (its per-pass share, load, the 49 ms MRPDU bound and the notice bounds, the board's own LeaveAll included), the image ledger and the two-placement comparison.</li>\n</ul>\n<p dir=\"auto\"><strong>For the pin bump.</strong> The comparison's Applicant grade still models an own LeaveAll as txLA! with an rLA! before or after it. A change to the ruling's model is tested against both halves and all 16 plants. The <code class=\"notranslate\">srptx</code> leg is red at <code class=\"notranslate\">854bd723</code> before this change, with the same finding kinds; that is reported separately.</p>"
+        }
+      ],
+      "url": "https://github.com/kebag-logic/lwSRP/issues/20",
+      "title": "kebag-logic/lwSRP Issue #20 comments",
+      "display_url": "https://github.com/kebag-logic/lwSRP/issues/20",
+      "display_title": "kebag-logic/lwSRP Issue #20 comments"
+    },
+    "isError": false
+  }
+}

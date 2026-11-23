@@ -1,0 +1,43 @@
+{
+  "replacements": {
+    "reviewer packet root": "<packet>",
+    "reviewed checkout root": "<review-source>"
+  },
+  "files": [
+    "focused-ON-committed-local-leaveall.log",
+    "focused-OFF-own-leaveall-omitted-as-fitting.log",
+    "base-ON-build.log",
+    "focused-OFF-control.log",
+    "focused-ON-own-leaveall-applicant-rla-first.log",
+    "base-OFF-configure.log",
+    "equivalence-control.log",
+    "embedded.log",
+    "base-OFF-unit.log",
+    "focused-ON-own-leaveall-omitted-as-fitting.log",
+    "asan-ON-build.log",
+    "head-OFF-build.log",
+    "asan-ON-unit.log",
+    "asan-OFF-unit.log",
+    "focused-OFF-own-leaveall-applicant-rla.log",
+    "focused-ON-control.log",
+    "focused-OFF-committed-local-leaveall.log",
+    "base-OFF-build.log",
+    "equivalence-crash.log",
+    "focused-OFF-own-leaveall-applicant-rla-first.log",
+    "asan-OFF-configure.log",
+    "asan-ON-configure.log",
+    "head-ON-build.log",
+    "head-OFF-configure.log",
+    "equivalence-crash-unit-candidate.log",
+    "base-ON-unit.log",
+    "focused-ON-own-leaveall-applicant-rla.log",
+    "asan-OFF-build.log",
+    "head-ON-configure.log",
+    "dependency.log",
+    "head-ON-unit.log",
+    "base-ON-configure.log",
+    "equivalence-control-unit-candidate.log",
+    "head-OFF-unit.log"
+  ],
+  "note": "Only local review path strings changed; raw originals remain in unpublished scratch."
+}

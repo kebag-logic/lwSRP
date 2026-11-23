@@ -1,0 +1,58 @@
+{
+  "comments": {
+    "comments": [
+      {
+        "url": "https://github.com/kebag-logic/lwSRP/pull/21#issuecomment-7106925008",
+        "body": "[A10] INDEPENDENT REVIEW STARTED: R903-1\n\nR903 (internal reviewer) reconstructs issue #20 / PR #21 at exact head `c035764f2d6105fd9598b138112ba01eaa006958`, tree `7f9bd6070b209cd246a9459104c1b1e531fa25da`, in a cleared context from public scope, requirements, diff and evidence, applying all five lenses with a reviewer-owned ledger. Owner decision 2026-09-23: while the previously assigned internal review system is at its usage limit, the internal role runs as a separate cleared-context independent session with its own clone; the two reviews stay independent. No source edits or merge while this review runs; merge still requires two independent positive reviews and the full completion bar.\n",
+        "user": {
+          "login": "Mister-M-alt",
+          "name": "Mister-M-alt",
+          "email": null,
+          "avatar_url": "https://avatars.githubusercontent.com/u/161579364?v=4",
+          "id": 161579364
+        },
+        "id": 7106925008,
+        "pull_request_review_id": null,
+        "in_reply_to_id": null,
+        "created_at": "2026-11-23T16:18:12Z",
+        "updated_at": "2026-11-23T16:18:12Z",
+        "review": null,
+        "side": null,
+        "line": null,
+        "start_line": null,
+        "path": null,
+        "body_html": "<p dir=\"auto\">[A10] INDEPENDENT REVIEW STARTED: R903-1</p>\n<p dir=\"auto\">R903 (internal reviewer) reconstructs issue <a class=\"issue-link js-issue-link\" data-error-text=\"Failed to load title\" data-id=\"6556644021\" data-permission-text=\"Title is private\" data-url=\"https://github.com/kebag-logic/lwSRP/issues/20\" data-hovercard-type=\"issue\" data-hovercard-url=\"/kebag-logic/lwSRP/issues/20/hovercard\" href=\"https://github.com/kebag-logic/lwSRP/issues/20\">#20</a> / PR <a class=\"issue-link js-issue-link\" data-error-text=\"Failed to load title\" data-id=\"6563621983\" data-permission-text=\"Title is private\" data-url=\"https://github.com/kebag-logic/lwSRP/issues/21\" data-hovercard-type=\"pull_request\" data-hovercard-url=\"/kebag-logic/lwSRP/pull/21/hovercard\" href=\"https://github.com/kebag-logic/lwSRP/pull/21\">#21</a> at exact head <code class=\"notranslate\">c035764f2d6105fd9598b138112ba01eaa006958</code>, tree <code class=\"notranslate\">7f9bd6070b209cd246a9459104c1b1e531fa25da</code>, in a cleared context from public scope, requirements, diff and evidence, applying all five lenses with a reviewer-owned ledger. Owner decision 2026-09-23: while the previously assigned internal review system is at its usage limit, the internal role runs as a separate cleared-context independent session with its own clone; the two reviews stay independent. No source edits or merge while this review runs; merge still requires two independent positive reviews and the full completion bar.</p>"
+      },
+      {
+        "url": "https://github.com/kebag-logic/lwSRP/pull/21#issuecomment-7106937664",
+        "body": "[A10] INDEPENDENT REVIEW STARTED: R904-1\n\nR904 (external reviewer) reconstructs issue #20 / PR #21 at exact head `c035764f2d6105fd9598b138112ba01eaa006958`, tree `7f9bd6070b209cd246a9459104c1b1e531fa25da`, in a cleared context from public scope, requirements, diff and evidence, applying all five lenses with a reviewer-owned ledger. No source edits or merge while this review runs; merge still requires two independent positive reviews and the full completion bar.\n",
+        "user": {
+          "login": "Mister-M-alt",
+          "name": "Mister-M-alt",
+          "email": null,
+          "avatar_url": "https://avatars.githubusercontent.com/u/161579364?v=4",
+          "id": 161579364
+        },
+        "id": 7106937664,
+        "pull_request_review_id": null,
+        "in_reply_to_id": null,
+        "created_at": "2026-11-23T16:18:42Z",
+        "updated_at": "2026-11-23T16:18:42Z",
+        "review": null,
+        "side": null,
+        "line": null,
+        "start_line": null,
+        "path": null,
+        "body_html": "<p dir=\"auto\">[A10] INDEPENDENT REVIEW STARTED: R904-1</p>\n<p dir=\"auto\">R904 (external reviewer) reconstructs issue <a class=\"issue-link js-issue-link\" data-error-text=\"Failed to load title\" data-id=\"6556644021\" data-permission-text=\"Title is private\" data-url=\"https://github.com/kebag-logic/lwSRP/issues/20\" data-hovercard-type=\"issue\" data-hovercard-url=\"/kebag-logic/lwSRP/issues/20/hovercard\" href=\"https://github.com/kebag-logic/lwSRP/issues/20\">#20</a> / PR <a class=\"issue-link js-issue-link\" data-error-text=\"Failed to load title\" data-id=\"6563621983\" data-permission-text=\"Title is private\" data-url=\"https://github.com/kebag-logic/lwSRP/issues/21\" data-hovercard-type=\"pull_request\" data-hovercard-url=\"/kebag-logic/lwSRP/pull/21/hovercard\" href=\"https://github.com/kebag-logic/lwSRP/pull/21\">#21</a> at exact head <code class=\"notranslate\">c035764f2d6105fd9598b138112ba01eaa006958</code>, tree <code class=\"notranslate\">7f9bd6070b209cd246a9459104c1b1e531fa25da</code>, in a cleared context from public scope, requirements, diff and evidence, applying all five lenses with a reviewer-owned ledger. No source edits or merge while this review runs; merge still requires two independent positive reviews and the full completion bar.</p>"
+      }
+    ],
+    "url": "https://github.com/kebag-logic/lwSRP/pull/21",
+    "title": "kebag-logic/lwSRP PR #21 comments",
+    "display_url": "https://github.com/kebag-logic/lwSRP/pull/21",
+    "display_title": "kebag-logic/lwSRP PR #21 comments"
+  },
+  "reviews": {
+    "reviews": []
+  },
+  "conclusion": "Queried after the independent report and five-lens ledger were written. No prior public FINDINGS or submitted reviews were present; nothing to resolve or retain."
+}

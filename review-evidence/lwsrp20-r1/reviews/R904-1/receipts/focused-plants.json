@@ -1,0 +1,108 @@
+[
+  {
+    "profile": "OFF",
+    "plant": "control",
+    "build_rc": 0,
+    "test_rc": 0,
+    "required_failures": [],
+    "as_expected": true
+  },
+  {
+    "profile": "OFF",
+    "plant": "committed-local-leaveall",
+    "build_rc": 0,
+    "test_rc": 1,
+    "required_failures": [
+      "a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently",
+      "a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell"
+    ],
+    "as_expected": true
+  },
+  {
+    "profile": "OFF",
+    "plant": "own-leaveall-applicant-rla",
+    "build_rc": 0,
+    "test_rc": 1,
+    "required_failures": [
+      "a_declaration_that_fits_the_leaveall_pdu_stays_quiet",
+      "a_withdrawal_after_the_leaveall_pdu_sends_its_leave",
+      "a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell"
+    ],
+    "as_expected": true
+  },
+  {
+    "profile": "OFF",
+    "plant": "own-leaveall-applicant-rla-first",
+    "build_rc": 0,
+    "test_rc": 1,
+    "required_failures": [
+      "a_declaration_that_fits_the_leaveall_pdu_stays_quiet",
+      "a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell"
+    ],
+    "as_expected": true
+  },
+  {
+    "profile": "OFF",
+    "plant": "own-leaveall-omitted-as-fitting",
+    "build_rc": 0,
+    "test_rc": 1,
+    "required_failures": [
+      "a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently",
+      "a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell"
+    ],
+    "as_expected": true
+  },
+  {
+    "profile": "ON",
+    "plant": "control",
+    "build_rc": 0,
+    "test_rc": 0,
+    "required_failures": [],
+    "as_expected": true
+  },
+  {
+    "profile": "ON",
+    "plant": "committed-local-leaveall",
+    "build_rc": 0,
+    "test_rc": 1,
+    "required_failures": [
+      "a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently",
+      "a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell"
+    ],
+    "as_expected": true
+  },
+  {
+    "profile": "ON",
+    "plant": "own-leaveall-applicant-rla",
+    "build_rc": 0,
+    "test_rc": 1,
+    "required_failures": [
+      "a_declaration_that_fits_the_leaveall_pdu_stays_quiet",
+      "a_withdrawal_after_the_leaveall_pdu_sends_its_leave",
+      "a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell"
+    ],
+    "as_expected": true
+  },
+  {
+    "profile": "ON",
+    "plant": "own-leaveall-applicant-rla-first",
+    "build_rc": 0,
+    "test_rc": 1,
+    "required_failures": [
+      "a_declaration_that_fits_the_leaveall_pdu_stays_quiet",
+      "a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell"
+    ],
+    "as_expected": true
+  },
+  {
+    "profile": "ON",
+    "plant": "own-leaveall-omitted-as-fitting",
+    "build_rc": 0,
+    "test_rc": 1,
+    "required_failures": [
+      "a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently",
+      "a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell"
+    ],
+    "as_expected": true
+  }
+]

@@ -1,0 +1,4 @@
+COMMAND ['cc', '-std=c11', '-O1', '-Wall', '-Wextra', '-DLWSRP_MILAN=1', '-I<review-source>/src', '-I<review-source>/src/core', '-I<review-source>/src/include', '-I<packet>/scratch/deps/include', '<packet>/scratch/focused-ON-control/main.c', '<packet>/scratch/focused-ON-control/mrp_mad.c', '<review-source>/src/core/mrp_pdu.c', '<review-source>/src/ports/timer.c', '<review-source>/src/modules/mmrp.c', '<review-source>/src/modules/mvrp.c', '<review-source>/src/modules/msrp.c', '<review-source>/tests/unit/fault_alloc.c', '<review-source>/tests/unit/own_leaveall_test.c', '<review-source>/tests/unit/mrpdu_decoder.c', '-L<packet>/scratch/deps/lib', '-lcgreen', '-o', '<packet>/scratch/focused-ON-control/probe']
+Running "own_leaveall_suite" (6 tests)...
+  "own_leaveall_suite": 713 passes in 811ms.
+Completed "own_leaveall_suite": 713 passes in 811ms.

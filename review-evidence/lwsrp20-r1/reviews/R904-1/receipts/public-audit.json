@@ -1,0 +1,138 @@
+{
+  "manifest_files": 250,
+  "hash_mismatches": [],
+  "race": {
+    "head-1x1": {
+      "rows": 86,
+      "unsent": 0,
+      "max_delay_ms": 190,
+      "peer_matches": true,
+      "input_counts": {
+        "0": 43,
+        "1": 43
+      },
+      "held": [
+        "OWN-LA held inputs=2 span_ms=90190 board_frames=101 board_leavealls=5 peer_leavealls=2"
+      ]
+    },
+    "head-8x8": {
+      "rows": 387,
+      "unsent": 0,
+      "max_delay_ms": 190,
+      "peer_matches": true,
+      "input_counts": {
+        "0": 43,
+        "1": 43,
+        "2": 43,
+        "3": 43,
+        "4": 43,
+        "5": 43,
+        "6": 43,
+        "7": 43,
+        "8": 43
+      },
+      "held": [
+        "OWN-LA held inputs=9 span_ms=90190 board_frames=101 board_leavealls=5 peer_leavealls=2"
+      ]
+    },
+    "base-08ee86e8-1x1": {
+      "rows": 86,
+      "unsent": 78,
+      "max_delay_ms": 190,
+      "peer_matches": true,
+      "input_counts": {
+        "0": 43,
+        "1": 43
+      },
+      "held": [
+        "OWN-LA held inputs=2 span_ms=90190 board_frames=108 board_leavealls=5 peer_leavealls=2"
+      ]
+    },
+    "base-08ee86e8-8x8": {
+      "rows": 387,
+      "unsent": 351,
+      "max_delay_ms": 190,
+      "peer_matches": true,
+      "input_counts": {
+        "0": 43,
+        "1": 43,
+        "2": 43,
+        "3": 43,
+        "4": 43,
+        "5": 43,
+        "6": 43,
+        "7": 43,
+        "8": 43
+      },
+      "held": [
+        "OWN-LA held inputs=9 span_ms=90190 board_frames=108 board_leavealls=5 peer_leavealls=2"
+      ]
+    }
+  },
+  "budgets": {
+    "1x1": {
+      "groups": 99,
+      "refusals": [],
+      "misses": [
+        "backlog.owed.if0: 62.855 ms over its budget 20 ms",
+        "backlog.owed_behind0.if0: 63.021 ms over its budget 20 ms",
+        "backlog.owed_behind1.if0: 63.184 ms over its budget 20 ms",
+        "backlog.owed_behind2.if0: 63.349 ms over its budget 20 ms",
+        "backlog.owed_behind3.if0: 63.512 ms over its budget 20 ms",
+        "backlog-owed.service.acmp.last.if0: 62.059 ms over its budget 20 ms",
+        "backlog-owed.service.aecp.last.if0: 61.817 ms over its budget 20 ms"
+      ],
+      "share_misses": [],
+      "max_pass_cycles": 152972,
+      "work_passes": 162007,
+      "over_share": 0,
+      "timer_owed_mrpdu_max_ms": 2.43804
+    },
+    "8x8-1if": {
+      "groups": 98,
+      "refusals": [],
+      "misses": [
+        "backlog.owed.if0: 63.226 ms over its budget 20 ms",
+        "backlog.owed_behind0.if0: 63.439 ms over its budget 20 ms",
+        "backlog.owed_behind1.if0: 63.650 ms over its budget 20 ms",
+        "backlog.owed_behind2.if0: 63.862 ms over its budget 20 ms",
+        "backlog.owed_behind3.if0: 64.072 ms over its budget 20 ms",
+        "backlog-owed.service.acmp.last.if0: 62.226 ms over its budget 20 ms",
+        "backlog-owed.service.aecp.last.if0: 61.576 ms over its budget 20 ms"
+      ],
+      "share_misses": [],
+      "max_pass_cycles": 157621,
+      "work_passes": 285420,
+      "over_share": 0,
+      "timer_owed_mrpdu_max_ms": 1.5807
+    }
+  },
+  "firmware": {
+    "0": {
+      "rc": 0,
+      "pass_line": "test_ctrl_firmware: PASS",
+      "caught_lines": []
+    },
+    "1": {
+      "rc": 0,
+      "pass_line": "test_ctrl_firmware: PASS",
+      "caught_lines": [
+        "mutants: 826 of 826 caught"
+      ]
+    },
+    "2": {
+      "rc": 0,
+      "pass_line": "test_ctrl_firmware: PASS",
+      "caught_lines": []
+    },
+    "3": {
+      "rc": 0,
+      "pass_line": "test_ctrl_firmware: PASS",
+      "caught_lines": []
+    }
+  },
+  "reversals": {
+    "OFF": 102,
+    "ON": 102
+  }
+}

@@ -1,0 +1,49 @@
+Source: https://github.com/kebag-logic/milan-fpga/blob/854bd723/sw/firmware/ctrl/srp/srp_mbx.c
+484: 
+485: // One Listener's Registrar change, copied as the walk copies that Listener's presence (registrations): present while
+486: // it registers (#930). Whether what it registers is Ready is its indication's (listener).
+487: static void listener_moved(struct srp_interface *i, const struct mrp_transition *t)
+488: {
+489:     const uint32_t of = sources_of(i,t->attr_val);
+490:     for (unsigned n = 0; n < CTRL_SRP_SOURCES; ++n) {
+491:         if ((of >> n & 1u) != 0u) {
+492:             i->listener_present[n] = t->reg_to != MRP_REG_STATE_MT;
+493:         }
+494:     }
+495: }
+496: 
+497: // lwSRP reports every Applicant or Registrar state change of a participant
+498: // here.
+499: // The walk copies whether each MSRP Talker and Listener registers and what it registers. Each change of that comes
+500: // with an indication: every Registrar change into or out of MT (IEEE 802.1Q-2018 Table 10-4) and, in lwSRP, a value
+501: // changed while it registers. A Talker's indication marks the walk owed (talker_changed) and a Listener's copies its
+502: // declaration (listener), so a Registrar change owes no walk; a Listener's is copied here for its presence (#930).
+503: // mrp_reclaim frees an attribute whose Registrar is MT and whose Applicant observes or has left (VO, AO, QO), and lwSRP
+504: // reports every change of either state here, the one exception an attribute's creation, at VO and MT (mrp_mad.c,
+505: // get_or_create_attr): a change into such a state owes the reclaim, and one out of creation's is counted, so a receive
+506: // tells the attributes it created and left there (apply_receive). Any other change leaves nothing mrp_reclaim frees, and
+507: // owes no walk of the participant's attributes (#665's ruling of 2026-11-20, item 3).
+508: // An Applicant that moves may request a transmit (Table 10-3 note 6), owed now when its participant's join timer is
+509: // idle: a build arms that timer, so this owes a participant one pass a JoinTime, and one that moves in the build that
+510: // sent it owes nothing past that pass, whose end clears its interface. A function of its own, both participants'
+511: // observers calling it, as the split link script's hot list places it (plat/ctrl_split_hot.txt).
+512: // The Applicant states mrp_reclaim frees an attribute in, a bit each: it observes or has left, declaring nothing.
+513: #define SRP_FREED_APPL ((1u << MRP_APPL_STATE_VO) | (1u << MRP_APPL_STATE_AO) | (1u << MRP_APPL_STATE_QO))
+514: _Static_assert(MRP_APPL_STATE_COUNT <= 32u, "SRP_FREED_APPL holds a bit for each Applicant state");
+515: static CTRL_CC_NOINLINE void moved(struct srp_interface *i, unsigned slot, const struct mrp_transition *t)
+516: {
+517:     struct srp_mbx *m = i->owner;
+518:     if (t->reg_to == MRP_REG_STATE_MT && (SRP_FREED_APPL >> t->appl_to & 1u) != 0u) {
+519:         i->reclaim = true;
+520:     }
+521:     if (t->appl_from == MRP_APPL_STATE_VO && t->reg_from == MRP_REG_STATE_MT) {
+522:         ++i->fresh;
+523:     }
+524:     i->moved = true;
+525:     if (slot == 0u && t->attr_type == MSRP_ATTR_TYPE_LISTENER && t->reg_from != t->reg_to) {
+526:         listener_moved(i,t);
+527:     }
+528:     if (t->appl_from != t->appl_to && m->join_left[2u * i->index + slot] == 0u) {
+529:         m->tx_due |= (uint8_t)(1u << i->index);
+530:     }
+531: }

@@ -1,0 +1,1299 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 985e5db..1f0349e 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -63,6 +63,7 @@ add_executable(unit_tests
+     tests/unit/milan_test.c
+     tests/unit/review_test.c
+     tests/unit/grouping_test.c
++    tests/unit/own_leaveall_test.c
+     tests/unit/mrpdu_decoder.c
+ )
+ target_include_directories(unit_tests PRIVATE ${CGREEN_INCLUDE} src/include src)
+diff --git a/README.md b/README.md
+index 9c13d14..f260996 100644
+--- a/README.md
++++ b/README.md
+@@ -42,7 +42,7 @@ ctest --test-dir "$LWSRP_BUILD" --output-on-failure
+ SHLAN_LIBRARY="$LWSRP_BUILD/libshlan.so" behave
+ ~~~
+ 
+-The default unit target runs 102 tests with 26658 assertions.
++The default unit target runs 108 tests with 27197 assertions.
+ The scenario suite passes three scenarios and ten steps.
+ The [tester guide](doc/tester.md) explains their coverage and limits.
+ An [optional Milan setting](doc/integrator.md#milan-received-leave) enables immediate withdrawal of received stream registrations.
+diff --git a/doc/architecture.md b/doc/architecture.md
+index 3063b70..4e96b75 100644
+--- a/doc/architecture.md
++++ b/doc/architecture.md
+@@ -22,7 +22,7 @@ flowchart TD
+ 
+ The [application callbacks](../src/include/shish_lan/mrp.h) connect applications to the [declaration state](../src/core/mrp_mad.c).
+ The [codec](../src/core/mrp_pdu.c) validates complete payloads before delivering events.
+-The [transmit operation](../src/core/mrp_mad.c#L1410) assembles PDUs and commits state after acceptance.
++The [transmit operation](../src/core/mrp_mad.c#L1415) assembles PDUs and commits state after acceptance.
+ The [timer port](../src/ports/timer.h) and [allocation port](../src/ports/alloc.h) isolate platform services.
+ 
+ The [switch operations](../src/include/shish_lan/switch.h) control ports independently of MRP.
+@@ -80,12 +80,12 @@ flowchart TD
+     Retry --> Send
+ ~~~
+ 
+-The host calls [mrp_transmit](../src/core/mrp_mad.c#L1410) on each event-loop pass.
++The host calls [mrp_transmit](../src/core/mrp_mad.c#L1415) on each event-loop pass.
+ The callback accepts the complete payload or refuses it.
+ Refused payloads remain in caller-owned storage until acceptance.
+ The [integration contract](integrator.md#transmit-and-retry) defines buffer ownership and deferred input.
+ The host adds Ethernet framing and chooses the interface.
+-The [bounded assembler](../src/core/mrp_mad.c#L1410) serves omitted attributes before repeating earlier ones.
++The [bounded assembler](../src/core/mrp_mad.c#L1415) serves omitted attributes before repeating earlier ones.
+ See the [scope matrix](manager.md#implementation-status) before making interoperability claims.
+ 
+ ## Test layout
+diff --git a/doc/developer.md b/doc/developer.md
+index 3262807..66e465d 100644
+--- a/doc/developer.md
++++ b/doc/developer.md
+@@ -56,7 +56,7 @@ Withdrawal and aging retain the last registered value.
+ 
+ The [host context](../src/include/shish_lan/mrp.h) remains caller-owned.
+ Keep it valid for the application lifetime.
+-Use [mrp_reclaim](../src/core/mrp_mad.c#L1103) to release undeclared, unregistered, quiescent attributes.
++Use [mrp_reclaim](../src/core/mrp_mad.c#L1108) to release undeclared, unregistered, quiescent attributes.
+ It unlinks their timers and refuses reclamation during a prepared transmission.
+ Read the [lifetime contract](integrator.md#lifetime-and-concurrency) before destroying an application.
+ 
+@@ -96,20 +96,20 @@ VO means Very anxious Observer; VP means Very anxious Passive.
+ VN means Very anxious New; AN means Anxious New.
+ AA means Anxious Active; QA means Quiet Active.
+ Transmit labels describe required protocol actions.
+-The [transmit operation](../src/core/mrp_mad.c#L1410) applies these transitions after the host accepts the payload.
++The [transmit operation](../src/core/mrp_mad.c#L1415) applies these transitions after the host accepts the payload.
+ 
+ Comparison: matches the table for the displayed transitions, including the Registrar condition.
+ Transmission assumes sufficient frame space, as required by [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3, note 7](https://standards.ieee.org/ieee/802.1Q/6844/).
+ 
+ The [Applicant handler](../src/core/mrp_mad.c#L506) implements the Registrar condition and corrected declaration transitions.
+ The [event dispatcher](../src/core/mrp_mad.c#L755) requests transmission for anxious and leaving states.
+-The [transactional assembler](../src/core/mrp_mad.c#L1410) preserves state when a required value cannot fit.
++The [transactional assembler](../src/core/mrp_mad.c#L1415) preserves state when a required value cannot fit.
+ Optional packing actions are omitted; each encoded vector carries one value.
+ 
+ ### MRPDU layout
+ 
+ Reference: [IEEE 802.1Q-2018, clauses 10.8.1.2 and 10.8.2](https://standards.ieee.org/ieee/802.1Q/6844/).
+-Evidence: [Message writer](../src/core/mrp_mad.c#L1351) and [PDU writer](../src/core/mrp_mad.c#L1388).
++Evidence: [Message writer](../src/core/mrp_mad.c#L1356) and [PDU writer](../src/core/mrp_mad.c#L1393).
+ 
+ ~~~mermaid
+ flowchart LR
+@@ -207,6 +207,7 @@ The prefix r marks reception; Join includes JoinIn and JoinMt.
+ With allocation available, this matches the default table for the displayed state transitions.
+ The graph omits indication and timer actions.
+ The [Registrar table](../src/core/mrp_mad.c#L325) also enters LV on transmit-with-LeaveAll.
++A value omitted from that PDU enters LV through the local rLA! of [sla_registrars](../src/core/mrp_mad.c#L774).
+ Its [re-declaration row](../src/core/mrp_mad.c#L387) does the same.
+ Local Join and Leave events do not change Registrar state.
+ 
+@@ -244,13 +245,13 @@ The [profile tests](../tests/unit/milan_test.c) check Talker Advertise, Talker F
+ 
+ Received LeaveAll affects only the message's type on its ingress port.
+ This matches [IEEE 802.1Q-2018, clause 10.7.5.20](https://standards.ieee.org/ieee/802.1Q/6844/).
+-The [receive handler](../src/core/mrp_mad.c#L1069) also restarts the shared participant LeaveAll timer.
++The [receive handler](../src/core/mrp_mad.c#L1074) also restarts the shared participant LeaveAll timer.
+ The [integration tests](../tests/unit/integration_test.c) check both state machines across every supported multi-type application.
+ 
+ ### LeaveAll
+ 
+ Reference: [IEEE 802.1Q-2018, clause 10.7.9, Table 10-5](https://standards.ieee.org/ieee/802.1Q/6844/).
+-Evidence: [la_event](../src/core/mrp_mad.c#L779).
++Evidence: [la_event](../src/core/mrp_mad.c#L795).
+ 
+ ~~~mermaid
+ stateDiagram-v2
+@@ -267,17 +268,36 @@ Begin resets either state to Passive.
+ Begin, reception, and expiry restart the timer; expiry requests transmission.
+ Active transmission requires a LeaveAll message and local LeaveAll processing.
+ 
+-The [transmit operation](../src/core/mrp_mad.c#L1410) emits one LeaveAll vector for each supported attribute type.
+-Acceptance makes the participant Passive and delivers local LeaveAll events.
++The [transmit operation](../src/core/mrp_mad.c#L1415) emits one LeaveAll vector for each supported attribute type.
++Acceptance makes the participant Passive.
++The leavealltimer keeps the draw it started at expiry.
++Each Applicant takes exactly one LeaveAll event: txLA! when its message fits, and txLAF! when it is omitted.
++The local rLA! then reaches every Registrar and no Applicant, through [sla_registrars](../src/core/mrp_mad.c#L774).
++This follows [IEEE 802.1Q-2018, clause 10.7.6.6 and Tables 10-3 and 10-4](https://standards.ieee.org/ieee/802.1Q/6844/), as ruled in [issue #20](https://github.com/kebag-logic/lwSRP/issues/20).
++A second Applicant event would take QA to VP, and a later Leave would then go unsent.
++
++~~~mermaid
++flowchart LR
++    Fits[QA that fits] -->|txLA, Join sent| QA
++    QA -->|Leave request| LA
++    LA -->|tx, Lv sent| Gone[VO]
++    Omitted[QA left out] -->|txLAF| VP
++    VP -->|Leave request| Quiet[VO, no Lv]
++    Before[LA before it] -->|txLA| LO
++~~~
++
++Each row starts at the participant's own LeaveAll opportunity.
++A value left out sent no Join after the LeaveAll, so the peer's Leave timer runs and no Lv is needed.
++The [LeaveAll tests](../tests/unit/own_leaveall_test.c) check each transition and every state's txLA! and txLAF! cells.
+ Refusal preserves the pending payload and does not age registrations through an unsent LeaveAll.
+-The [timer draw](../src/core/mrp_mad.c#L773) lies strictly between the configured interval and 1.5 times that interval.
++The [timer draw](../src/core/mrp_mad.c#L788) lies strictly between the configured interval and 1.5 times that interval.
+ The interval rule is in [IEEE 802.1Q-2018, clause 10.7.4.3](https://standards.ieee.org/ieee/802.1Q/6844/).
+ An active state alone does not prove that a frame was sent.
+ 
+ ### PeriodicTransmission
+ 
+ Reference: [IEEE 802.1Q-2018, clause 10.7.10, Table 10-6](https://standards.ieee.org/ieee/802.1Q/6844/).
+-Evidence: [pt_event](../src/core/mrp_mad.c#L819) and [mrp_set_periodic](../src/core/mrp_mad.c#L1143).
++Evidence: [pt_event](../src/core/mrp_mad.c#L824) and [mrp_set_periodic](../src/core/mrp_mad.c#L1148).
+ 
+ ~~~mermaid
+ stateDiagram-v2
+@@ -292,7 +312,7 @@ Comparison: matches the table for the displayed state transitions.
+ Begin activates either state and arms the timer.
+ Enable arms the timer when Passive; Active expiry rearms it and generates a periodic event.
+ 
+-The [periodic handler](../src/core/mrp_mad.c#L819) uses 100 centiseconds, independently of Join spacing.
++The [periodic handler](../src/core/mrp_mad.c#L824) uses 100 centiseconds, independently of Join spacing.
+ This matches [IEEE 802.1Q-2018, clause 10.7.4.4](https://standards.ieee.org/ieee/802.1Q/6844/).
+ Disable additionally disarms the timer; the table only changes state.
+ During a refused transmission, periodic work is deferred until acceptance.
+diff --git a/doc/integrator.md b/doc/integrator.md
+index 8cb6de9..cd30d67 100644
+--- a/doc/integrator.md
++++ b/doc/integrator.md
+@@ -16,7 +16,7 @@ The [root build definition](../CMakeLists.txt) selects between host and embedded
+ | C language | Requires [C11 draft](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf). |
+ | [CMAKE_BUILD_TYPE](https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html) set to Debug | Adds compiler debugging information through [CMake](https://cmake.org/cmake/help/latest/). |
+ | Export compile commands | Enabled by the [build definition](../CMakeLists.txt). |
+-| Unit dependency found | Builds the [unit runner](../tests/unit/main.c) with nine suites. |
++| Unit dependency found | Builds the [unit runner](../tests/unit/main.c) with ten suites. |
+ | Unit dependency absent | Host configuration fails. Headers and library are required. |
+ | [ZEPHYR_BASE](../CMakeLists.txt) defined | Selects the module branch and returns before host configuration. |
+ | [CONFIG_LWSRP](../Kconfig.zephyr) enabled | Builds protocol sources and default allocation and timer ports. |
+@@ -147,6 +147,9 @@ Register [mrp_set_observer](../src/include/shish_lan/mrp.h) before events when t
+ Use [mrp_attr_visit](../src/include/shish_lan/mrp.h) for current attribute state.
+ Use [mrp_port_status](../src/include/shish_lan/mrp.h) for LeaveAll and periodic state.
+ The observer reports changed Applicant or Registrar states only.
++An accepted LeaveAll reports each Applicant change as txLA! or txLAF!.
++Its local rLA! then reports Registrar changes only, with the Applicant state unchanged.
++This follows [issue #20](https://github.com/kebag-logic/lwSRP/issues/20).
+ Callbacks run synchronously.
+ Copy values that must survive the callback.
+ 
+@@ -248,7 +251,7 @@ sequenceDiagram
+     Target->>Target: Schedule next output
+ ~~~
+ 
+-The [assembler](../src/core/mrp_mad.c#L1410) splits populations across Join-spaced opportunities.
++The [assembler](../src/core/mrp_mad.c#L1415) splits populations across Join-spaced opportunities.
+ Previously omitted attributes precede repeated declarations.
+ Each PDU holds one Message per attribute type, with values in ascending FirstValue order.
+ Size the buffer for the largest single-value Message and the application's LeaveAll preamble.
+@@ -287,7 +290,7 @@ Deliver every elapsed centisecond, including ticks coalesced by the platform.
+ The [timer defaults](../src/include/shish_lan/mrp.h) are Join 20, Leave 60, and LeaveAll 1000 centiseconds.
+ The Mark II profile uses Leave 500 centiseconds through [mrp_port_configure](../src/include/shish_lan/mrp.h).
+ Combine this interval with the [Milan received-Leave option](#milan-received-leave) for immediate explicit withdrawals.
+-The [periodic handler](../src/core/mrp_mad.c#L819) uses 100 centiseconds independently of Join spacing.
++The [periodic handler](../src/core/mrp_mad.c#L824) uses 100 centiseconds independently of Join spacing.
+ LeaveAll draws lie strictly between its configured interval and 1.5 times that interval.
+ The rules are in [IEEE 802.1Q-2018, clauses 10.7.4.3 and 10.7.4.4](https://standards.ieee.org/ieee/802.1Q/6844/).
+ Supply different seeds where independent participants need different timing.
+@@ -313,7 +316,7 @@ sequenceDiagram
+ ~~~
+ 
+ Call the matching [application destroy operation](../src/include/shish_lan/mrp.h) only after all callbacks and accesses have stopped.
+-The [destructor](../src/core/mrp_mad.c#L919) unlinks all owned timers before releasing storage.
++The [destructor](../src/core/mrp_mad.c#L924) unlinks all owned timers before releasing storage.
+ Other applications may continue ticking afterward.
+ Destruction itself does not transmit withdrawals.
+ Complete any required network withdrawal before teardown.
+diff --git a/doc/manager.md b/doc/manager.md
+index 645d66a..00b3bf9 100644
+--- a/doc/manager.md
++++ b/doc/manager.md
+@@ -18,20 +18,20 @@ Their default transitions match the tables; the optional profile change and impl
+ | [IEEE 802.1Q-2018, clause 10.2](https://standards.ieee.org/ieee/802.1Q/6844/) | Declarations, registration indications, and transactional output. | The host supplies frame transport. | [State engine](../src/core/mrp_mad.c). |
+ | [IEEE 802.1Q-2018, clause 10.3](https://standards.ieee.org/ieee/802.1Q/6844/) | Optional propagation callbacks and 32-bit port masks. | No topology gating; VLAN and MAC callbacks are unset. | [Core](../src/core/mrp_mad.c), [VLAN](../src/modules/mvrp.c), [MAC](../src/modules/mmrp.c). |
+ | [IEEE 802.1Q-2018, clause 10.5](https://standards.ieee.org/ieee/802.1Q/6844/) | Application identifiers and destination addresses. | The host selects the interface and adds Ethernet framing. | [Application interface](../src/include/shish_lan/mrp.h), [address tests](../tests/unit/integration_test.c). |
+-| [IEEE 802.1Q-2018, clause 10.7.5.20](https://standards.ieee.org/ieee/802.1Q/6844/) | Received LeaveAll reaches only its message type on the ingress port. | The participant LeaveAll timer is shared across types, as specified. | [Receive handler](../src/core/mrp_mad.c#L1069), [isolation tests](../tests/unit/integration_test.c). |
++| [IEEE 802.1Q-2018, clause 10.7.5.20](https://standards.ieee.org/ieee/802.1Q/6844/) | Received LeaveAll reaches only its message type on the ingress port. | The participant LeaveAll timer is shared across types, as specified. | [Receive handler](../src/core/mrp_mad.c#L1074), [isolation tests](../tests/unit/integration_test.c). |
+ | [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3](https://standards.ieee.org/ieee/802.1Q/6844/) | Graphs and implemented declaration paths match the selected table transitions. | Optional vector packing is omitted. Additional participant modes are not selectable. | [Comparison](developer.md#applicant-declarations), [Applicant handler](../src/core/mrp_mad.c#L506). |
+ | [IEEE 802.1Q-2018, clause 10.7.8, Table 10-4](https://standards.ieee.org/ieee/802.1Q/6844/) | Graph matches the displayed transitions; local New does not register peers. Ordinary unchanged LV Join recovery stops aging without duplicate indications. Failed Flush reservations retain a value snapshot across ticks, incoming registrations, local declarations, and cross-port propagation. | Exhaustive state-path testing remains incomplete. | [Comparison](developer.md#registrar), [Registrar table](../src/core/mrp_mad.c#L325), [retry contract](integrator.md#transmit-and-retry). |
+ | [Milan v1.2, clause 4.2.7.2.2](https://milanav.com/milan-faqs/) | Opt-in MSRP received Leave in IN enters MT and indicates withdrawal immediately. LV retains its deadline. | Default builds retain the generic table. This option does not imply complete profile conformance. | [Build setting](integrator.md#milan-received-leave), [profile tests](../tests/unit/milan_test.c). |
+-| [IEEE 802.1Q-2018, clause 10.7.9, Table 10-5](https://standards.ieee.org/ieee/802.1Q/6844/) | Graph matches the displayed transitions; accepted output sends LeaveAll for every supported type. | Output depends on host polling and transport acceptance. | [Comparison](developer.md#leaveall), [transmit operation](../src/core/mrp_mad.c#L1410). |
++| [IEEE 802.1Q-2018, clause 10.7.9, Table 10-5](https://standards.ieee.org/ieee/802.1Q/6844/) | Graph matches the displayed transitions; accepted output sends LeaveAll for every supported type. Each Applicant takes one LeaveAll event; its local rLA! reaches Registrars only, per [issue #20](https://github.com/kebag-logic/lwSRP/issues/20). | Output depends on host polling and transport acceptance. The LeaveAll timer restarts at expiry, not at the sent LeaveAll. | [Comparison](developer.md#leaveall), [transmit operation](../src/core/mrp_mad.c#L1415). |
+ | [IEEE 802.1Q-2018, clause 10.7.10, Table 10-6](https://standards.ieee.org/ieee/802.1Q/6844/) | Graph matches the displayed transitions; periodic work uses one second. | Disable additionally disarms the timer. Refused output defers periodic Applicant work. | [Comparison](developer.md#periodictransmission), [handler](../src/core/mrp_mad.c). |
+ | [IEEE 802.1Q-2018, clauses 10.7.4.3, 10.7.4.4, and 10.7.11](https://standards.ieee.org/ieee/802.1Q/6844/) | Configurable timers, randomized LeaveAll, independent periodic timing, and timer unlinking. | Global serialized ticking and suitable seeds remain host responsibilities. | [Timer port](../src/ports/timer.c), [timing tests](../tests/unit/integration_test.c). |
+-| [IEEE 802.1Q-2018, clause 10.8.2](https://standards.ieee.org/ieee/802.1Q/6844/) | Complete PDU assembly with one Message per attribute type, ascending values, Listener subtype encoding, and fair splitting across bounded payloads. | Each transmitted vector carries one value; packing optimization is absent. | [Assembler](../src/core/mrp_mad.c#L1410), [transmit tests](../tests/unit/transmit_test.c), [grouping tests](../tests/unit/grouping_test.c). |
++| [IEEE 802.1Q-2018, clause 10.8.2](https://standards.ieee.org/ieee/802.1Q/6844/) | Complete PDU assembly with one Message per attribute type, ascending values, Listener subtype encoding, and fair splitting across bounded payloads. | Each transmitted vector carries one value; packing optimization is absent. | [Assembler](../src/core/mrp_mad.c#L1415), [transmit tests](../tests/unit/transmit_test.c), [grouping tests](../tests/unit/grouping_test.c). |
+ | [IEEE 802.1Q-2018, clause 10.8.3](https://standards.ieee.org/ieee/802.1Q/6844/) | Structural and decoded-range validation precede indications. Higher versions skip unknown stream messages by list length, VLAN/MAC messages by vector boundaries, and unknown event vectors. | Allocation failure can leave earlier valid values applied. | [Parser](../src/core/mrp_pdu.c), [receive tests](../tests/unit/receive_test.c). |
+ | [IEEE 802.1Q-2018, clauses 10.9–10.12](https://standards.ieee.org/ieee/802.1Q/6844/) | MAC and service codecs with host callbacks. | No filtering database, mode enforcement, or propagation policy. | [MAC adapter](../src/modules/mmrp.c). |
+ | [IEEE 802.1Q-2018, clause 11.2](https://standards.ieee.org/ieee/802.1Q/6844/) | VLAN codec and registration callbacks. | No VLAN table, database flush, or propagation policy. | [VLAN adapter](../src/modules/mvrp.c). |
+ | [IEEE 802.1Q-2018, clauses 35.2.1.3, 35.2.2.4, 35.2.2.8, and 35.2.2.9](https://standards.ieee.org/ieee/802.1Q/6844/) | Domain, Talker Advertise, Talker Failed, and Listener values with vector offsets. | No resource admission or hardware reservation. | [Stream adapter](../src/modules/msrp.c), [value tests](../tests/unit/msrp_values_test.c). |
+ | [IEEE 802.1Q-2018, clause 35.2.2.1 and Table 8-1](https://standards.ieee.org/ieee/802.1Q/6844/) | Stream destination is 01-80-C2-00-00-0E. | Ethernet framing remains in the host adapter. | [Destination constant](../src/modules/msrp.c#L415), [address tests](../tests/unit/integration_test.c). |
+-| [IEEE 802.1Q-2018, clause 35.2.2.7.2](https://standards.ieee.org/ieee/802.1Q/6844/) | Listener subtype vectors are encoded and decoded; Ignore creates no registration. | Network interoperability remains unverified. | [Codec](../src/core/mrp_pdu.c), [assembler](../src/core/mrp_mad.c#L1410). |
++| [IEEE 802.1Q-2018, clause 35.2.2.7.2](https://standards.ieee.org/ieee/802.1Q/6844/) | Listener subtype vectors are encoded and decoded; Ignore creates no registration. | Network interoperability remains unverified. | [Codec](../src/core/mrp_pdu.c), [assembler](../src/core/mrp_mad.c#L1415). |
+ | [IEEE 802.1Q-2018, clause 35.2.3](https://standards.ieee.org/ieee/802.1Q/6844/) | Local declaration wrappers. | Full stream registration and attachment service primitives are absent. | [Stream interface](../src/include/shish_lan/msrp.h). |
+ | [IEEE 802.1Q-2018, clause 35.2.4](https://standards.ieee.org/ieee/802.1Q/6844/) | Talker flooding and Listener propagation toward registered Talkers. Retained ports replay queued propagation in order. | No topology gating, bandwidth checks, or hardware reservation. | [Stream policy](../src/modules/msrp.c#L138). |
+ | [IEEE 802.1Q-2018, clause 35.2.6](https://standards.ieee.org/ieee/802.1Q/6844/) | Received Join replaces opposite Talker registrations in IN or LV, with Leave before Join. Changed Listener and Talker values indicate and propagate in IN and LV. | Changed Listeners notify without separate Leave indications. Conflicting New registrations require host precedence policy. | [Value behavior](developer.md#stream-values-and-bounded-interests), [receive tests](../tests/unit/receive_test.c). |
+@@ -53,8 +53,8 @@ flowchart TD
+ ~~~
+ 
+ The [host build](../CMakeLists.txt) succeeds.
+-Its default [unit runner](../tests/unit/main.c) passes 102 tests with 26658 assertions.
+-The enabled [Milan build](tester.md#test-both-registrar-profiles) passes 102 tests with 26646 assertions.
++Its default [unit runner](../tests/unit/main.c) passes 108 tests with 27197 assertions.
++The enabled [Milan build](tester.md#test-both-registrar-profiles) passes 108 tests with 27185 assertions.
+ The [scenario harness](../tests/features/environment.py) passes three scenarios and ten steps through [test bindings](../tests/features/switch_bindings.c).
+ Both [active-state and inactive-state assertions](../tests/features/steps/switch_steps.py#L27-L37) only repeat the operation and check its return code.
+ Neither independently reads port state.
+diff --git a/doc/tester.md b/doc/tester.md
+index acf3af4..0163769 100644
+--- a/doc/tester.md
++++ b/doc/tester.md
+@@ -26,7 +26,7 @@ behave --dry-run
+ | Check | Current result | Meaning |
+ | --- | --- | --- |
+ | Configure and build | Exit 0. | The host library and required unit target compile. |
+-| Default unit target | Exit 0; 102 tests and 26658 assertions. | The [runner](../tests/unit/main.c) executes nine suites. |
++| Default unit target | Exit 0; 108 tests and 27197 assertions. | The [runner](../tests/unit/main.c) executes ten suites. |
+ | Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c). |
+ | Scenario dry run | Validates step matching only. | It does not execute setup or verify behavior. |
+ 
+@@ -67,7 +67,7 @@ ctest --test-dir "$LWSRP_MILAN_BUILD" --output-on-failure
+ SHLAN_LIBRARY="$LWSRP_MILAN_BUILD/libshlan.so" behave
+ ~~~
+ 
+-The enabled build passes 102 tests with 26646 assertions.
++The enabled build passes 108 tests with 27185 assertions.
+ It also passes three scenarios and ten steps.
+ The [profile suite](../tests/unit/milan_test.c) checks both application options in each build.
+ It checks the actual constructor against the build selection.
+@@ -78,6 +78,26 @@ A withdrawal after LeaveAll preserves the deadline, checked one centisecond befo
+ The suite also pins default VLAN and MAC aging and local withdrawal behavior.
+ Re-declare and transmitted LeaveAll retain their timed transitions when rapid withdrawal is enabled.
+ 
++## Check the own LeaveAll
++
++The [LeaveAll suite](../tests/unit/own_leaveall_test.c) pins the participant's own LeaveAll for [issue #20](https://github.com/kebag-logic/lwSRP/issues/20).
++Each Applicant takes exactly one of txLA! or txLAF!, and the local rLA! reaches Registrars only.
++The rules are [IEEE 802.1Q-2018, clause 10.7.6.6 and Tables 10-3 to 10-5](https://standards.ieee.org/ieee/802.1Q/6844/).
++Its first four tests follow the ruling's rows on a stream participant with a peer's Talker and Domain.
++
++| Test | Row | Result at the defect |
++| --- | --- | --- |
++| A fitting declaration stays quiet | The LeaveAll PDU carries the Join; QA stays QA; the Registrar enters LV. | Fails: QA became VP, and both Joins were sent again. |
++| A withdrawal after the LeaveAll PDU sends its Leave | Leave request in QA gives LA; the next PDU carries Lv; then VO. | Fails: VP went to VO with no Lv. |
++| An omitted declaration leaves silently | txLAF! gives VP; a Leave request then gives VO, without Lv or Join. | Passes. |
++| A withdrawal before the LeaveAll PDU sends no Join | LA takes txLA! to LO, then sends Mt. | Passes. |
++
++Two more tests drive one VLAN to each of the twelve Applicant states on shared media.
++They grade every state's txLA! cell with a fitting PDU and its txLAF! cell with a full one.
++Each grade includes the sent message, the next state, and the Registrar's LV.
++The [boundary suite](../tests/unit/review_test.c) also checks one fitting and one omitted VLAN, and the observer's records.
++Its earlier expectation, that a fitting QA reaches VP, is replaced.
++
+ ## Check the grouped encoding
+ 
+ The [grouping suite](../tests/unit/grouping_test.c) pins transmitted bytes for [issue #17](https://github.com/kebag-logic/lwSRP/issues/17).
+@@ -95,6 +115,8 @@ One build uses the base sources; the other uses this checkout's sources.
+ A [trace library](../tests/unit/transmit_trace.c) wraps each transmit call and decodes every offered PDU.
+ Every opportunity must return the same result and decode to the same events.
+ Every new PDU must also have the grouped form.
++The base suite may fail only the tests the [check](../tests/check_equivalence.py) lists as revised by a later issue.
++One is listed: its expected local rLA! count changed with [issue #20](https://github.com/kebag-logic/lwSRP/issues/20).
+ Set EQUIVALENCE_SCRATCH and MILAN_EQUIVALENCE_SCRATCH to new directories outside the checkout.
+ 
+ ~~~sh
+@@ -105,6 +127,7 @@ python3 tests/check_equivalence.py --work-dir "$MILAN_EQUIVALENCE_SCRATCH" --pre
+ Both profiles report 22 transmitting scenarios, 148 opportunities, and 138 PDUs.
+ Of those, 125 PDUs are byte-identical and 13 change only their layout.
+ No decoded event differs.
++Both profiles also report the one revised test.
+ The switch scenarios make no transmit calls.
+ 
+ ## Run the existing codec tests
+@@ -221,7 +244,9 @@ The second must fail the deadline test while the immediate-indication tests stil
+ Additional reversals check build selection and application scope.
+ Five grouping reversals split a Message, omit the PDU EndMark, reverse vector order, drop a vector, and remove the length bound.
+ Each must fail its named [grouping tests](../tests/unit/grouping_test.c).
+-Both profiles run all 99 reversals.
++Four LeaveAll reversals restore the local rLA! for Applicants, apply it before txLA!, drop it for Registrars, and send txLA! for omitted values.
++Each must fail its named [LeaveAll tests](../tests/unit/own_leaveall_test.c).
++Both profiles run all 102 reversals.
+ They also pin propagation order, recovery indications, extension handling, range errors, and all reported LeaveAll boundaries.
+ Each added behavioral reversal must fail its named regression after successful compilation.
+ The [embedded check](../tests/check_embedded.py) exercises the actual module source list with a host compiler in both profiles.
+diff --git a/src/core/mrp_mad.c b/src/core/mrp_mad.c
+index b0d4156..684e996 100644
+--- a/src/core/mrp_mad.c
++++ b/src/core/mrp_mad.c
+@@ -766,6 +766,21 @@ static void broadcast_event(struct mrp_app *app, struct mrp_port_state *ps,
+         deliver_event(app, ps, a, ev, port_id);
+ }
+ 
++/*
++ * 10.7.6.6: a committed sLA gives rise to rLA! against every Registrar of the
++ * participant (Table 10-4). Each Applicant took that LeaveAll as its txLA! or
++ * txLAF! (Table 10-3), so no Applicant takes it again (issue #20).
++ */
++static void sla_registrars(struct mrp_app *app, struct mrp_port_state *ps, uint8_t port_id)
++{
++    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
++        enum mrp_reg_state reg_from = a->reg;
++        /* No rLA! cell indicates, so nothing is reserved and nothing can fail. */
++        (void)reg_event(app, a, MRP_EVENT_RLA, port_id, false);
++        observe(app, a, MRP_EVENT_RLA, port_id, a->appl, reg_from);
++    }
++}
++
+ /* ------------------------------------------------------------------ */
+ /* LeaveAll state machine — Table 10-5                                 */
+ /* ------------------------------------------------------------------ */
+@@ -776,8 +791,8 @@ static uint32_t leaveall_draw(struct mrp_port_state *ps)
+     return ps->leaveall_cs + 1u + ps->random % (ps->leaveall_cs / 2u - 1u);
+ }
+ 
+-static void la_event(struct mrp_app *app, struct mrp_port_state *ps,
+-                     enum mrp_event ev, uint8_t port_id)
++/* Table 10-5's tx! cell is mrp_transmit's commit of a LeaveAll PDU. */
++static void la_event(struct mrp_port_state *ps, enum mrp_event ev)
+ {
+     switch (ev) {
+     case MRP_EVENT_BEGIN:
+@@ -785,16 +800,6 @@ static void la_event(struct mrp_app *app, struct mrp_port_state *ps,
+         shlan_timer_arm(&ps->la_timer, leaveall_draw(ps));
+         break;
+ 
+-    case MRP_EVENT_TX:
+-        if (ps->la == MRP_LA_STATE_ACTIVE) {
+-            /* sLA: send LeaveAll, reset timer, go Passive */
+-            ps->la = MRP_LA_STATE_PASSIVE;
+-            shlan_timer_arm(&ps->la_timer, leaveall_draw(ps));
+-            /* Also generate rLA! for all local Applicant/Registrar SMs */
+-            broadcast_event(app, ps, MRP_EVENT_RLA, port_id);
+-        }
+-        break;
+-
+     case MRP_EVENT_RLA:
+         ps->la = MRP_LA_STATE_PASSIVE;
+         shlan_timer_arm(&ps->la_timer, leaveall_draw(ps));
+@@ -858,7 +863,7 @@ static void on_la_timer(void *arg)
+ {
+     struct mrp_port_timer_arg *a  = (struct mrp_port_timer_arg *)arg;
+     struct mrp_port_state     *ps = &priv_of(a->app)->ports[a->port_id];
+-    la_event(a->app, ps, MRP_EVENT_LEAVEALLTIMER, a->port_id);
++    la_event(ps, MRP_EVENT_LEAVEALLTIMER);
+ }
+ 
+ static void on_pt_timer(void *arg)
+@@ -910,7 +915,7 @@ struct mrp_app *mrp_app_create(const struct mrp_app_ops *ops, uint8_t n_ports)
+         shlan_timer_init(&ps->la_timer, on_la_timer, &ps->timer_arg);
+         shlan_timer_init(&ps->pt_timer, on_pt_timer, &ps->timer_arg);
+         shlan_timer_init(&ps->join_timer, on_join_timer, &ps->timer_arg);
+-        la_event(app, ps, MRP_EVENT_BEGIN, p);
++        la_event(ps, MRP_EVENT_BEGIN);
+         pt_event(app, ps, MRP_EVENT_BEGIN, p);
+     }
+     return app;
+@@ -1069,7 +1074,7 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
+ static void rx_on_leaveall(void *raw_ctx, uint8_t attr_type)
+ {
+     struct rx_ctx *rc = (struct rx_ctx *)raw_ctx;
+-    la_event(rc->app, rc->ps, MRP_EVENT_RLA, rc->port_id);
++    la_event(rc->ps, MRP_EVENT_RLA);
+     for (struct mrp_attr_inst *a = rc->ps->attrs; a; a = a->next) {
+         if (a->attr_type == attr_type) {
+             deliver_event(rc->app, rc->ps, a, MRP_EVENT_RLA, rc->port_id);
+@@ -1137,7 +1142,7 @@ void mrp_port_role_change(struct mrp_app *app, uint8_t port_id, bool flush)
+     enum mrp_event    ev   = flush ? MRP_EVENT_FLUSH : MRP_EVENT_REDECLARE;
+     broadcast_event(app, ps, ev, port_id);
+     if (flush)
+-        la_event(app, ps, MRP_EVENT_LEAVEALLTIMER, port_id); /* §10.7.5.22 */
++        la_event(ps, MRP_EVENT_LEAVEALLTIMER); /* §10.7.5.22 */
+ }
+ 
+ void mrp_set_periodic(struct mrp_app *app, uint8_t port_id, bool enable)
+@@ -1524,8 +1529,8 @@ int mrp_transmit(struct mrp_app *app, uint8_t port_id,
+     }
+     if (la) {
+         ps->la = MRP_LA_STATE_PASSIVE;
+-        // 10.7.6.6: the committed sLA also signals rLA locally.
+-        broadcast_event(app, ps, MRP_EVENT_RLA, port_id);
++        // 10.7.6.6: the committed sLA also signals rLA to every Registrar.
++        sla_registrars(app, ps, port_id);
+     }
+     if (ps->periodic_owed) {
+         ps->periodic_owed = false;
+diff --git a/tests/check_equivalence.py b/tests/check_equivalence.py
+index 1922608..9d47480 100644
+--- a/tests/check_equivalence.py
++++ b/tests/check_equivalence.py
+@@ -7,6 +7,8 @@ Both runs preload tests/unit/transmit_trace.c, which decodes every offered
+ MRPDU with the test-side decoder (IEEE 802.1Q-2018 10.8.1.2 and 10.8.2).
+ Each transmit opportunity must return the same result and offer PDUs whose
+ decoded events are equal. The checkout's PDUs must also have the grouped form.
++The candidate run may fail only the base tests listed in REVISED, whose
++expectations a later issue corrected; every opportunity is still compared.
+ """
+ 
+ import argparse
+@@ -14,12 +16,19 @@ from collections import OrderedDict
+ import json
+ import os
+ from pathlib import Path
++import re
+ import shutil
+ import subprocess
+ import sys
+ 
+ ROOT = Path(__file__).resolve().parents[1]
+ BASE = "9197193e47a6bb1c45a56d90a18c1784123aba44"
++# Base tests that pinned behaviour a later issue corrected, with that issue.
++REVISED = {
++    "full_leaveall_reports_each_required_transition":
++        "issue #20: no Applicant takes the local rLA! of its own LeaveAll (IEEE 802.1Q-2018 10.7.6.6)",
++}
++FAILURE = re.compile(r"(Failure|Exception): \S+ -> (\S+)")
+ 
+ 
+ def run(label, command, work, env=None, cwd=None):
+@@ -142,9 +151,17 @@ def main():
+         # Compare even after a failing suite: the trace locates the first difference.
+         suites[name] = run(f"unit-{name}", [str(build / "unit_tests")], work, env, cwd=build)
+     rows, problems = compare(read_trace(traces["base"]), read_trace(traces["candidate"]))
+-    problems += [f"{name} unit suite: rc={rc}" for name, rc in suites.items() if rc]
+-    (work / "equivalence.json").write_text(json.dumps({"base": args.base, "milan": args.milan,
+-                                                       "rows": rows, "problems": problems}, indent=2) + "\n")
++    revised = []
++    for name, rc in suites.items():
++        if not rc:
++            continue
++        failed = FAILURE.findall((work / f"unit-{name}.log").read_text())
++        if name == "candidate" and failed and all(kind == "Failure" and test in REVISED for kind, test in failed):
++            revised = sorted({test for _, test in failed})
++        else:
++            problems.append(f"{name} unit suite: rc={rc}")
++    (work / "equivalence.json").write_text(json.dumps({"base": args.base, "milan": args.milan, "rows": rows,
++                                                       "revised": revised, "problems": problems}, indent=2) + "\n")
+     print("| Scenario | Opportunities | PDUs | Byte-identical | Layout-only | Different |")
+     print("| --- | --- | --- | --- | --- | --- |")
+     for row in rows:
+@@ -155,6 +172,8 @@ def main():
+     print(f"Scenarios: {len(rows)}; opportunities: {totals['opportunities']}; PDUs: {totals['sends']}; "
+           f"byte-identical: {totals['identical']}; layout-only: {totals['layout_only']}; "
+           f"different: {totals['different']}; problems: {len(problems)}")
++    for test in revised:
++        print(f"REVISED {test}: {REVISED[test]}")
+     for problem in problems:
+         print(f"FAIL {problem}")
+     return int(bool(problems) or totals["sends"] == 0)
+diff --git a/tests/check_reversals.py b/tests/check_reversals.py
+index 977422e..a3e6877 100644
+--- a/tests/check_reversals.py
++++ b/tests/check_reversals.py
+@@ -127,8 +127,17 @@ CASES = [
+      'work->next = ps->map_head;\n            ps->map_head = work;', "unit"),
+     ('registrar-recovery-indication', MAD, '_RE(REG_IND_NONE, REG_TIMER_STOP, MRP_REG_STATE_IN),',
+      '_RE(REG_IND_JOIN, REG_TIMER_STOP, MRP_REG_STATE_IN),', "unit"),
+-    ('committed-local-leaveall', MAD, '// 10.7.6.6: the committed sLA also signals rLA locally.\n        broadcast_event(app, ps, MRP_EVENT_RLA, port_id);',
+-     '/* Plant: no local receive event after committed LeaveAll. */', "unit"),
++    ('committed-local-leaveall', MAD, '// 10.7.6.6: the committed sLA also signals rLA to every Registrar.\n        sla_registrars(app, ps, port_id);',
++     '/* Plant: no Registrar rLA! after committed LeaveAll. */', "unit"),
++    # Issue #20: each Applicant takes one of txLA! or txLAF! at its own LeaveAll, and no rLA!.
++    ('own-leaveall-applicant-rla', MAD, '        sla_registrars(app, ps, port_id);',
++     '        broadcast_event(app, ps, MRP_EVENT_RLA, port_id); /* Plant: the defect back. */', "unit"),
++    ('own-leaveall-applicant-rla-first', MAD,
++     '    ps->tx_pending = false;\n    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {\n        if (a->tx_selected) {',
++     '    ps->tx_pending = false;\n    if (la) {\n        broadcast_event(app, ps, MRP_EVENT_RLA, port_id); /* Plant: rLA! before txLA!. */\n    }\n'
++     '    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {\n        if (a->tx_selected) {', "unit"),
++    ('own-leaveall-omitted-as-fitting', MAD, 'deliver_event(app, ps, a, MRP_EVENT_TXLAF, port_id);',
++     'deliver_event(app, ps, a, MRP_EVENT_TXLA, port_id); /* Plant: txLA! for an omitted value. */', "unit"),
+     ('omitted-leaveall-event', MAD, 'deliver_event(app, ps, a, MRP_EVENT_TXLAF, port_id);',
+      '/* Plant: omit txLAF. */', "unit"),
+     ('reserved-leaveall-event', PDU, 'bool unknown_event = la > MRP_LA_ALL;',
+@@ -143,7 +152,7 @@ CASES = [
+      '(ev == MRP_EVENT_RLV || ev == MRP_EVENT_REDECLARE) &&', "unit"),
+     ('milan-transmitted-leaveall-scope', MAD, 'ev == MRP_EVENT_RLV &&',
+      '(ev == MRP_EVENT_RLV || ev == MRP_EVENT_TXLA) &&', "unit"),
+-    ('received-leaveall-restart', MAD, 'la_event(rc->app, rc->ps, MRP_EVENT_RLA, rc->port_id);',
++    ('received-leaveall-restart', MAD, 'la_event(rc->ps, MRP_EVENT_RLA);',
+      '/* Plant: omit participant LeaveAll restart. */', "unit"),
+     ("embedded-switch-source", "CMakeLists.txt", "      src/core/switch.c\n", "", "embedded"),
+     ('changed-in-only', 'src/core/mrp_mad.c', 'previous->reg != MRP_REG_STATE_MT &&', 'previous->reg == MRP_REG_STATE_IN &&', 'unit'),
+@@ -256,8 +265,22 @@ REQUIRED_FAILURES = {
+     'propagation-retention': ['retained_ports_replay_propagated_join_and_timer_leave_in_order'],
+     'propagation-order': ['queued_propagation_owns_values_and_survives_source_reclamation'],
+     'registrar-recovery-indication': ['registrar_recovery_stops_aging_without_duplicate_join_or_map'],
+-    'committed-local-leaveall': ['full_leaveall_reports_each_required_transition'],
+-    'omitted-leaveall-event': ['full_leaveall_reports_each_required_transition'],
++    'committed-local-leaveall': ['full_leaveall_reports_each_required_transition',
++                                 'committed_leaveall_gives_each_applicant_one_leaveall_event',
++                                 'a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently',
++                                 'a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell'],
++    'omitted-leaveall-event': ['full_leaveall_reports_each_required_transition',
++                               'a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently',
++                               'a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell'],
++    'own-leaveall-applicant-rla': ['committed_leaveall_gives_each_applicant_one_leaveall_event',
++                                   'full_leaveall_reports_each_required_transition',
++                                   'a_declaration_that_fits_the_leaveall_pdu_stays_quiet',
++                                   'a_withdrawal_after_the_leaveall_pdu_sends_its_leave',
++                                   'a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell'],
++    'own-leaveall-applicant-rla-first': ['a_declaration_that_fits_the_leaveall_pdu_stays_quiet',
++                                         'a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell'],
++    'own-leaveall-omitted-as-fitting': ['a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently',
++                                        'a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell'],
+     'reserved-leaveall-event': ['reserved_leaveall_events_are_rejected_atomically'],
+     'listener-subtype': ['changed_listener_redeclares_from_a_quiet_applicant'],
+     'leaveall-upper-bound': ['leaveall_draws_are_inside_the_required_interval'],
+diff --git a/tests/unit/main.c b/tests/unit/main.c
+index 4d42131..cfb4544 100644
+--- a/tests/unit/main.c
++++ b/tests/unit/main.c
+@@ -11,6 +11,7 @@ TestSuite *integration_suite(void);
+ TestSuite *milan_suite(void);
+ TestSuite *boundaries_suite(void);
+ TestSuite *grouping_suite(void);
++TestSuite *own_leaveall_suite(void);
+ 
+ int main(void)
+ {
+@@ -24,6 +25,7 @@ int main(void)
+     add_suite(suite, milan_suite());
+     add_suite(suite, boundaries_suite());
+     add_suite(suite, grouping_suite());
++    add_suite(suite, own_leaveall_suite());
+     TestReporter *reporter = create_text_reporter();
+     int result = run_test_suite(suite, reporter);
+     destroy_test_suite(suite);
+diff --git a/tests/unit/own_leaveall_test.c b/tests/unit/own_leaveall_test.c
+new file mode 100644
+index 0000000..080a2ff
+--- /dev/null
++++ b/tests/unit/own_leaveall_test.c
+@@ -0,0 +1,604 @@
++/* SPDX-License-Identifier: Apache-2.0 */
++/*
++ * The participant's own LeaveAll (issue #20). At a transmit opportunity with
++ * LeaveAll, each Applicant takes exactly one of txLA! (its message fits) or
++ * txLAF! (it is omitted), and no later rLA!. The sLA's rLA! still reaches
++ * every Registrar, and the LeaveAll machine goes Passive (IEEE 802.1Q-2018
++ * 10.7.6.6, Tables 10-3, 10-4 and 10-5). Transmitted PDUs are read with the
++ * test-side decoder, which shares no code with the library parser.
++ */
++#include <cgreen/cgreen.h>
++#include <string.h>
++#include "shish_lan/msrp.h"
++#include "shish_lan/mvrp.h"
++#include "ports/timer.h"
++#include "fault_alloc.h"
++#include "mrpdu_decoder.h"
++
++Describe(OwnLeaveAll);
++BeforeEach(OwnLeaveAll)
++{
++    allocation_fail_after(0);
++    assert_that(allocation_live(), is_equal_to(0));
++}
++AfterEach(OwnLeaveAll)
++{
++    assert_that(allocation_live(), is_equal_to(0));
++}
++
++#define JOIN_CS 20u
++#define ABSENT 99u
++
++/* AttributeEvent values (IEEE 802.1Q-2018 10.8.2.5). */
++enum wire {
++    WIRE_NEW = 0,
++    WIRE_JOIN_IN,
++    WIRE_IN,
++    WIRE_JOIN_MT,
++    WIRE_MT,
++    WIRE_LV,
++};
++
++static uint8_t sent[2048];
++static size_t sent_len;
++static unsigned sends;
++static struct mrpdu_decoded pdu;
++
++static int capture(void *ctx, uint8_t port, const uint8_t *data, size_t len)
++{
++    (void)ctx; (void)port;
++    assert_that(len, is_less_than(sizeof(sent) + 1u));
++    sent_len = len < sizeof(sent) ? len : sizeof(sent);
++    memcpy(sent, data, sent_len);
++    ++sends;
++    return 0;
++}
++
++static void tick(unsigned count)
++{
++    while (count--) {
++        shlan_timer_tick();
++    }
++}
++
++/* One transmit opportunity that must send exactly one MRPDU; it is decoded. */
++static void send_one(struct mrp_app *a, size_t capacity)
++{
++    static uint8_t buffer[2048];
++    sends = 0;
++    assert_that(mrp_transmit(a, 0, buffer, capacity, capture, NULL), is_equal_to(1));
++    assert_that(sends, is_equal_to(1));
++    struct mrpdu_profile profile = mrpdu_profile_for(a->ops->ethertype);
++    assert_that(mrpdu_decode(sent, sent_len, &profile, &pdu), is_equal_to(0));
++}
++
++static void send_none(struct mrp_app *a)
++{
++    static uint8_t buffer[2048];
++    sends = 0;
++    assert_that(mrp_transmit(a, 0, buffer, sizeof(buffer), capture, NULL), is_equal_to(0));
++    assert_that(sends, is_equal_to(0));
++}
++
++/* The AttributeEvent the last PDU carries for one value, or ABSENT. */
++static unsigned event_of(uint8_t type, const uint8_t *value, size_t len)
++{
++    for (size_t n = 0; n < pdu.vectors; ++n) {
++        const struct mrpdu_vector *v = &pdu.vector[n];
++        if (v->type == type && v->values == 1u && v->length == len &&
++            memcmp(v->first_value, value, len) == 0) {
++            return mrpdu_event(v, 0);
++        }
++    }
++    return ABSENT;
++}
++
++static unsigned four_packed_of(uint8_t type, const uint8_t *value, size_t len)
++{
++    for (size_t n = 0; n < pdu.vectors; ++n) {
++        const struct mrpdu_vector *v = &pdu.vector[n];
++        if (v->type == type && v->values == 1u && memcmp(v->first_value, value, len) == 0) {
++            return mrpdu_four_packed(v, 0);
++        }
++    }
++    return ABSENT;
++}
++
++/* The bit set of AttributeTypes the last PDU flags LeaveAll. */
++static unsigned leave_all_types(void)
++{
++    unsigned types = 0;
++    for (size_t n = 0; n < pdu.vectors; ++n) {
++        if (pdu.vector[n].leave_all == 1u) {
++            assert_that(pdu.vector[n].values, is_equal_to(0));
++            types |= 1u << pdu.vector[n].type;
++        }
++    }
++    return types;
++}
++
++/* Values carried by the last PDU, LeaveAll-only vectors excluded. */
++static unsigned values_sent(void)
++{
++    unsigned count = 0;
++    for (size_t n = 0; n < pdu.vectors; ++n) {
++        count += pdu.vector[n].values;
++    }
++    return count;
++}
++
++static enum mrp_la_state leave_all_state(struct mrp_app *a)
++{
++    enum mrp_la_state la = MRP_LA_STATE_PASSIVE;
++    assert_that(mrp_port_status(a, 0, &la, NULL), is_equal_to(0));
++    return la;
++}
++
++/* Tick until the LeaveAll machine is Active; 10.7.4.3 bounds the draw. */
++static void until_leave_all(struct mrp_app *a)
++{
++    enum mrp_la_state la = MRP_LA_STATE_PASSIVE;
++    for (unsigned waited = 0; waited < 1600u; ++waited) {
++        (void)mrp_port_status(a, 0, &la, NULL);
++        if (la == MRP_LA_STATE_ACTIVE) {
++            break;
++        }
++        tick(1);
++    }
++    assert_that(leave_all_state(a), is_equal_to(MRP_LA_STATE_ACTIVE));
++}
++
++/* Every observed transition of one LeaveAll opportunity. */
++struct seen {
++    enum mrp_event event;
++    uint8_t type;
++    uint8_t value[8];
++    enum mrp_appl_state appl_from, appl_to;
++    enum mrp_reg_state reg_from, reg_to;
++};
++static struct seen seen[32];
++static unsigned seen_count;
++
++static void record(void *ctx, const struct mrp_transition *t)
++{
++    (void)ctx;
++    assert_that(seen_count, is_less_than(32));
++    if (seen_count < 32u) {
++        struct seen *s = &seen[seen_count++];
++        s->event = t->event;
++        s->type = t->attr_type;
++        memcpy(s->value, t->attr_val, sizeof(s->value));
++        s->appl_from = t->appl_from; s->appl_to = t->appl_to;
++        s->reg_from = t->reg_from; s->reg_to = t->reg_to;
++    }
++}
++
++/* No Applicant moves on rLA!, and none moves twice (exactly one of txLA! or txLAF!). */
++static void one_leave_all_event_per_applicant(void)
++{
++    for (unsigned n = 0; n < seen_count; ++n) {
++        if (seen[n].appl_from == seen[n].appl_to) {
++            continue;
++        }
++        assert_that(seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF, is_true);
++        for (unsigned m = n + 1u; m < seen_count; ++m) {
++            bool same = seen[m].type == seen[n].type &&
++                        memcmp(seen[m].value, seen[n].value, sizeof(seen[n].value)) == 0;
++            assert_that(same && seen[m].appl_from != seen[m].appl_to, is_false);
++        }
++    }
++}
++
++/* The Applicant changes one value took in the recorded opportunity, and the last one's event. */
++static unsigned applicant_moves(uint8_t type, const uint8_t *value, size_t len, enum mrp_event *event)
++{
++    unsigned moves = 0;
++    for (unsigned n = 0; n < seen_count; ++n) {
++        if (seen[n].type == type && memcmp(seen[n].value, value, len) == 0 &&
++            seen[n].appl_from != seen[n].appl_to) {
++            *event = seen[n].event;
++            ++moves;
++        }
++    }
++    return moves;
++}
++
++/* A Registrar change on rLA! that leaves the Applicant unchanged, for one value. */
++static bool registrar_took_rla(uint8_t type, const uint8_t *value, size_t len)
++{
++    for (unsigned n = 0; n < seen_count; ++n) {
++        if (seen[n].event == MRP_EVENT_RLA && seen[n].type == type &&
++            memcmp(seen[n].value, value, len) == 0) {
++            return seen[n].appl_from == seen[n].appl_to &&
++                   seen[n].reg_from == MRP_REG_STATE_IN && seen[n].reg_to == MRP_REG_STATE_LV;
++        }
++    }
++    return false;
++}
++
++/* ------------------------------------------------------------------ */
++/* The stream participant of issue #20                                  */
++/* ------------------------------------------------------------------ */
++
++/* Locally administered identities. */
++static const uint8_t stream[8] = {0x02, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00};
++static const uint8_t domain_wire[4] = {6, 3, 0, 2};
++static const struct msrp_domain domain = {6, 3, 2};
++
++struct appl_reg {
++    enum mrp_appl_state appl;
++    enum mrp_reg_state reg;
++    bool found;
++};
++struct probe {
++    uint8_t type;
++    struct appl_reg state;
++};
++
++static void probe_visit(void *ctx, const struct mrp_attr_status *s)
++{
++    struct probe *p = ctx;
++    if (s->attr_type == p->type) {
++        p->state.appl = s->appl; p->state.reg = s->reg; p->state.found = true;
++    }
++}
++
++/* The stream participant holds one value of each type it uses. */
++static struct appl_reg of_type(struct mrp_app *a, uint8_t type)
++{
++    struct probe p = {.type = type};
++    mrp_attr_visit(a, 0, probe_visit, &p);
++    assert_that(p.state.found, is_true);
++    return p.state;
++}
++
++static bool holds(struct mrp_app *a, uint8_t type)
++{
++    struct probe p = {.type = type};
++    mrp_attr_visit(a, 0, probe_visit, &p);
++    return p.state.found;
++}
++
++static void check(struct mrp_app *a, uint8_t type, enum mrp_appl_state appl, enum mrp_reg_state reg)
++{
++    struct appl_reg s = of_type(a, type);
++    assert_that(mrp_appl_state_name(s.appl), is_equal_to_string(mrp_appl_state_name(appl)));
++    assert_that(mrp_reg_state_name(s.reg), is_equal_to_string(mrp_reg_state_name(reg)));
++}
++
++/*
++ * The board of issue #20, at one input: a peer registers its Talker Advertise
++ * and its Domain; the participant declares the Domain and a Ready Listener for
++ * that stream, and both reach QA. Periodic transmission is off, so only the
++ * LeaveAll and the declarations move an Applicant. Returns at LeaveAll Active.
++ */
++static struct mrp_app *stream_board(void)
++{
++    static struct msrp_ctx ctx;
++    memset(&ctx, 0, sizeof(ctx));
++    struct mrp_app *a = msrp_app_create(1, &ctx);
++    assert_that(mrp_port_configure(a, 0, JOIN_CS, 60, 1000, 7, true), is_equal_to(0));
++    mrp_set_periodic(a, 0, false);
++    uint8_t peer[50] = {0,
++        1, 25, 0, 30, 0x00, 0x01,
++        0x02, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00,   /* StreamID */
++        0x91, 0xe0, 0xf0, 0x00, 0xfe, 0x00, 0x00, 0x02,   /* DA, VID */
++        0x00, 0xe0, 0x00, 0x01, 0x70, 0x00, 0x00, 0x03, 0xe8,
++        36, 0, 0,                                          /* JoinIn, EndMark */
++        4, 4, 0, 9, 0x00, 0x01, 6, 3, 0, 2, 36, 0, 0,       /* Domain JoinIn */
++        0, 0};
++    assert_that(mrp_rx(a, 0, peer, sizeof(peer)), is_equal_to(0));
++    assert_that(mrp_mad_join(a, 0, MSRP_ATTR_TYPE_DOMAIN, &domain, true), is_equal_to(0));
++    struct msrp_stream_id sid;
++    memcpy(sid.bytes, stream, sizeof(stream));
++    assert_that(msrp_declare_listener(a, 0, &sid, MSRP_LISTENER_DECL_READY), is_equal_to(0));
++    /* New, New, then the Listener's JoinMt (Table 10-3: VN, AN, QA or AA by note 8, QA). */
++    for (unsigned n = 0; n < 3u; ++n) {
++        send_one(a, sizeof(sent));
++        tick(JOIN_CS);
++    }
++    send_none(a);
++    check(a, MSRP_ATTR_TYPE_DOMAIN, MRP_APPL_STATE_QA, MRP_REG_STATE_IN);
++    check(a, MSRP_ATTR_TYPE_LISTENER, MRP_APPL_STATE_QA, MRP_REG_STATE_MT);
++    check(a, MSRP_ATTR_TYPE_TALKER_ADV, MRP_APPL_STATE_VO, MRP_REG_STATE_IN);
++    until_leave_all(a);
++    seen_count = 0;
++    mrp_set_observer(a, record, NULL);
++    return a;
++}
++
++/* Later Join-spaced opportunities send nothing for the Listener. */
++static void listener_quiet(struct mrp_app *a, unsigned opportunities)
++{
++    static uint8_t buffer[2048];
++    struct mrpdu_profile profile = mrpdu_profile_for(a->ops->ethertype);
++    for (unsigned n = 0; n < opportunities; ++n) {
++        tick(JOIN_CS);
++        sends = 0;
++        int r = mrp_transmit(a, 0, buffer, sizeof(buffer), capture, NULL);
++        assert_that(r == 0 || r == 1, is_true);
++        if (r == 1) {
++            assert_that(mrpdu_decode(sent, sent_len, &profile, &pdu), is_equal_to(0));
++            assert_that(event_of(MSRP_ATTR_TYPE_LISTENER, stream, 8), is_equal_to(ABSENT));
++        }
++    }
++}
++
++static void withdraw_listener(struct mrp_app *a)
++{
++    struct msrp_stream_id sid;
++    memcpy(sid.bytes, stream, sizeof(stream));
++    assert_that(msrp_withdraw_listener(a, 0, &sid), is_equal_to(0));
++}
++
++/* Ruling row "fitting attribute": the LeaveAll PDU carries the Join; QA stays QA. */
++Ensure(OwnLeaveAll, a_declaration_that_fits_the_leaveall_pdu_stays_quiet)
++{
++    struct mrp_app *a = stream_board();
++    send_one(a, sizeof(sent));
++    assert_that(leave_all_types(), is_equal_to(0x1e));
++    assert_that(event_of(MSRP_ATTR_TYPE_LISTENER, stream, 8), is_equal_to(WIRE_JOIN_MT));
++    assert_that(four_packed_of(MSRP_ATTR_TYPE_LISTENER, stream, 8), is_equal_to(MSRP_LISTENER_DECL_READY));
++    assert_that(event_of(MSRP_ATTR_TYPE_DOMAIN, domain_wire, 4), is_equal_to(WIRE_JOIN_IN));
++    assert_that(values_sent(), is_equal_to(2));
++    /* QA -txLA!/sJ-> QA; the Registrars take the LeaveAll (Table 10-4). */
++    check(a, MSRP_ATTR_TYPE_LISTENER, MRP_APPL_STATE_QA, MRP_REG_STATE_MT);
++    check(a, MSRP_ATTR_TYPE_DOMAIN, MRP_APPL_STATE_QA, MRP_REG_STATE_LV);
++    check(a, MSRP_ATTR_TYPE_TALKER_ADV, MRP_APPL_STATE_LO, MRP_REG_STATE_LV);
++    assert_that(leave_all_state(a), is_equal_to(MRP_LA_STATE_PASSIVE));
++    one_leave_all_event_per_applicant();
++    /* Nothing re-declares the fitted values: LO alone sends its Mt. */
++    tick(JOIN_CS);
++    send_one(a, sizeof(sent));
++    assert_that(event_of(MSRP_ATTR_TYPE_LISTENER, stream, 8), is_equal_to(ABSENT));
++    assert_that(event_of(MSRP_ATTR_TYPE_DOMAIN, domain_wire, 4), is_equal_to(ABSENT));
++    assert_that(values_sent(), is_equal_to(1));
++    tick(JOIN_CS);
++    send_none(a);
++    check(a, MSRP_ATTR_TYPE_LISTENER, MRP_APPL_STATE_QA, MRP_REG_STATE_MT);
++    msrp_app_destroy(a);
++}
++
++/* Ruling row "withdrawal": Lv! -> LA after the LeaveAll PDU; the next PDU carries Lv. */
++Ensure(OwnLeaveAll, a_withdrawal_after_the_leaveall_pdu_sends_its_leave)
++{
++    struct mrp_app *a = stream_board();
++    send_one(a, sizeof(sent));
++    assert_that(event_of(MSRP_ATTR_TYPE_LISTENER, stream, 8), is_equal_to(WIRE_JOIN_MT));
++    /* The capture's case: the withdrawal 120 ms after the LeaveAll PDU. */
++    tick(12);
++    withdraw_listener(a);
++    check(a, MSRP_ATTR_TYPE_LISTENER, MRP_APPL_STATE_LA, MRP_REG_STATE_MT);
++    send_none(a);   /* The Join timer still runs (10.7.4.1). */
++    tick(JOIN_CS - 12u);
++    send_one(a, sizeof(sent));
++    assert_that(event_of(MSRP_ATTR_TYPE_LISTENER, stream, 8), is_equal_to(WIRE_LV));
++    assert_that(four_packed_of(MSRP_ATTR_TYPE_LISTENER, stream, 8), is_equal_to(MSRP_LISTENER_DECL_READY));
++    assert_that(event_of(MSRP_ATTR_TYPE_DOMAIN, domain_wire, 4), is_equal_to(ABSENT));
++    check(a, MSRP_ATTR_TYPE_LISTENER, MRP_APPL_STATE_VO, MRP_REG_STATE_MT);
++    /* VO with MT is free (Table 10-3 note 11): the Lv was sent before it went. */
++    assert_that(mrp_reclaim(a, 0), is_equal_to(1));
++    assert_that(holds(a, MSRP_ATTR_TYPE_LISTENER), is_false);
++    tick(JOIN_CS);
++    send_none(a);
++    msrp_app_destroy(a);
++}
++
++/* Ruling row "omitted attribute": txLAF! -> VP; Lv! -> VO, with no Lv and no later Join. */
++Ensure(OwnLeaveAll, a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently)
++{
++    struct mrp_app *a = stream_board();
++    /* Room for the four LeaveAll vectors (1 + 33 + 42 + 16 + 12 + 2 octets) and no value. */
++    send_one(a, 106);
++    assert_that(sent_len, is_equal_to(106));
++    assert_that(leave_all_types(), is_equal_to(0x1e));
++    assert_that(values_sent(), is_equal_to(0));
++    check(a, MSRP_ATTR_TYPE_LISTENER, MRP_APPL_STATE_VP, MRP_REG_STATE_MT);
++    /* The omitted Domain's Registrar takes the sLA's rLA! (10.7.6.6). */
++    check(a, MSRP_ATTR_TYPE_DOMAIN, MRP_APPL_STATE_VP, MRP_REG_STATE_LV);
++    assert_that(registrar_took_rla(MSRP_ATTR_TYPE_DOMAIN, domain_wire, 2), is_true);
++    check(a, MSRP_ATTR_TYPE_TALKER_ADV, MRP_APPL_STATE_LO, MRP_REG_STATE_LV);
++    one_leave_all_event_per_applicant();
++    withdraw_listener(a);
++    check(a, MSRP_ATTR_TYPE_LISTENER, MRP_APPL_STATE_VO, MRP_REG_STATE_MT);
++    for (unsigned n = 0; n < 2u; ++n) {
++        tick(JOIN_CS);
++        send_one(a, sizeof(sent));
++        assert_that(event_of(MSRP_ATTR_TYPE_LISTENER, stream, 8), is_equal_to(ABSENT));
++        assert_that(event_of(MSRP_ATTR_TYPE_DOMAIN, domain_wire, 4), is_equal_to(WIRE_JOIN_MT));
++    }
++    tick(JOIN_CS);
++    send_none(a);
++    assert_that(mrp_reclaim(a, 0), is_greater_than(0));
++    assert_that(holds(a, MSRP_ATTR_TYPE_LISTENER), is_false);
++    msrp_app_destroy(a);
++}
++
++/* Ruling row "Lv! before the LeaveAll": LA -txLA!-> LO, no Join. */
++Ensure(OwnLeaveAll, a_withdrawal_before_the_leaveall_pdu_sends_no_join)
++{
++    struct mrp_app *a = stream_board();
++    withdraw_listener(a);
++    check(a, MSRP_ATTR_TYPE_LISTENER, MRP_APPL_STATE_LA, MRP_REG_STATE_MT);
++    seen_count = 0;
++    send_one(a, sizeof(sent));
++    assert_that(leave_all_types(), is_equal_to(0x1e));
++    assert_that(event_of(MSRP_ATTR_TYPE_LISTENER, stream, 8), is_equal_to(ABSENT));
++    assert_that(event_of(MSRP_ATTR_TYPE_DOMAIN, domain_wire, 4), is_equal_to(WIRE_JOIN_IN));
++    check(a, MSRP_ATTR_TYPE_LISTENER, MRP_APPL_STATE_LO, MRP_REG_STATE_MT);
++    enum mrp_event event = MRP_EVENT_COUNT;
++    assert_that(applicant_moves(MSRP_ATTR_TYPE_LISTENER, stream, 8, &event), is_equal_to(1));
++    assert_that(mrp_event_name(event), is_equal_to_string(mrp_event_name(MRP_EVENT_TXLA)));
++    /* LO -tx!/s-> VO: Mt, never Join or Lv (Table 10-3). */
++    tick(JOIN_CS);
++    send_one(a, sizeof(sent));
++    assert_that(event_of(MSRP_ATTR_TYPE_LISTENER, stream, 8), is_equal_to(WIRE_MT));
++    check(a, MSRP_ATTR_TYPE_LISTENER, MRP_APPL_STATE_VO, MRP_REG_STATE_MT);
++    listener_quiet(a, 3);
++    msrp_app_destroy(a);
++}
++
++/* ------------------------------------------------------------------ */
++/* Every Applicant state against the txLA! and txLAF! rows              */
++/* ------------------------------------------------------------------ */
++
++/*
++ * One VLAN per Applicant state, on shared media so that AO, QO, AP and QP
++ * occur. Each row is Table 10-3's, written here independently of the library:
++ * the state before the LeaveAll opportunity, the Registrar it holds, the
++ * message txLA! sends and the state after it, and txLAF!'s state.
++ */
++struct row {
++    uint16_t vid;
++    enum mrp_appl_state before;
++    enum mrp_reg_state reg;
++    unsigned txla_sends;
++    enum mrp_appl_state after_txla, after_txlaf;
++};
++static const struct row rows[] = {
++    {2,  MRP_APPL_STATE_VO, MRP_REG_STATE_IN, ABSENT,       MRP_APPL_STATE_LO, MRP_APPL_STATE_LO},
++    {3,  MRP_APPL_STATE_VP, MRP_REG_STATE_MT, WIRE_MT,      MRP_APPL_STATE_AA, MRP_APPL_STATE_VP},
++    {4,  MRP_APPL_STATE_VN, MRP_REG_STATE_MT, WIRE_NEW,     MRP_APPL_STATE_AN, MRP_APPL_STATE_VN},
++    {5,  MRP_APPL_STATE_AN, MRP_REG_STATE_MT, WIRE_NEW,     MRP_APPL_STATE_QA, MRP_APPL_STATE_VN},
++    {6,  MRP_APPL_STATE_AA, MRP_REG_STATE_MT, WIRE_JOIN_MT, MRP_APPL_STATE_QA, MRP_APPL_STATE_VP},
++    {7,  MRP_APPL_STATE_QA, MRP_REG_STATE_IN, WIRE_JOIN_IN, MRP_APPL_STATE_QA, MRP_APPL_STATE_VP},
++    {8,  MRP_APPL_STATE_LA, MRP_REG_STATE_MT, ABSENT,       MRP_APPL_STATE_LO, MRP_APPL_STATE_LO},
++    {9,  MRP_APPL_STATE_AO, MRP_REG_STATE_IN, ABSENT,       MRP_APPL_STATE_LO, MRP_APPL_STATE_LO},
++    {10, MRP_APPL_STATE_QO, MRP_REG_STATE_IN, ABSENT,       MRP_APPL_STATE_LO, MRP_APPL_STATE_LO},
++    {11, MRP_APPL_STATE_AP, MRP_REG_STATE_IN, WIRE_JOIN_IN, MRP_APPL_STATE_QA, MRP_APPL_STATE_VP},
++    {12, MRP_APPL_STATE_QP, MRP_REG_STATE_IN, WIRE_JOIN_IN, MRP_APPL_STATE_QA, MRP_APPL_STATE_VP},
++    {13, MRP_APPL_STATE_LO, MRP_REG_STATE_MT, ABSENT,       MRP_APPL_STATE_LO, MRP_APPL_STATE_LO},
++};
++#define ROWS (sizeof(rows) / sizeof(rows[0]))
++
++struct vlan_probe {
++    uint8_t value[2];
++    struct appl_reg state;
++};
++
++static void vlan_visit(void *ctx, const struct mrp_attr_status *s)
++{
++    struct vlan_probe *p = ctx;
++    if (memcmp(s->attr_val, p->value, 2) == 0) {
++        p->state.appl = s->appl; p->state.reg = s->reg; p->state.found = true;
++    }
++}
++
++static struct appl_reg of_vlan(struct mrp_app *a, uint16_t vid)
++{
++    struct vlan_probe p = {.value = {(uint8_t)(vid >> 8), (uint8_t)vid}};
++    mrp_attr_visit(a, 0, vlan_visit, &p);
++    assert_that(p.state.found, is_true);
++    return p.state;
++}
++
++static void receive(struct mrp_app *a, uint16_t vid, enum wire event)
++{
++    uint8_t rx[] = {0, 1, 2, 0, 1, (uint8_t)(vid >> 8), (uint8_t)vid, (uint8_t)(36u * event), 0, 0, 0, 0};
++    assert_that(mrp_rx(a, 0, rx, sizeof(rx)), is_equal_to(0));
++}
++
++static void new_vlan(struct mrp_app *a, uint16_t vid)
++{
++    const uint8_t value[2] = {(uint8_t)(vid >> 8), (uint8_t)vid};
++    assert_that(mrp_mad_join(a, 0, MVRP_ATTR_TYPE_VID, value, true), is_equal_to(0));
++}
++
++/* Drive each VLAN of the table to its state, then wait for the LeaveAll. */
++static struct mrp_app *vlan_states(void)
++{
++    static struct mvrp_ctx ctx;
++    memset(&ctx, 0, sizeof(ctx));
++    struct mrp_app *a = mvrp_app_create(1, &ctx);
++    assert_that(mrp_port_configure(a, 0, JOIN_CS, 60, 1000, 3, false), is_equal_to(0));
++    mrp_set_periodic(a, 0, false);
++    assert_that(mvrp_declare(a, 0, 7), is_equal_to(0));
++    assert_that(mvrp_declare(a, 0, 8), is_equal_to(0));
++    send_one(a, sizeof(sent));                  /* 7, 8: VP -> AA */
++    tick(JOIN_CS);
++    new_vlan(a, 5);
++    assert_that(mvrp_declare(a, 0, 6), is_equal_to(0));
++    send_one(a, sizeof(sent));                  /* 7, 8: QA; 5: AN; 6: AA */
++    tick(JOIN_CS);
++    assert_that(mvrp_withdraw(a, 0, 8), is_equal_to(0));    /* QA -> LA */
++    assert_that(mvrp_declare(a, 0, 3), is_equal_to(0));     /* VP */
++    new_vlan(a, 4);                                         /* VN */
++    receive(a, 7, WIRE_JOIN_IN);                            /* QA, IN */
++    receive(a, 2, WIRE_JOIN_MT);                            /* VO, IN */
++    receive(a, 9, WIRE_JOIN_IN);                            /* AO */
++    receive(a, 10, WIRE_JOIN_IN);
++    receive(a, 10, WIRE_JOIN_IN);                           /* QO */
++    receive(a, 11, WIRE_JOIN_IN);
++    assert_that(mvrp_declare(a, 0, 11), is_equal_to(0));    /* AP */
++    receive(a, 12, WIRE_JOIN_IN);
++    receive(a, 12, WIRE_JOIN_IN);
++    assert_that(mvrp_declare(a, 0, 12), is_equal_to(0));    /* QP */
++    receive(a, 13, WIRE_LV);                                /* LO */
++    for (unsigned n = 0; n < ROWS; ++n) {
++        struct appl_reg s = of_vlan(a, rows[n].vid);
++        assert_that(mrp_appl_state_name(s.appl), is_equal_to_string(mrp_appl_state_name(rows[n].before)));
++        assert_that(mrp_reg_state_name(s.reg), is_equal_to_string(mrp_reg_state_name(rows[n].reg)));
++    }
++    until_leave_all(a);
++    seen_count = 0;
++    mrp_set_observer(a, record, NULL);
++    return a;
++}
++
++static void registrars_took_the_leave_all(struct mrp_app *a)
++{
++    for (unsigned n = 0; n < ROWS; ++n) {
++        enum mrp_reg_state expected = rows[n].reg == MRP_REG_STATE_IN ? MRP_REG_STATE_LV : rows[n].reg;
++        assert_that(mrp_reg_state_name(of_vlan(a, rows[n].vid).reg),
++                    is_equal_to_string(mrp_reg_state_name(expected)));
++    }
++}
++
++/* Every state's txLA! cell: message and next state, with no rLA! after it. */
++Ensure(OwnLeaveAll, a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell)
++{
++    struct mrp_app *a = vlan_states();
++    send_one(a, sizeof(sent));
++    assert_that(leave_all_types(), is_equal_to(1u << MVRP_ATTR_TYPE_VID));
++    for (unsigned n = 0; n < ROWS; ++n) {
++        const uint8_t value[2] = {(uint8_t)(rows[n].vid >> 8), (uint8_t)rows[n].vid};
++        assert_that(event_of(MVRP_ATTR_TYPE_VID, value, 2), is_equal_to(rows[n].txla_sends));
++        assert_that(mrp_appl_state_name(of_vlan(a, rows[n].vid).appl),
++                    is_equal_to_string(mrp_appl_state_name(rows[n].after_txla)));
++    }
++    registrars_took_the_leave_all(a);
++    one_leave_all_event_per_applicant();
++    assert_that(leave_all_state(a), is_equal_to(MRP_LA_STATE_PASSIVE));
++    mvrp_app_destroy(a);
++}
++
++/* Every state's txLAF! cell when no value fits; the Registrars still take rLA!. */
++Ensure(OwnLeaveAll, a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell)
++{
++    struct mrp_app *a = vlan_states();
++    /* ProtocolVersion, one Message with the LeaveAll vector, and the EndMark. */
++    send_one(a, 11);
++    assert_that(sent_len, is_equal_to(11));
++    assert_that(leave_all_types(), is_equal_to(1u << MVRP_ATTR_TYPE_VID));
++    assert_that(values_sent(), is_equal_to(0));
++    for (unsigned n = 0; n < ROWS; ++n) {
++        assert_that(mrp_appl_state_name(of_vlan(a, rows[n].vid).appl),
++                    is_equal_to_string(mrp_appl_state_name(rows[n].after_txlaf)));
++    }
++    registrars_took_the_leave_all(a);
++    one_leave_all_event_per_applicant();
++    assert_that(leave_all_state(a), is_equal_to(MRP_LA_STATE_PASSIVE));
++    mvrp_app_destroy(a);
++}
++
++TestSuite *own_leaveall_suite(void)
++{
++    TestSuite *s = create_test_suite();
++    add_test_with_context(s, OwnLeaveAll, a_declaration_that_fits_the_leaveall_pdu_stays_quiet);
++    add_test_with_context(s, OwnLeaveAll, a_withdrawal_after_the_leaveall_pdu_sends_its_leave);
++    add_test_with_context(s, OwnLeaveAll, a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently);
++    add_test_with_context(s, OwnLeaveAll, a_withdrawal_before_the_leaveall_pdu_sends_no_join);
++    add_test_with_context(s, OwnLeaveAll, a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell);
++    add_test_with_context(s, OwnLeaveAll, a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell);
++    return s;
++}
+diff --git a/tests/unit/review_test.c b/tests/unit/review_test.c
+index 0c090e6..9baf6bb 100644
+--- a/tests/unit/review_test.c
++++ b/tests/unit/review_test.c
+@@ -305,47 +305,83 @@ Ensure(Boundaries, registrar_recovery_stops_aging_without_duplicate_join_or_map)
+         mrp_app_destroy(a);
+     }
+ }
+-Ensure(Boundaries, committed_leaveall_delivers_local_receive_and_omitted_events)
++struct vid_status {
++    uint8_t value[2];
++    enum mrp_appl_state appl;
++    enum mrp_reg_state reg;
++};
++static void vid_snapshot(void *ctx, const struct mrp_attr_status *s)
++{
++    struct vid_status *st = ctx;
++    if (memcmp(s->attr_val, st->value, sizeof(st->value)) == 0) {
++        st->appl = s->appl; st->reg = s->reg;
++    }
++}
++static struct vid_status vid_state(struct mrp_app *a, uint16_t vid)
++{
++    struct vid_status st = {{(uint8_t)(vid >> 8), (uint8_t)vid},
++                            MRP_APPL_STATE_COUNT, MRP_REG_STATE_COUNT};
++    mrp_attr_visit(a, 0, vid_snapshot, &st);
++    return st;
++}
++/* Both VIDs reach QA, registered by a peer, before a LeaveAll that fits just one. */
++static struct mrp_app *two_quiet_vlans(void)
+ {
+     struct mrp_app *a = application(0, 1, false);
+-    uint8_t tx[20];
++    uint8_t large[128];
+     mrp_set_periodic(a, 0, false);
+     for (uint16_t vid = 2; vid < 4; ++vid) {
+         assert_that(mvrp_declare(a, 0, vid), is_equal_to(0));
+     }
+-    /* Both applicants reach QA before a LeaveAll that fits just one value. */
+-    uint8_t large[128];
+     assert_that(mrp_transmit(a, 0, large, sizeof(large), accept, NULL), is_equal_to(1));
+     tick(20);
+     assert_that(mrp_transmit(a, 0, large, sizeof(large), accept, NULL), is_equal_to(1));
++    uint8_t joined_in[] = {0,1,2,0,1,0,2,36,0,1,0,3,36,0,0,0,0};
++    assert_that(mrp_rx(a, 0, joined_in, sizeof(joined_in)), is_equal_to(0));
+     tick(1500);
++    return a;
++}
++/* Issue #20: each Applicant takes one of txLA! or txLAF!, and no local rLA!. */
++Ensure(Boundaries, committed_leaveall_gives_each_applicant_one_leaveall_event)
++{
++    struct mrp_app *a = two_quiet_vlans();
++    uint8_t tx[20];
+     assert_that(mrp_transmit(a, 0, tx, sizeof(tx), accept, NULL), is_equal_to(1));
+-    /* Selected QA -> QA -> VP by local rLA; omitted QA -> VP by txLAF. */
+-    assert_that(state(a, 0).appl, is_equal_to(MRP_APPL_STATE_VP));
++    /* LeaveAll, then the fitting VID 3's JoinIn (IEEE 802.1Q-2018 10.8.1.2). */
++    const uint8_t sent[] = {0, 1, 2, 0x20, 0, 0, 0, 0, 1, 0, 3, 36, 0, 0, 0, 0};
++    assert_that(memcmp(tx, sent, sizeof(sent)), is_equal_to(0));
++    /* Fitting QA -txLA!/sJ-> QA; omitted QA -txLAF!-> VP (Table 10-3). */
++    assert_that(vid_state(a, 3).appl, is_equal_to(MRP_APPL_STATE_QA));
++    assert_that(vid_state(a, 2).appl, is_equal_to(MRP_APPL_STATE_VP));
++    /* Both Registrars take the LeaveAll: txLA! for VID 3, the sLA's rLA! for VID 2. */
++    assert_that(vid_state(a, 3).reg, is_equal_to(MRP_REG_STATE_LV));
++    assert_that(vid_state(a, 2).reg, is_equal_to(MRP_REG_STATE_LV));
+     mrp_app_destroy(a);
+ }
+-static unsigned local_rla, omitted_txlaf;
++static unsigned local_rla, applicant_rla, omitted_txlaf, fitted_txla;
+ static void events(void *ctx, const struct mrp_transition *t)
+ {
+     (void)ctx;
+-    if (t->event == MRP_EVENT_RLA) { ++local_rla; }
++    if (t->event == MRP_EVENT_RLA) {
++        ++local_rla;
++        applicant_rla += t->appl_from != t->appl_to;
++    }
+     if (t->event == MRP_EVENT_TXLAF) { ++omitted_txlaf; }
++    if (t->event == MRP_EVENT_TXLA) { ++fitted_txla; }
+ }
+ Ensure(Boundaries, full_leaveall_reports_each_required_transition)
+ {
+-    struct mrp_app *a = application(0, 1, false);
+-    uint8_t tx[20], large[128];
+-    mrp_set_periodic(a, 0, false);
+-    assert_that(mvrp_declare(a, 0, 2), is_equal_to(0));
+-    assert_that(mvrp_declare(a, 0, 3), is_equal_to(0));
+-    assert_that(mrp_transmit(a, 0, large, sizeof(large), accept, NULL), is_equal_to(1));
+-    tick(20);
+-    assert_that(mrp_transmit(a, 0, large, sizeof(large), accept, NULL), is_equal_to(1));
+-    tick(1500);
+-    local_rla = omitted_txlaf = 0; mrp_set_observer(a, events, NULL);
++    struct mrp_app *a = two_quiet_vlans();
++    uint8_t tx[20];
++    local_rla = applicant_rla = omitted_txlaf = fitted_txla = 0;
++    mrp_set_observer(a, events, NULL);
+     assert_that(mrp_transmit(a, 0, tx, sizeof(tx), accept, NULL), is_equal_to(1));
+-    assert_that(local_rla, is_equal_to(1));
++    /* VID 3: txLA! (IN -> LV). VID 2: txLAF! (QA -> VP), then the sLA's rLA!
++     * for its Registrar alone (IN -> LV, 10.7.6.6). */
++    assert_that(fitted_txla, is_equal_to(1));
+     assert_that(omitted_txlaf, is_equal_to(1));
++    assert_that(local_rla, is_equal_to(1));
++    assert_that(applicant_rla, is_equal_to(0));
+     mrp_app_destroy(a);
+ }
+ Ensure(Boundaries, leaving_observer_is_retained_until_its_pending_transmission)
+@@ -1256,7 +1292,7 @@ TestSuite *boundaries_suite(void)
+     add_test_with_context(s, Boundaries, retained_ports_replay_propagated_join_and_timer_leave_in_order);
+     add_test_with_context(s, Boundaries, queued_propagation_owns_values_and_survives_source_reclamation);
+     add_test_with_context(s, Boundaries, registrar_recovery_stops_aging_without_duplicate_join_or_map);
+-    add_test_with_context(s, Boundaries, committed_leaveall_delivers_local_receive_and_omitted_events);
++    add_test_with_context(s, Boundaries, committed_leaveall_gives_each_applicant_one_leaveall_event);
+     add_test_with_context(s, Boundaries, full_leaveall_reports_each_required_transition);
+     add_test_with_context(s, Boundaries, leaving_observer_is_retained_until_its_pending_transmission);
+     add_test_with_context(s, Boundaries, received_leaveall_restarts_the_participant_deadline);

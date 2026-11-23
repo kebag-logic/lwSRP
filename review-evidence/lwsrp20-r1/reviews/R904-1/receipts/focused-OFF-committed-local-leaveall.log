@@ -1,0 +1,40 @@
+COMMAND ['cc', '-std=c11', '-O1', '-Wall', '-Wextra', '-DLWSRP_MILAN=0', '-I<review-source>/src', '-I<review-source>/src/core', '-I<review-source>/src/include', '-I<packet>/scratch/deps/include', '<packet>/scratch/focused-OFF-committed-local-leaveall/main.c', '<packet>/scratch/focused-OFF-committed-local-leaveall/mrp_mad.c', '<review-source>/src/core/mrp_pdu.c', '<review-source>/src/ports/timer.c', '<review-source>/src/modules/mmrp.c', '<review-source>/src/modules/mvrp.c', '<review-source>/src/modules/msrp.c', '<review-source>/tests/unit/fault_alloc.c', '<review-source>/tests/unit/own_leaveall_test.c', '<review-source>/tests/unit/mrpdu_decoder.c', '-L<packet>/scratch/deps/lib', '-lcgreen', '-o', '<packet>/scratch/focused-OFF-committed-local-leaveall/probe']
+<packet>/scratch/focused-OFF-committed-local-leaveall/mrp_mad.c:774:13: warning: ‘sla_registrars’ defined but not used [-Wunused-function]
+  774 | static void sla_registrars(struct mrp_app *app, struct mrp_port_state *ps, uint8_t port_id)
+      |             ^~~~~~~~~~~~~~
+Running "own_leaveall_suite" (6 tests)...
+<review-source>/tests/unit/own_leaveall_test.c:266: Failure: a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [mrp_reg_state_name(s.reg)] to [equal string] [mrp_reg_state_name(reg)]
+		actual value:			["IN"]
+		expected to equal:		["LV"]
+
+<review-source>/tests/unit/own_leaveall_test.c:399: Failure: a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [registrar_took_rla(4u, domain_wire, 2)] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:408: Failure: a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [event_of(4u, domain_wire, 4)] to [equal] [WIRE_JOIN_MT]
+		actual value:			[1]
+		expected value:			[3]
+
+<review-source>/tests/unit/own_leaveall_test.c:408: Failure: a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [event_of(4u, domain_wire, 4)] to [equal] [WIRE_JOIN_MT]
+		actual value:			[1]
+		expected value:			[3]
+
+<review-source>/tests/unit/own_leaveall_test.c:552: Failure: a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Expected [mrp_reg_state_name(of_vlan(a, rows[n].vid).reg)] to [equal string] [mrp_reg_state_name(expected)]
+		actual value:			["IN"]
+		expected to equal:		["LV"]
+
+<review-source>/tests/unit/own_leaveall_test.c:552: Failure: a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Expected [mrp_reg_state_name(of_vlan(a, rows[n].vid).reg)] to [equal string] [mrp_reg_state_name(expected)]
+		actual value:			["IN"]
+		expected to equal:		["LV"]
+
+<review-source>/tests/unit/own_leaveall_test.c:552: Failure: a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Expected [mrp_reg_state_name(of_vlan(a, rows[n].vid).reg)] to [equal string] [mrp_reg_state_name(expected)]
+		actual value:			["IN"]
+		expected to equal:		["LV"]
+
+  "own_leaveall_suite": 671 passes, 7 failures in 2637ms.
+Completed "own_leaveall_suite": 671 passes, 7 failures in 2637ms.

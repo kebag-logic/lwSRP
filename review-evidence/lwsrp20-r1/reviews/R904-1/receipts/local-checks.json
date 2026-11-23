@@ -1,0 +1,102 @@
+[
+  {
+    "label": "asan-OFF-build",
+    "rc": 0
+  },
+  {
+    "label": "asan-OFF-configure",
+    "rc": 0
+  },
+  {
+    "label": "asan-OFF-unit",
+    "rc": 0
+  },
+  {
+    "label": "asan-ON-build",
+    "rc": 0
+  },
+  {
+    "label": "asan-ON-configure",
+    "rc": 0
+  },
+  {
+    "label": "asan-ON-unit",
+    "rc": 0
+  },
+  {
+    "label": "base-OFF-build",
+    "rc": 0
+  },
+  {
+    "label": "base-OFF-configure",
+    "rc": 0
+  },
+  {
+    "label": "base-OFF-unit",
+    "rc": 1
+  },
+  {
+    "label": "base-ON-build",
+    "rc": 0
+  },
+  {
+    "label": "base-ON-configure",
+    "rc": 0
+  },
+  {
+    "label": "base-ON-unit",
+    "rc": 1
+  },
+  {
+    "label": "embedded",
+    "rc": 0
+  },
+  {
+    "label": "freestanding",
+    "rc": 0
+  },
+  {
+    "label": "head-OFF-build",
+    "rc": 0
+  },
+  {
+    "label": "head-OFF-configure",
+    "rc": 0
+  },
+  {
+    "label": "head-OFF-unit",
+    "rc": 0
+  },
+  {
+    "label": "head-ON-build",
+    "rc": 0
+  },
+  {
+    "label": "head-ON-configure",
+    "rc": 0
+  },
+  {
+    "label": "head-ON-unit",
+    "rc": 0
+  },
+  {
+    "label": "references",
+    "rc": 0
+  },
+  {
+    "label": "references-self",
+    "rc": 0
+  },
+  {
+    "label": "scenario-OFF",
+    "rc": 0
+  },
+  {
+    "label": "scenario-ON",
+    "rc": 0
+  },
+  {
+    "label": "sentences",
+    "rc": 0
+  }
+]

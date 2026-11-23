@@ -1,0 +1,13 @@
+COMMAND ['<packet>/scratch/asan-OFF/unit_tests']
+Running "main" (108 tests)...
+  "mrp_pdu_suite": 1690 passes in 11056ms.
+  "timer_suite": 14 passes in 110ms.
+  "msrp_values_suite": 23 passes in 279ms.
+  "receive_suite": 83 passes in 912ms.
+  "transmit_suite": 106 passes in 1071ms.
+  "integration_suite": 387 passes in 2728ms.
+  "milan_suite": 442 passes in 3149ms.
+  "boundaries_suite": 17164 passes in 94892ms.
+  "grouping_suite": 6575 passes in 32693ms.
+  "own_leaveall_suite": 713 passes in 3752ms.
+Completed "main": 27197 passes in 150698ms.

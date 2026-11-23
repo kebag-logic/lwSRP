@@ -1,0 +1,10 @@
+Running "main" (87 tests)...
+  "mrp_pdu_suite": 1690 passes in 6319ms.
+  "timer_suite": 14 passes in 56ms.
+  "msrp_values_suite": 23 passes in 87ms.
+  "receive_suite": 83 passes in 404ms.
+  "transmit_suite": 106 passes in 546ms.
+  "integration_suite": 387 passes in 2301ms.
+  "milan_suite": 442 passes in 1783ms.
+  "boundaries_suite": 17156 passes in 100289ms.
+Completed "main": 19901 passes in 111848ms.

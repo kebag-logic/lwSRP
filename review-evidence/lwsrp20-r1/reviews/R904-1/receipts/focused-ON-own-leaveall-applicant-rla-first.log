@@ -1,0 +1,149 @@
+COMMAND ['cc', '-std=c11', '-O1', '-Wall', '-Wextra', '-DLWSRP_MILAN=1', '-I<review-source>/src', '-I<review-source>/src/core', '-I<review-source>/src/include', '-I<packet>/scratch/deps/include', '<packet>/scratch/focused-ON-own-leaveall-applicant-rla-first/main.c', '<packet>/scratch/focused-ON-own-leaveall-applicant-rla-first/mrp_mad.c', '<review-source>/src/core/mrp_pdu.c', '<review-source>/src/ports/timer.c', '<review-source>/src/modules/mmrp.c', '<review-source>/src/modules/mvrp.c', '<review-source>/src/modules/msrp.c', '<review-source>/tests/unit/fault_alloc.c', '<review-source>/tests/unit/own_leaveall_test.c', '<review-source>/tests/unit/mrpdu_decoder.c', '-L<packet>/scratch/deps/lib', '-lcgreen', '-o', '<packet>/scratch/focused-ON-own-leaveall-applicant-rla-first/probe']
+Running "own_leaveall_suite" (6 tests)...
+<review-source>/tests/unit/own_leaveall_test.c:265: Failure: a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [mrp_appl_state_name(s.appl)] to [equal string] [mrp_appl_state_name(appl)]
+		actual value:			["AA"]
+		expected to equal:		["QA"]
+
+<review-source>/tests/unit/own_leaveall_test.c:265: Failure: a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [mrp_appl_state_name(s.appl)] to [equal string] [mrp_appl_state_name(appl)]
+		actual value:			["AA"]
+		expected to equal:		["QA"]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:187: Failure: a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [same && seen[m].appl_from != seen[m].appl_to] to [be false]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:187: Failure: a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [same && seen[m].appl_from != seen[m].appl_to] to [be false]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:353: Failure: a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [event_of(3u, stream, 8)] to [equal] [ABSENT]
+		actual value:			[3]
+		expected value:			[99]
+
+<review-source>/tests/unit/own_leaveall_test.c:354: Failure: a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [event_of(4u, domain_wire, 4)] to [equal] [ABSENT]
+		actual value:			[3]
+		expected value:			[99]
+
+<review-source>/tests/unit/own_leaveall_test.c:355: Failure: a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [values_sent()] to [equal] [1]
+		actual value:			[3]
+		expected value:			[1]
+
+<review-source>/tests/unit/own_leaveall_test.c:377: Failure: a_withdrawal_after_the_leaveall_pdu_sends_its_leave 
+	Expected [event_of(4u, domain_wire, 4)] to [equal] [ABSENT]
+		actual value:			[3]
+		expected value:			[99]
+
+<review-source>/tests/unit/own_leaveall_test.c:399: Failure: a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [registrar_took_rla(4u, domain_wire, 2)] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:566: Failure: a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txla)]
+		actual value:			["AN"]
+		expected to equal:		["QA"]
+
+<review-source>/tests/unit/own_leaveall_test.c:566: Failure: a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txla)]
+		actual value:			["AA"]
+		expected to equal:		["QA"]
+
+<review-source>/tests/unit/own_leaveall_test.c:566: Failure: a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txla)]
+		actual value:			["AA"]
+		expected to equal:		["QA"]
+
+<review-source>/tests/unit/own_leaveall_test.c:566: Failure: a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txla)]
+		actual value:			["AA"]
+		expected to equal:		["QA"]
+
+<review-source>/tests/unit/own_leaveall_test.c:566: Failure: a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txla)]
+		actual value:			["AA"]
+		expected to equal:		["QA"]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:187: Failure: a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [same && seen[m].appl_from != seen[m].appl_to] to [be false]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:187: Failure: a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [same && seen[m].appl_from != seen[m].appl_to] to [be false]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:187: Failure: a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [same && seen[m].appl_from != seen[m].appl_to] to [be false]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:187: Failure: a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [same && seen[m].appl_from != seen[m].appl_to] to [be false]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:187: Failure: a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [same && seen[m].appl_from != seen[m].appl_to] to [be false]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:183: Failure: a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+  "own_leaveall_suite": 739 passes, 41 failures in 5109ms.
+Completed "own_leaveall_suite": 739 passes, 41 failures in 5109ms.

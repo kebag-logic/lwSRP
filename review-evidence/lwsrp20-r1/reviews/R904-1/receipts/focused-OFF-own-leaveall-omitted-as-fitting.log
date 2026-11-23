@@ -1,0 +1,87 @@
+COMMAND ['cc', '-std=c11', '-O1', '-Wall', '-Wextra', '-DLWSRP_MILAN=0', '-I<review-source>/src', '-I<review-source>/src/core', '-I<review-source>/src/include', '-I<packet>/scratch/deps/include', '<packet>/scratch/focused-OFF-own-leaveall-omitted-as-fitting/main.c', '<packet>/scratch/focused-OFF-own-leaveall-omitted-as-fitting/mrp_mad.c', '<review-source>/src/core/mrp_pdu.c', '<review-source>/src/ports/timer.c', '<review-source>/src/modules/mmrp.c', '<review-source>/src/modules/mvrp.c', '<review-source>/src/modules/msrp.c', '<review-source>/tests/unit/fault_alloc.c', '<review-source>/tests/unit/own_leaveall_test.c', '<review-source>/tests/unit/mrpdu_decoder.c', '-L<packet>/scratch/deps/lib', '-lcgreen', '-o', '<packet>/scratch/focused-OFF-own-leaveall-omitted-as-fitting/probe']
+Running "own_leaveall_suite" (6 tests)...
+<review-source>/tests/unit/own_leaveall_test.c:265: Failure: a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [mrp_appl_state_name(s.appl)] to [equal string] [mrp_appl_state_name(appl)]
+		actual value:			["QA"]
+		expected to equal:		["VP"]
+
+<review-source>/tests/unit/own_leaveall_test.c:265: Failure: a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [mrp_appl_state_name(s.appl)] to [equal string] [mrp_appl_state_name(appl)]
+		actual value:			["QA"]
+		expected to equal:		["VP"]
+
+<review-source>/tests/unit/own_leaveall_test.c:399: Failure: a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [registrar_took_rla(4u, domain_wire, 2)] to [be true]
+
+<review-source>/tests/unit/own_leaveall_test.c:265: Failure: a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [mrp_appl_state_name(s.appl)] to [equal string] [mrp_appl_state_name(appl)]
+		actual value:			["LA"]
+		expected to equal:		["VO"]
+
+<review-source>/tests/unit/own_leaveall_test.c:407: Failure: a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [event_of(3u, stream, 8)] to [equal] [ABSENT]
+		actual value:			[5]
+		expected value:			[99]
+
+<review-source>/tests/unit/own_leaveall_test.c:408: Failure: a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [event_of(4u, domain_wire, 4)] to [equal] [WIRE_JOIN_MT]
+		actual value:			[99]
+		expected value:			[3]
+
+<review-source>/tests/unit/own_leaveall_test.c:69: Failure: a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [mrp_transmit(a, 0, buffer, capacity, capture, ((void *)0))] to [equal] [1]
+		actual value:			[0]
+		expected value:			[1]
+
+<review-source>/tests/unit/own_leaveall_test.c:70: Failure: a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [sends] to [equal] [1]
+		actual value:			[0]
+		expected value:			[1]
+
+<review-source>/tests/unit/own_leaveall_test.c:407: Failure: a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [event_of(3u, stream, 8)] to [equal] [ABSENT]
+		actual value:			[5]
+		expected value:			[99]
+
+<review-source>/tests/unit/own_leaveall_test.c:408: Failure: a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [event_of(4u, domain_wire, 4)] to [equal] [WIRE_JOIN_MT]
+		actual value:			[99]
+		expected value:			[3]
+
+<review-source>/tests/unit/own_leaveall_test.c:585: Failure: a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txlaf)]
+		actual value:			["AA"]
+		expected to equal:		["VP"]
+
+<review-source>/tests/unit/own_leaveall_test.c:585: Failure: a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txlaf)]
+		actual value:			["AN"]
+		expected to equal:		["VN"]
+
+<review-source>/tests/unit/own_leaveall_test.c:585: Failure: a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txlaf)]
+		actual value:			["QA"]
+		expected to equal:		["VN"]
+
+<review-source>/tests/unit/own_leaveall_test.c:585: Failure: a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txlaf)]
+		actual value:			["QA"]
+		expected to equal:		["VP"]
+
+<review-source>/tests/unit/own_leaveall_test.c:585: Failure: a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txlaf)]
+		actual value:			["QA"]
+		expected to equal:		["VP"]
+
+<review-source>/tests/unit/own_leaveall_test.c:585: Failure: a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txlaf)]
+		actual value:			["QA"]
+		expected to equal:		["VP"]
+
+<review-source>/tests/unit/own_leaveall_test.c:585: Failure: a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txlaf)]
+		actual value:			["QA"]
+		expected to equal:		["VP"]
+
+  "own_leaveall_suite": 676 passes, 17 failures in 1408ms.
+Completed "own_leaveall_suite": 676 passes, 17 failures in 1409ms.
