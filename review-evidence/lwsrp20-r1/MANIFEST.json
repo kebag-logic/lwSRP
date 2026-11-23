@@ -4774,5 +4774,17 @@
     "original_sha256": "f3fe239751f96ddb5927747f4d764a09c9d7308bad2bf13ec302adf6e1f65671",
     "published_sha256": "894c1f8c8284804b80039e28537929d6db47b256d4709c479ba3207c704b3048",
     "path_redacted": true
+  },
+  {
+    "file": "author-r2/receipts/parent/firmware/gate-2.log",
+    "original_sha256": "cc74410e5768ec7f93df2a001a6edc933ac585c04f4e142b3e7c9573d07c5ced",
+    "published_sha256": "cc74410e5768ec7f93df2a001a6edc933ac585c04f4e142b3e7c9573d07c5ced",
+    "path_redacted": false
+  },
+  {
+    "file": "author-r2/receipts/parent/harness/selftest.log",
+    "original_sha256": "fb71cd525dcdfa7a106b3df21128400269c34b58003e347fd6e3bf98971930ed",
+    "published_sha256": "fb71cd525dcdfa7a106b3df21128400269c34b58003e347fd6e3bf98971930ed",
+    "path_redacted": false
   }
 ]
