@@ -1438,5 +1438,11 @@
     "original_sha256": "5b3249fe00f044506883d9b1eff5cb156b8084f07a90dce4d807d25b8f317a2e",
     "published_sha256": "5b3249fe00f044506883d9b1eff5cb156b8084f07a90dce4d807d25b8f317a2e",
     "path_redacted": false
+  },
+  {
+    "file": "x",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "path_redacted": false
   }
 ]
