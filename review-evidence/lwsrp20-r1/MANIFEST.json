@@ -5110,5 +5110,17 @@
     "original_sha256": "50aaa20efc4984fc2c6b41bf32ea5efd751b6a1e28fd3c29c830d38b23cf6a10",
     "published_sha256": "50aaa20efc4984fc2c6b41bf32ea5efd751b6a1e28fd3c29c830d38b23cf6a10",
     "path_redacted": false
+  },
+  {
+    "file": "author-r2-corr/CORRECTION.md",
+    "original_sha256": "92e3ef507c6109488c4a6d90e44abad2e0b0dd5248bff7c0571c210036251687",
+    "published_sha256": "92e3ef507c6109488c4a6d90e44abad2e0b0dd5248bff7c0571c210036251687",
+    "path_redacted": false
+  },
+  {
+    "file": "author-r2-corr/PR-BODY-corrected.md",
+    "original_sha256": "7e08320e6912700700766f86af76e6a66723b7b9b5eba64bd4824956bf691fb4",
+    "published_sha256": "7e08320e6912700700766f86af76e6a66723b7b9b5eba64bd4824956bf691fb4",
+    "path_redacted": false
   }
 ]
