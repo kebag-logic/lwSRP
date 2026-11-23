@@ -1,0 +1,20 @@
+Running "main" (87 tests)...
+  "mrp_pdu_suite": 1690 passes in 14ms.
+  "timer_suite": 14 passes in 1ms.
+  "msrp_values_suite": 23 passes in 2ms.
+  "receive_suite": 83 passes in 3ms.
+  "transmit_suite": 106 passes in 6ms.
+  "integration_suite": 387 passes in 12ms.
+  "milan_suite": 430 passes in 8ms.
+<packet>/scratch/ctl-old-ON/other-assertion/candidate/tests/unit/review_test.c:347: Failure: boundaries_suite -> full_leaveall_reports_each_required_transition 
+	Expected [local_rla] to [equal] [1]
+		actual value:			[0]
+		expected value:			[1]
+
+<packet>/scratch/ctl-old-ON/other-assertion/candidate/tests/unit/review_test.c:348: Failure: boundaries_suite -> full_leaveall_reports_each_required_transition 
+	Expected [omitted_txlaf] to [equal] [1]
+		actual value:			[0]
+		expected value:			[1]
+
+  "boundaries_suite": 17154 passes, 2 failures in 118ms.
+Completed "main": 19887 passes, 2 failures in 164ms.

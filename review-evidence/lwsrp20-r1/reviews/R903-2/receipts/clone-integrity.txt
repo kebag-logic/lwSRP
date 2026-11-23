@@ -1,0 +1,6 @@
+HEAD 25b5a7400ff618fa1404e452668ed6902daa5f74 tree ba42b8379d4a066580a8a5047083c355d102ae41
+entries 67 mismatches 0
+index-vs-HEAD diff lines: 0
+worktree diff lines: 0
+untracked: 0
+gitlinks (mode 160000): 0

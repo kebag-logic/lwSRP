@@ -1,0 +1,14 @@
+branch-side CMakeLists.txt branch=dd45545c8d66597d merge=dd45545c8d66597d SAME
+branch-side README.md branch=fefd942d5109882a merge=fefd942d5109882a SAME
+branch-side doc/architecture.md branch=1aee4f11478187d2 merge=1aee4f11478187d2 SAME
+branch-side doc/developer.md branch=53e6d362afa2c742 merge=53e6d362afa2c742 SAME
+branch-side doc/integrator.md branch=1076acc80c4ee8b0 merge=1076acc80c4ee8b0 SAME
+branch-side doc/manager.md branch=03084712d97ff786 merge=0dff98efb08d9c4b DIFF
+branch-side doc/tester.md branch=451c528ca9f42782 merge=f5df282c84216d2c DIFF
+branch-side src/core/mrp_mad.c branch=52e8ea699b693fb8 merge=52e8ea699b693fb8 SAME
+branch-side tests/check_equivalence.py branch=6e845cfe9a4c85c7 merge=6e845cfe9a4c85c7 SAME
+branch-side tests/check_equivalence_controls.py branch=8420fe975253f3c2 merge=8420fe975253f3c2 SAME
+branch-side tests/check_reversals.py branch=8c8eba8eac72330a merge=8c8eba8eac72330a SAME
+branch-side tests/unit/main.c branch=ae62cce8edf97eac merge=ae62cce8edf97eac SAME
+branch-side tests/unit/own_leaveall_test.c branch=96db91686e024ee2 merge=96db91686e024ee2 SAME
+branch-side tests/unit/review_test.c branch=1014d07a1ee822da merge=1014d07a1ee822da SAME

@@ -1,0 +1,23 @@
+OK  clean pass: rc=0 -> revised=[] problem=None
+OK  revised only: rc=1 -> revised=['full_leaveall_reports_each_required_transition'] problem=None
+OK  revised, signal 15: rc=-15 -> revised=[] problem=candidate unit suite: ended by signal 15 (SIGTERM)
+OK  revised, signal 9: rc=-9 -> revised=[] problem=candidate unit suite: ended by signal 9 (SIGKILL)
+OK  revised, timeout: rc=timeout -> revised=[] problem=candidate unit suite: timed out after 600 s
+OK  rc 2: rc=2 -> revised=[] problem=candidate unit suite: rc=2
+OK  rc 3 after revised: rc=3 -> revised=[] problem=candidate unit suite: rc=3
+OK  rc 0 without completion line: rc=0 -> revised=[] problem=candidate unit suite: rc=0 without the runner's completion line
+OK  rc 1 without completion line: rc=1 -> revised=[] problem=candidate unit suite: rc=1 without the runner's completion line
+OK  rc 0 with one report: rc=0 -> revised=[] problem=candidate unit suite: rc=0, completion line '19900 passes, 1 failure' and 1 reports disagree
+OK  rc 1 with no report: rc=1 -> revised=[] problem=candidate unit suite: rc=1, completion line '19901 passes' and 0 reports disagree
+OK  two completion lines: rc=1 -> revised=[] problem=candidate unit suite: rc=1 without the runner's completion line
+OK  completion counts 2, one report: rc=1 -> revised=[] problem=candidate unit suite: rc=1, completion line '19899 passes, 2 failures' and 1 reports disagree
+OK  completion counts 1, two reports: rc=1 -> revised=[] problem=candidate unit suite: rc=1, completion line '19900 passes, 1 failure' and 2 reports disagree
+OK  revised test, other message: rc=1 -> revised=[] problem=candidate unit suite: rc=1; not revised: full_leaveall_reports_each_required_transition: Failure 'Expected [omitted_txlaf] to [equal] [1]'
+OK  revised test, exception: rc=1 -> revised=[] problem=candidate unit suite: rc=1; not revised: full_leaveall_reports_each_required_transition: Exception 'Test terminated with signal: Segmentation fault'
+OK  other test fails: rc=1 -> revised=[] problem=candidate unit suite: rc=1; not revised: other_test: Failure 'Expected [local_rla] to [equal] [1]'
+OK  revised plus exception elsewhere: rc=1 -> revised=[] problem=candidate unit suite: rc=1; not revised: t2: Exception 'Test terminated'
+OK  base fails revised: rc=1 -> revised=[] problem=base unit suite: rc=1
+OK  base clean: rc=0 -> revised=[] problem=None
+OK  nested suite path in report: rc=1 -> revised=[] problem=candidate unit suite: rc=1, completion line '19900 passes, 1 failure' and 0 reports disagree
+cases: 21; wrong: 0
+rc=0

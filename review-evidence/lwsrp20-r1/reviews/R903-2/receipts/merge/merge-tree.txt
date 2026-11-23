@@ -1,0 +1,10 @@
+fd206375a4c2d2d401c36fbec20cabd29c456018
+100644 acf3af443bffbee81b67b601b11b31c8957bfb87 1	doc/tester.md
+100644 c4b1cf6978f2bce261c47d339465e3ff42b6927a 2	doc/tester.md
+100644 f819bbe7dd9e042690497848379c44267f4bb73e 3	doc/tester.md
+
+Auto-merging doc/manager.md
+Auto-merging doc/tester.md
+CONFLICT (content): Merge conflict in doc/tester.md
+Auto-merging tests/check_reversals.py
+rc=1

@@ -1,0 +1,7 @@
+doc/manager.md automerge=23dfd411c650b794f6affe91229d1116b7bc0bce merge=23dfd411c650b794f6affe91229d1116b7bc0bce
+tests/check_reversals.py automerge=3b4f5180d47e089eba6f7863b70daa4e20f66a3c merge=3b4f5180d47e089eba6f7863b70daa4e20f66a3c
+tests/features/environment.py automerge=5f8e16f837545929287cc9da8d1879f0e4e8da9a merge=5f8e16f837545929287cc9da8d1879f0e4e8da9a
+tests/features/steps/switch_steps.py automerge=749d2bdbc82312a4829c112111fab7ad6db44343 merge=749d2bdbc82312a4829c112111fab7ad6db44343
+src/core/mrp_mad.c automerge=684e996a56c39017d3ffd3654dd8d5ab3f27d5bd merge=684e996a56c39017d3ffd3654dd8d5ab3f27d5bd
+ doc/tester.md | 11 +----------
+ 1 file changed, 1 insertion(+), 10 deletions(-)

@@ -1,0 +1,118 @@
+Running "main" (108 tests)...
+  "mrp_pdu_suite": 1690 passes in 13ms.
+  "timer_suite": 14 passes in 2ms.
+  "msrp_values_suite": 23 passes in 1ms.
+  "receive_suite": 83 passes in 3ms.
+<packet>/scratch/plant-txla/src/tests/unit/transmit_test.c:111: Failure: transmit_suite -> refused_pdu_survives_timers_without_aging_unsent_leaveall 
+	Expected [left] to [equal] [0]
+		actual value:			[1]
+		expected value:			[0]
+
+<packet>/scratch/plant-txla/src/tests/unit/transmit_test.c:112: Failure: transmit_suite -> refused_pdu_survives_timers_without_aging_unsent_leaveall 
+	Expected [left] to [equal] [1]
+		actual value:			[2]
+		expected value:			[1]
+
+  "transmit_suite": 104 passes, 2 failures in 5ms.
+  "integration_suite": 387 passes in 11ms.
+<packet>/scratch/plant-txla/src/tests/unit/milan_test.c:319: Failure: milan_suite -> transmitted_leaveall_keeps_the_ieee_deadline 
+	Expected [leaves] to [equal] [0]
+		actual value:			[1]
+		expected value:			[0]
+
+<packet>/scratch/plant-txla/src/tests/unit/milan_test.c:169: Failure: milan_suite -> transmitted_leaveall_keeps_the_ieee_deadline 
+	Expected [leaves] to [equal] [0]
+		actual value:			[1]
+		expected value:			[0]
+
+<packet>/scratch/plant-txla/src/tests/unit/milan_test.c:171: Failure: milan_suite -> transmitted_leaveall_keeps_the_ieee_deadline 
+	Expected [leaves] to [equal] [0]
+		actual value:			[1]
+		expected value:			[0]
+
+<packet>/scratch/plant-txla/src/tests/unit/milan_test.c:174: Failure: milan_suite -> transmitted_leaveall_keeps_the_ieee_deadline 
+	Expected [leaves] to [equal] [1]
+		actual value:			[2]
+		expected value:			[1]
+
+<packet>/scratch/plant-txla/src/tests/unit/milan_test.c:177: Failure: milan_suite -> transmitted_leaveall_keeps_the_ieee_deadline 
+	Expected [leaves] to [equal] [1]
+		actual value:			[2]
+		expected value:			[1]
+
+  "milan_suite": 429 passes, 5 failures in 8ms.
+<packet>/scratch/plant-txla/src/tests/unit/review_test.c:510: Failure: boundaries_suite -> changed_values_after_transmitted_leaveall_are_indicated_and_propagated 
+	Expected [maps] to [equal] [2]
+		actual value:			[3]
+		expected value:			[2]
+
+<packet>/scratch/plant-txla/src/tests/unit/review_test.c:511: Failure: boundaries_suite -> changed_values_after_transmitted_leaveall_are_indicated_and_propagated 
+	Expected [leaves] to [equal] [0]
+		actual value:			[1]
+		expected value:			[0]
+
+<packet>/scratch/plant-txla/src/tests/unit/review_test.c:518: Failure: boundaries_suite -> changed_values_after_transmitted_leaveall_are_indicated_and_propagated 
+	Expected [leaves] to [equal] [0]
+		actual value:			[1]
+		expected value:			[0]
+
+<packet>/scratch/plant-txla/src/tests/unit/review_test.c:510: Failure: boundaries_suite -> changed_values_after_transmitted_leaveall_are_indicated_and_propagated 
+	Expected [maps] to [equal] [2]
+		actual value:			[3]
+		expected value:			[2]
+
+<packet>/scratch/plant-txla/src/tests/unit/review_test.c:511: Failure: boundaries_suite -> changed_values_after_transmitted_leaveall_are_indicated_and_propagated 
+	Expected [leaves] to [equal] [0]
+		actual value:			[1]
+		expected value:			[0]
+
+<packet>/scratch/plant-txla/src/tests/unit/review_test.c:518: Failure: boundaries_suite -> changed_values_after_transmitted_leaveall_are_indicated_and_propagated 
+	Expected [leaves] to [equal] [0]
+		actual value:			[1]
+		expected value:			[0]
+
+<packet>/scratch/plant-txla/src/tests/unit/review_test.c:510: Failure: boundaries_suite -> changed_values_after_transmitted_leaveall_are_indicated_and_propagated 
+	Expected [maps] to [equal] [2]
+		actual value:			[3]
+		expected value:			[2]
+
+<packet>/scratch/plant-txla/src/tests/unit/review_test.c:511: Failure: boundaries_suite -> changed_values_after_transmitted_leaveall_are_indicated_and_propagated 
+	Expected [leaves] to [equal] [0]
+		actual value:			[1]
+		expected value:			[0]
+
+<packet>/scratch/plant-txla/src/tests/unit/review_test.c:518: Failure: boundaries_suite -> changed_values_after_transmitted_leaveall_are_indicated_and_propagated 
+	Expected [leaves] to [equal] [0]
+		actual value:			[1]
+		expected value:			[0]
+
+<packet>/scratch/plant-txla/src/tests/unit/review_test.c:510: Failure: boundaries_suite -> changed_values_after_transmitted_leaveall_are_indicated_and_propagated 
+	Expected [maps] to [equal] [2]
+		actual value:			[3]
+		expected value:			[2]
+
+<packet>/scratch/plant-txla/src/tests/unit/review_test.c:511: Failure: boundaries_suite -> changed_values_after_transmitted_leaveall_are_indicated_and_propagated 
+	Expected [leaves] to [equal] [0]
+		actual value:			[1]
+		expected value:			[0]
+
+<packet>/scratch/plant-txla/src/tests/unit/review_test.c:518: Failure: boundaries_suite -> changed_values_after_transmitted_leaveall_are_indicated_and_propagated 
+	Expected [leaves] to [equal] [0]
+		actual value:			[1]
+		expected value:			[0]
+
+  "boundaries_suite": 17152 passes, 12 failures in 111ms.
+  "grouping_suite": 6575 passes in 57ms.
+<packet>/scratch/plant-txla/src/tests/unit/own_leaveall_test.c:360: Failure: own_leaveall_suite -> a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [leaves] to [equal] [0]
+		actual value:			[2]
+		expected value:			[0]
+
+<packet>/scratch/plant-txla/src/tests/unit/own_leaveall_test.c:414: Failure: own_leaveall_suite -> a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Expected [leaves] to [equal] [0]
+		actual value:			[1]
+		expected value:			[0]
+
+  "own_leaveall_suite": 713 passes, 2 failures in 8ms.
+Completed "main": 27170 passes, 21 failures in 219ms.
+rc=1

@@ -1,0 +1,5 @@
+manifest: 247 entries, 247 files, 0 problems
+INDEX-MISSING parent/firmware/gate-2.log.gz
+INDEX-MISSING parent/harness/selftest.log.gz
+INDEX-MISMATCH tools/penv.sh 582 574
+index: 243 rows, 3 problems

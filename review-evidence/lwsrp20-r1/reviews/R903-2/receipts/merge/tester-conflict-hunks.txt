@@ -1,0 +1,27 @@
+29:<<<<<<< 7b2f0b6
+30-| Default unit target | Exit 0; 108 tests and 27199 assertions. | The [runner](../tests/unit/main.c) executes ten suites. |
+31-| Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c). |
+32-=======
+33-| Default unit target | Exit 0; 102 tests and 26658 assertions. | The [runner](../tests/unit/main.c) executes nine suites. |
+34-| Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c) and reads the simulated port flags. |
+35->>>>>>> 97677fc
+36-| Scenario dry run | Validates step matching only. | It does not execute setup or verify behavior. |
+37-
+38-The [fault-injecting allocation port](../tests/unit/fault_alloc.c) replaces hosted allocation symbols in the unit executable.
+39-The [boundary suite](../tests/unit/review_test.c) fails selected allocations and checks the count of live allocations after teardown.
+40-It also checks changed Listener and Talker values after both received and transmitted LeaveAll.
+41-Flush tests fail every reservation from IN and LV, then verify successful recovery on the first tick.
+--
+275:<<<<<<< 7b2f0b6
+276-Five LeaveAll reversals restore the local rLA! for Applicants, apply it before txLA!, and drop it for Registrars.
+277-They also send txLA! for omitted values, and give the Registrars' rLA! a Leave indication.
+278-Each must fail its named [LeaveAll tests](../tests/unit/own_leaveall_test.c).
+279-Both profiles run all 103 reversals.
+280-=======
+281-Seven scenario reversals miswire the [test bindings](../tests/features/switch_bindings.c) or their [scenario setup](../tests/features/environment.py) for [issue #4](https://github.com/kebag-logic/lwSRP/issues/4).
+282-They swap enable and disable, disable the next port, skip connection, and swap connection with disconnection.
+283-Each must fail exactly its named [scenarios](../tests/features/switch.feature) with the expected assertion words.
+284-The runner's interpreter must import [behave](https://behave.readthedocs.io/en/stable/), because it also runs the scenarios before and after the plants.
+285-Both profiles run all 106 reversals.
+286->>>>>>> 97677fc
+287-They also pin propagation order, recovery indications, extension handling, range errors, and all reported LeaveAll boundaries.

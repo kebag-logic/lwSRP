@@ -1,0 +1,6 @@
+FAIL timeout: gate rc=2; gate rc=2 without equivalence.json; the fault did not follow the revised failure and the completion line
+FAIL signal: gate rc=0; gate rc=0, problems []; wanted rc=1 and one problem 'candidate unit suite: ended by signal 15 (SIGTERM)'
+PASS revised: gate rc=0
+PASS other-test: gate rc=1
+FAIL other-assertion: gate rc=0; gate rc=0, problems []; wanted rc=1 and one problem 'candidate unit suite: rc=1; not revised: full_leaveall_reports_each_required_transition: Failure 'Expected [omitted_txlaf] to [equal] [1]''
+Controls: 5; failed: 3 (signal, timeout, other-assertion)
