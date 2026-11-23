@@ -26,7 +26,7 @@ behave --dry-run
 | Check | Current result | Meaning |
 | --- | --- | --- |
 | Configure and build | Exit 0. | The host library and required unit target compile. |
-| Default unit target | Exit 0; 102 tests and 26658 assertions. | The [runner](../tests/unit/main.c) executes nine suites. |
+| Default unit target | Exit 0; 108 tests and 27197 assertions. | The [runner](../tests/unit/main.c) executes ten suites. |
 | Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c). |
 | Scenario dry run | Validates step matching only. | It does not execute setup or verify behavior. |
 
@@ -67,7 +67,7 @@ ctest --test-dir "$LWSRP_MILAN_BUILD" --output-on-failure
 SHLAN_LIBRARY="$LWSRP_MILAN_BUILD/libshlan.so" behave
 ~~~
 
-The enabled build passes 102 tests with 26646 assertions.
+The enabled build passes 108 tests with 27185 assertions.
 It also passes three scenarios and ten steps.
 The [profile suite](../tests/unit/milan_test.c) checks both application options in each build.
 It checks the actual constructor against the build selection.
@@ -77,6 +77,26 @@ Repeated withdrawals produce no duplicate indication.
 A withdrawal after LeaveAll preserves the deadline, checked one centisecond before expiry and at expiry.
 The suite also pins default VLAN and MAC aging and local withdrawal behavior.
 Re-declare and transmitted LeaveAll retain their timed transitions when rapid withdrawal is enabled.
+
+## Check the own LeaveAll
+
+The [LeaveAll suite](../tests/unit/own_leaveall_test.c) pins the participant's own LeaveAll for [issue #20](https://github.com/kebag-logic/lwSRP/issues/20).
+Each Applicant takes exactly one of txLA! or txLAF!, and the local rLA! reaches Registrars only.
+The rules are [IEEE 802.1Q-2018, clause 10.7.6.6 and Tables 10-3 to 10-5](https://standards.ieee.org/ieee/802.1Q/6844/).
+Its first four tests follow the ruling's rows on a stream participant with a peer's Talker and Domain.
+
+| Test | Row | Result at the defect |
+| --- | --- | --- |
+| A fitting declaration stays quiet | The LeaveAll PDU carries the Join; QA stays QA; the Registrar enters LV. | Fails: QA became VP, and both Joins were sent again. |
+| A withdrawal after the LeaveAll PDU sends its Leave | Leave request in QA gives LA; the next PDU carries Lv; then VO. | Fails: VP went to VO with no Lv. |
+| An omitted declaration leaves silently | txLAF! gives VP; a Leave request then gives VO, without Lv or Join. | Passes. |
+| A withdrawal before the LeaveAll PDU sends no Join | LA takes txLA! to LO, then sends Mt. | Passes. |
+
+Two more tests drive one VLAN to each of the twelve Applicant states on shared media.
+They grade every state's txLA! cell with a fitting PDU and its txLAF! cell with a full one.
+Each grade includes the sent message, the next state, and the Registrar's LV.
+The [boundary suite](../tests/unit/review_test.c) also checks one fitting and one omitted VLAN, and the observer's records.
+Its earlier expectation, that a fitting QA reaches VP, is replaced.
 
 ## Check the grouped encoding
 
@@ -95,6 +115,8 @@ One build uses the base sources; the other uses this checkout's sources.
 A [trace library](../tests/unit/transmit_trace.c) wraps each transmit call and decodes every offered PDU.
 Every opportunity must return the same result and decode to the same events.
 Every new PDU must also have the grouped form.
+The base suite may fail only the tests the [check](../tests/check_equivalence.py) lists as revised by a later issue.
+One is listed: its expected local rLA! count changed with [issue #20](https://github.com/kebag-logic/lwSRP/issues/20).
 Set EQUIVALENCE_SCRATCH and MILAN_EQUIVALENCE_SCRATCH to new directories outside the checkout.
 
 ~~~sh
@@ -105,6 +127,7 @@ python3 tests/check_equivalence.py --work-dir "$MILAN_EQUIVALENCE_SCRATCH" --pre
 Both profiles report 22 transmitting scenarios, 148 opportunities, and 138 PDUs.
 Of those, 125 PDUs are byte-identical and 13 change only their layout.
 No decoded event differs.
+Both profiles also report the one revised test.
 The switch scenarios make no transmit calls.
 
 ## Run the existing codec tests
@@ -221,7 +244,9 @@ The second must fail the deadline test while the immediate-indication tests stil
 Additional reversals check build selection and application scope.
 Five grouping reversals split a Message, omit the PDU EndMark, reverse vector order, drop a vector, and remove the length bound.
 Each must fail its named [grouping tests](../tests/unit/grouping_test.c).
-Both profiles run all 99 reversals.
+Four LeaveAll reversals restore the local rLA! for Applicants, apply it before txLA!, drop it for Registrars, and send txLA! for omitted values.
+Each must fail its named [LeaveAll tests](../tests/unit/own_leaveall_test.c).
+Both profiles run all 102 reversals.
 They also pin propagation order, recovery indications, extension handling, range errors, and all reported LeaveAll boundaries.
 Each added behavioral reversal must fail its named regression after successful compilation.
 The [embedded check](../tests/check_embedded.py) exercises the actual module source list with a host compiler in both profiles.
