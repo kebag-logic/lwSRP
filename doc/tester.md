@@ -165,7 +165,10 @@ Both run the same seeds, and every pair of traces must be byte-identical.
 The checkout is built with its defaults, and with the three scale options of the [integrator guide](integrator.md#port-platform-services).
 With those options it is also built with a four-slot timer wheel started just short of the tick counter's wrap.
 It is built with one lookup bucket, as the plain list was, and with 256 buckets.
-Then each planted defect in the check's list is applied to a copy of the sources, built with the scale options.
+It is built with the lean validation pass, with the one-port MAP switch, and with both on the scale options.
+A one-port build's trace at one port is compared without its policy calls that name no port and without its allocation counts.
+Its seeds that refuse allocations at one port are counted and not compared: there the base refuses receives that build applies, the [one-port difference](integrator.md#one-port-propagation).
+Then each planted defect in the check's list is applied to a copy of the sources, built with the scale options or its own.
 Some seed's trace must then differ from the base's, or the defect counts as surviving.
 A run that does not end counts as differing.
 A defect that only breaks compilation does not count as detected.
@@ -174,6 +177,14 @@ Set DIFFERENTIAL_SCRATCH to a new directory outside the checkout.
 ~~~sh
 python3 tests/check_differential.py --work-dir "$DIFFERENTIAL_SCRATCH"
 python3 tests/check_differential.py --work-dir "$MILAN_DIFFERENTIAL_SCRATCH" --milan ON
+~~~
+
+With --sanitize-memory and a clang, the check also runs the MRP driver's end-station build under MemorySanitizer.
+No seed may report a read of an unwritten octet, which the lean validation pass would expose.
+A planted Talker decoder that reads a field before writing it must be reported.
+
+~~~sh
+python3 tests/check_differential.py --work-dir "$DIFFERENTIAL_SCRATCH" --sanitize-memory clang
 ~~~
 
 The unit suite also runs with the scale options.
@@ -194,8 +205,9 @@ The test application encodes one octet of a two-octet value, so equal FirstValue
 Its key collides across values, and each received value can replace up to three registrations.
 After each step the trace records a digest of every attribute's states and value, and of the transmit buffer.
 Each driver runs 200 seeds, 20000 steps each for timers and 3000 for MRP.
-Every build gives identical traces in both profiles.
-All 22 planted defects are detected: ten in the timers, five in the lookup buckets, and seven in the vector order.
+Every build gives identical traces in both profiles, the one-port builds as compared above: 177 of 200 seeds identical and 23 refusal seeds counted.
+All 24 planted defects are detected: ten in the timers, five in the buckets, seven in the vector order, two in the one-port switch.
+The sanitized run reports no seed, and its planted decoder is reported.
 
 ## Run the existing codec tests
 

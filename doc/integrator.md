@@ -87,6 +87,25 @@ The lookup buckets set the attribute key.
 | [LWSRP_TX_MERGE](../src/core/mrp_mad.c) | 0: each vector is swapped into place | Runs of encoded vectors are merged. | Two more pointers an attribute. |
 
 Each option changes no output, callback, or callback order.
+
+Two more options suit an end station, whose participants each have one port.
+Define them directly for every source; LWSRP_SCALE does not select them.
+
+| Option | Default | Set | Difference when set |
+| --- | --- | --- | --- |
+| [LWSRP_ONE_PORT_MAP](../src/core/mrp_mad.c) | 0: every indication reserves a propagation target a port and calls the policy | A one-port participant reserves none and calls no map_join or map_leave. | See [one-port propagation](#one-port-propagation). |
+| [LWSRP_LEAN_VALIDATE](../src/core/mrp_pdu.c) | 0: both parser passes zero each decoded value | Only the delivering pass zeroes it. | None: the validation pass reads only the decoder's result. |
+
+### One-port propagation
+
+Propagation goes only to the other ports of the MAP context ([IEEE 802.1Q-2018, clause 10.3](https://standards.ieee.org/ieee/802.1Q/6844/)).
+A participant of one port has no other, so its policy can name no port and its reservation is always freed unused.
+With [LWSRP_ONE_PORT_MAP](../src/core/mrp_mad.c) set, such a participant skips both.
+Its outputs, indications, observations and their order are unchanged.
+Two things differ.
+The policy callback is not called at one port, so a policy must not depend on being called.
+A reservation's allocation can no longer be refused: where the default build refuses the receive with a negative result, this build applies the event.
+A participant of two or more ports behaves as in the default build.
 A fixed pool can replace the default heap.
 Allocation failure returns a negative result.
 Earlier received attributes may remain applied when a later allocation fails.
@@ -145,9 +164,9 @@ sequenceDiagram
     Codec->>Core: Decoded events
     Core->>Policy: Check interest
     Core->>Core: Find or allocate
-    Core->>Core: Reserve possible targets
+    Core->>Core: Reserve possible targets, past one port
     Core->>Policy: Indicate registration
-    Core->>Policy: Select propagation ports
+    Core->>Policy: Select propagation ports, past one port
     Core->>Core: Queue and replay targets
     Core->>Host: Observe transition
     Core-->>Host: Parse result

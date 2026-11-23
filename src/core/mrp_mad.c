@@ -43,6 +43,21 @@ _Static_assert((LWSRP_ATTR_BUCKETS & (LWSRP_ATTR_BUCKETS - 1u)) == 0u && LWSRP_A
 #ifndef LWSRP_TX_MERGE
 #define LWSRP_TX_MERGE 0
 #endif
+/*
+ * 1 skips the MAP work of a participant created with one port: an
+ * indication reserves no propagation target and calls no map_join or
+ * map_leave. Propagation goes to the other ports of the MAP context, never to
+ * the port the registration came from (IEEE 802.1Q-2018, clause 10.3), and a
+ * participant of one port has no other: its policy can name no port, and
+ * the reservation is always freed unused. Every output, indication,
+ * observation and their order are the same; the policy is not called, and
+ * where the reservation's allocation would have been refused the event is
+ * applied instead of refusing the receive (doc/integrator.md). 0 reserves and
+ * calls the policy at every port count.
+ */
+#ifndef LWSRP_ONE_PORT_MAP
+#define LWSRP_ONE_PORT_MAP 0
+#endif
 
 /* ------------------------------------------------------------------ */
 /* Internal types                                                       */
@@ -652,6 +667,11 @@ static int map_reserve(struct mrp_app *app, uint8_t type, const void *value,
     if (join ? !app->ops->map_join : !app->ops->map_leave) {
         return 0;
     }
+#if LWSRP_ONE_PORT_MAP
+    if (priv_of(app)->n_ports <= 1u) {
+        return 0; /* No other port to propagate to (LWSRP_ONE_PORT_MAP). */
+    }
+#endif
     for (uint8_t p = 0; p < priv_of(app)->n_ports && p < 32u; ++p) {
         struct mrp_map_work *work = shlan_calloc(1, sizeof(*work));
         if (!work) {
@@ -796,6 +816,10 @@ static int reg_event(struct mrp_app *app, struct mrp_attr_inst *ai,
     default:
         break;
     }
+#if LWSRP_ONE_PORT_MAP
+    /* One port: nothing was reserved, nothing is queued, the policy names no port. */
+    indicated = indicated && priv_of(app)->n_ports > 1u;
+#endif
     if (indicated) {
         map_publish(app, port_id, ai->attr_type, ind_value, join, reserved);
         map_replay_all(app);
