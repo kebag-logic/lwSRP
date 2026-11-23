@@ -266,6 +266,14 @@ static void check(struct mrp_app *a, uint8_t type, enum mrp_appl_state appl, enu
     assert_that(mrp_reg_state_name(s.reg), is_equal_to_string(mrp_reg_state_name(reg)));
 }
 
+/* Leave indications since the board reached its LeaveAll. */
+static unsigned leaves;
+static void count_leave(struct msrp_ctx *ctx, uint8_t port_id, uint8_t attr_type, const void *attr_val)
+{
+    (void)ctx; (void)port_id; (void)attr_type; (void)attr_val;
+    ++leaves;
+}
+
 /*
  * The board of issue #20, at one input: a peer registers its Talker Advertise
  * and its Domain; the participant declares the Domain and a Ready Listener for
@@ -276,6 +284,7 @@ static struct mrp_app *stream_board(void)
 {
     static struct msrp_ctx ctx;
     memset(&ctx, 0, sizeof(ctx));
+    ctx.on_leave = count_leave;
     struct mrp_app *a = msrp_app_create(1, &ctx);
     assert_that(mrp_port_configure(a, 0, JOIN_CS, 60, 1000, 7, true), is_equal_to(0));
     mrp_set_periodic(a, 0, false);
@@ -303,6 +312,7 @@ static struct mrp_app *stream_board(void)
     check(a, MSRP_ATTR_TYPE_TALKER_ADV, MRP_APPL_STATE_VO, MRP_REG_STATE_IN);
     until_leave_all(a);
     seen_count = 0;
+    leaves = 0;
     mrp_set_observer(a, record, NULL);
     return a;
 }
@@ -346,6 +356,8 @@ Ensure(OwnLeaveAll, a_declaration_that_fits_the_leaveall_pdu_stays_quiet)
     check(a, MSRP_ATTR_TYPE_DOMAIN, MRP_APPL_STATE_QA, MRP_REG_STATE_LV);
     check(a, MSRP_ATTR_TYPE_TALKER_ADV, MRP_APPL_STATE_LO, MRP_REG_STATE_LV);
     assert_that(leave_all_state(a), is_equal_to(MRP_LA_STATE_PASSIVE));
+    /* A Registrar's LeaveAll only starts its leavetimer; nothing is indicated yet. */
+    assert_that(leaves, is_equal_to(0));
     one_leave_all_event_per_applicant();
     /* Nothing re-declares the fitted values: LO alone sends its Mt. */
     tick(JOIN_CS);
@@ -398,6 +410,8 @@ Ensure(OwnLeaveAll, a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silent
     check(a, MSRP_ATTR_TYPE_DOMAIN, MRP_APPL_STATE_VP, MRP_REG_STATE_LV);
     assert_that(registrar_took_rla(MSRP_ATTR_TYPE_DOMAIN, domain_wire, 2), is_true);
     check(a, MSRP_ATTR_TYPE_TALKER_ADV, MRP_APPL_STATE_LO, MRP_REG_STATE_LV);
+    /* That rLA! only starts the leavetimer (Table 10-4): no cell indicates. */
+    assert_that(leaves, is_equal_to(0));
     one_leave_all_event_per_applicant();
     withdraw_listener(a);
     check(a, MSRP_ATTR_TYPE_LISTENER, MRP_APPL_STATE_VO, MRP_REG_STATE_MT);
