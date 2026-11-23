@@ -1,0 +1,163 @@
+{
+  "archive": "c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1",
+  "manifest_sha256": "0292c9968c70d72bfb63091277ff125a85e384c4a000f7de06d13489d381ea83",
+  "verification": {
+    "verified": false,
+    "reason": "unsigned",
+    "signature": null,
+    "payload": null,
+    "verified_at": null
+  },
+  "checked_files": [
+    {
+      "file": "author-r2/PR-BODY.md",
+      "sha256": "c79c11f0a6bdb7093a7975d77d5c4aeb184c77ddd34227bad7bb458f3f23ec63",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/PR-BODY.md"
+    },
+    {
+      "file": "author-r2-corr/CORRECTION.md",
+      "sha256": "92e3ef507c6109488c4a6d90e44abad2e0b0dd5248bff7c0571c210036251687",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2-corr/CORRECTION.md"
+    },
+    {
+      "file": "author-r2-corr/PR-BODY-corrected.md",
+      "sha256": "7e08320e6912700700766f86af76e6a66723b7b9b5eba64bd4824956bf691fb4",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2-corr/PR-BODY-corrected.md"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/lane/identity.txt",
+      "sha256": "fc44aee853e0fd37382bccb25aff262f2d4a1c702570e77f02b2d6d15f369afb",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/lane/identity.txt"
+    },
+    {
+      "file": "author-r2/receipts/parent/patches/0003-pin-25b5a740.patch",
+      "sha256": "3508ed276e3c72dc49b3a159fd96ffd1fb1870a7e7a439d0e570e689ccf08ab7",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/parent/patches/0003-pin-25b5a740.patch"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/c035764f-OFF/controls.json",
+      "sha256": "be5959e273cf752694fc4b89c14701d5ddf8b519dff6531acaf668e8b604b70b",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/c035764f-OFF/controls.json"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/c035764f-OFF/timeout.log",
+      "sha256": "564094e8bd30493379d135abfae735678afac5641342a463fa1f2cef6250b7c6",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/c035764f-OFF/timeout.log"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/c035764f-ON/controls.json",
+      "sha256": "9f507ed0e9c27675badddba8f89ab23e022af25b5ee2a6234420d0cdf2c0f8ee",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/c035764f-ON/controls.json"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/c035764f-ON/timeout.log",
+      "sha256": "564094e8bd30493379d135abfae735678afac5641342a463fa1f2cef6250b7c6",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/c035764f-ON/timeout.log"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/fix-OFF/controls.json",
+      "sha256": "1e8c6641928b074fdd302f613b6d05d8920b9fb6fb04fe939f5f0b423eb55766",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/fix-OFF/controls.json"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/fix-OFF/timeout.log",
+      "sha256": "f486d08ddf4df6d96e99e887aa9cb2537c0b3c659fb0162100e2ac46d07f7b7b",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/fix-OFF/timeout.log"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/fix-OFF/timeout-equivalence.json",
+      "sha256": "b7b7efe68f21d9b41e2fa1e3321f8c3329cd8d6f6d5104505cc108f7f87c858c",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/fix-OFF/timeout-equivalence.json"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/fix-OFF/timeout-unit-candidate.log",
+      "sha256": "846592cfd2d076496990eaa8922885f664e165031fb597319fb268e10322900d",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/fix-OFF/timeout-unit-candidate.log"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/fix-ON/controls.json",
+      "sha256": "4b80c119caf7f84c27d225e3ad05a9227bc0128efa2563eada14a45778b209b7",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/fix-ON/controls.json"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/fix-ON/timeout.log",
+      "sha256": "f486d08ddf4df6d96e99e887aa9cb2537c0b3c659fb0162100e2ac46d07f7b7b",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/fix-ON/timeout.log"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/fix-ON/timeout-equivalence.json",
+      "sha256": "b98b6d4231988eca20b129f9e76850006aad653443d9f2ad459299a82a10957b",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/fix-ON/timeout-equivalence.json"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/fix-ON/timeout-unit-candidate.log",
+      "sha256": "09852511abe934b6c8609fcfe0e18263fcc8100856a566b93b5c779055abdbb9",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/fix-ON/timeout-unit-candidate.log"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/head-OFF/controls.json",
+      "sha256": "f7625865625efae373c5d5286b6e38d9a89acd7a2dc7d5f92eb2809a240975b5",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/head-OFF/controls.json"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/head-OFF/timeout.log",
+      "sha256": "f486d08ddf4df6d96e99e887aa9cb2537c0b3c659fb0162100e2ac46d07f7b7b",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/head-OFF/timeout.log"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/head-OFF/timeout-equivalence.json",
+      "sha256": "b7b7efe68f21d9b41e2fa1e3321f8c3329cd8d6f6d5104505cc108f7f87c858c",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/head-OFF/timeout-equivalence.json"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/head-OFF/timeout-unit-candidate.log",
+      "sha256": "a50b2f0a1ec39a5f01bfa6dfd681742e9c10f428cc5191d882d4fbacbe6c9506",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/head-OFF/timeout-unit-candidate.log"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/head-ON/controls.json",
+      "sha256": "688d20ad13d84285bc033b84107a6b5b14dc84f09d88f80588222ff1141137ee",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/head-ON/controls.json"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/head-ON/timeout.log",
+      "sha256": "f486d08ddf4df6d96e99e887aa9cb2537c0b3c659fb0162100e2ac46d07f7b7b",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/head-ON/timeout.log"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/head-ON/timeout-equivalence.json",
+      "sha256": "b98b6d4231988eca20b129f9e76850006aad653443d9f2ad459299a82a10957b",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/head-ON/timeout-equivalence.json"
+    },
+    {
+      "file": "author-r2/receipts/lwsrp/controls/head-ON/timeout-unit-candidate.log",
+      "sha256": "62c12625bdf58ab0440185b3d6bbb01e37f1f9f7273c87c1b561d647c2f2b9d4",
+      "manifest_match": true,
+      "source": "https://github.com/kebag-logic/lwSRP/blob/c7a0e2a035de64dd25b45b37b7f6b78b7ceacbf1/review-evidence/lwsrp20-r1/author-r2/receipts/lwsrp/controls/head-ON/timeout-unit-candidate.log"
+    }
+  ]
+}

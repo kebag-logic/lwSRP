@@ -1,0 +1,50 @@
+{
+  "milan": "ON",
+  "controls": [
+    {
+      "control": "revised",
+      "gate_rc": 0,
+      "problems": [],
+      "revised": [
+        "full_leaveall_reports_each_required_transition"
+      ],
+      "reasons": []
+    },
+    {
+      "control": "signal",
+      "gate_rc": 1,
+      "problems": [
+        "candidate unit suite: ended by signal 15 (SIGTERM)"
+      ],
+      "revised": [],
+      "reasons": []
+    },
+    {
+      "control": "timeout",
+      "gate_rc": 1,
+      "problems": [
+        "candidate unit suite: timed out after 480 s"
+      ],
+      "revised": [],
+      "reasons": []
+    },
+    {
+      "control": "other-assertion",
+      "gate_rc": 1,
+      "problems": [
+        "candidate unit suite: rc=1; not revised: full_leaveall_reports_each_required_transition: Failure 'Expected [omitted_txlaf] to [equal] [1]'"
+      ],
+      "revised": [],
+      "reasons": []
+    },
+    {
+      "control": "other-test",
+      "gate_rc": 1,
+      "problems": [
+        "candidate unit suite: rc=1; not revised: leaveall_draws_are_inside_the_required_interval: Failure 'Expected [la] to [equal] [MRP_LA_STATE_PASSIVE]'; leaveall_draws_are_inside_the_required_interval: Failure 'Expected [elapsed] to [not equal] [previous]'; transmitted_leaveall_includes_every_supported_type: Failure 'Expected [la] to [equal] [MRP_LA_STATE_PASSIVE]'; received_leaveall_restarts_the_participant_deadline: Failure 'Expected [la] to [equal] [MRP_LA_STATE_PASSIVE]'"
+      ],
+      "revised": [],
+      "reasons": []
+    }
+  ]
+}

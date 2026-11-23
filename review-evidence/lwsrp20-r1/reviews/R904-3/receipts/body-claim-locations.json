@@ -1,0 +1,26 @@
+[
+  {
+    "line": 92,
+    "text": "| Equivalence against `9197193e`, both profiles | Exit 0; 148 opportunities, 0 decoded events differ; 1 revised base assertion |"
+  },
+  {
+    "line": 112,
+    "text": "| timeout | The suite process waits forever after its complete output | Fail: timed out |"
+  },
+  {
+    "line": 116,
+    "text": "At the fix and merged head, all five controls produce zero decoded differences. Against `c035764f`, signal and"
+  },
+  {
+    "line": 117,
+    "text": "other-assertion expose false acceptance. The timeout control exits 2 before execution because the old gate lacks"
+  },
+  {
+    "line": 118,
+    "text": "`--suite-timeout`; it supplies no decoded comparison."
+  },
+  {
+    "line": 132,
+    "text": "byte-identical to those built with `c035764f`."
+  }
+]

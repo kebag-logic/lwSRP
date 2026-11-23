@@ -1,0 +1,8 @@
+{
+  "script": "verify_review.py",
+  "execution": "foreground",
+  "exit_code": 0,
+  "result": "PASS",
+  "new_campaigns": 0,
+  "source_changes": 0
+}

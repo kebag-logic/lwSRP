@@ -1,0 +1,3 @@
+usage: check_equivalence.py [-h] --work-dir WORK_DIR --prefix PREFIX
+                            [--base BASE] [--milan {OFF,ON}]
+check_equivalence.py: error: unrecognized arguments: --suite-timeout 480

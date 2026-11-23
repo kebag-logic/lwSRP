@@ -1,0 +1,10 @@
+{
+  "head": "25b5a7400ff618fa1404e452668ed6902daa5f74",
+  "tree": "ba42b8379d4a066580a8a5047083c355d102ae41",
+  "index_tree": "ba42b8379d4a066580a8a5047083c355d102ae41",
+  "verified_blobs_and_modes": 67,
+  "gitlinks": [],
+  "status": "clean",
+  "compiled_input_delta_from_source_base": "empty",
+  "published_consumer_gitlink": "25b5a7400ff618fa1404e452668ed6902daa5f74"
+}
