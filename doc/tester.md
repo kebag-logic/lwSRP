@@ -93,7 +93,7 @@ Its first four tests follow the ruling's rows on a stream participant with a pee
 | A withdrawal before the LeaveAll PDU sends no Join | LA takes txLA! to LO, then sends Mt. | Passes. |
 
 The fitting and omitted tests also require no Leave indication at the LeaveAll.
-There, rLA! only starts each Registrar's leavetimer (Table 10-4).
+There, rLA! only starts each Registrar's leavetimer ([IEEE 802.1Q-2018, Table 10-4](https://standards.ieee.org/ieee/802.1Q/6844/)).
 
 Two more tests drive one VLAN to each of the twelve Applicant states on shared media.
 They grade every state's txLA! cell with a fitting PDU and its txLAF! cell with a full one.
