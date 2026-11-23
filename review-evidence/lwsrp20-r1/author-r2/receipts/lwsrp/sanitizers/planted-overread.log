@@ -1,0 +1,978 @@
+Running "main" (108 tests)...
+  "mrp_pdu_suite": 1690 passes in 129ms.
+  "timer_suite": 14 passes in 24ms.
+  "msrp_values_suite": 23 passes in 26ms.
+  "receive_suite": 83 passes in 61ms.
+=================================================================
+==3303263==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7c2e0f9e1158 at pc 0x7f1e143f0cda bp 0x7ffea1373860 sp 0x7ffea1373850
+READ of size 1 at 0x7c2e0f9e1158 thread T0
+    #0 0x7f1e143f0cd9 in sla_registrars <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778
+    #1 0x7f1e143f0cd9 in mrp_transmit <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1534
+    #2 0x561c2cc88088 in Transmit__refused_pdu_survives_timers_without_aging_unsent_leaveall <scratch>/r2/gates/quick/san-neg/tests/unit/transmit_test.c:110
+    #3 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #4 0x7f1e143c2ee5 in run_test_in_its_own_process (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xfee5) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #5 0x7f1e143bfaf1 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xcaf1) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #6 0x7f1e143bfa52 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xca52) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #7 0x7f1e143bfcd3 in run_test_suite (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xccd3) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #8 0x561c2cc82839 in main <scratch>/r2/gates/quick/san-neg/tests/unit/main.c:30
+    #9 0x7f1e13027780  (/usr/lib/libc.so.6+0x27780) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #10 0x7f1e130278b8 in __libc_start_main (/usr/lib/libc.so.6+0x278b8) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #11 0x561c2cc82644 in _start (<scratch>/r2/gates/quick/san-neg/b/unit_tests+0x2c644) (BuildId: a7209ea3f5817d1f2be82f39047e44dae8c7e305)
+
+0x7c2e0f9e1158 is located 8 bytes after 208-byte region [0x7c2e0f9e1080,0x7c2e0f9e1150)
+allocated by thread T0 here:
+    #0 0x7f1e13d2bea9 in calloc (/usr/lib/libasan.so.8+0x12bea9) (BuildId: b8a4241051a1621937fdc46e867ba7ecb56d96ea)
+    #1 0x561c2cc82939 in shlan_calloc <scratch>/r2/gates/quick/san-neg/tests/unit/fault_alloc.c:41
+    #2 0x7f1e143e77fa in get_or_create_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:484
+    #3 0x7f1e143ec323 in mrp_mad_join <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:961
+    #4 0x7f1e143f6720 in msrp_declare_talker <scratch>/r2/gates/quick/san-neg/src/modules/msrp.c:437
+    #5 0x561c2cc87c53 in Transmit__refused_pdu_survives_timers_without_aging_unsent_leaveall <scratch>/r2/gates/quick/san-neg/tests/unit/transmit_test.c:94
+    #6 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778 in sla_registrars
+Shadow bytes around the buggy address:
+  0x7c2e0f9e0e80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 fa fa
+  0x7c2e0f9e0f00: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00
+  0x7c2e0f9e0f80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1000: 00 00 fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1080: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x7c2e0f9e1100: 00 00 00 00 00 00 00 00 00 00 fa[fa]fa fa fa fa
+  0x7c2e0f9e1180: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1200: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1280: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1300: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1380: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==3303263==ABORTING
+<scratch>/r2/gates/quick/san-neg/tests/unit/transmit_test.c:86: Exception: transmit_suite -> refused_pdu_survives_timers_without_aging_unsent_leaveall 
+	Test terminated unexpectedly, likely from a non-standard exception or Posix signal
+
+  "transmit_suite": 103 passes, 1 exception in 77ms.
+  "integration_suite": 387 passes in 177ms.
+=================================================================
+==3303464==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7c2e0f9e1158 at pc 0x7f1e143f0cda bp 0x7ffea13744e0 sp 0x7ffea13744d0
+READ of size 1 at 0x7c2e0f9e1158 thread T0
+    #0 0x7f1e143f0cd9 in sla_registrars <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778
+    #1 0x7f1e143f0cd9 in mrp_transmit <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1534
+    #2 0x561c2cc90e0b in Milan__transmitted_leaveall_keeps_the_ieee_deadline <scratch>/r2/gates/quick/san-neg/tests/unit/milan_test.c:317
+    #3 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #4 0x7f1e143c2ee5 in run_test_in_its_own_process (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xfee5) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #5 0x7f1e143bfaf1 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xcaf1) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #6 0x7f1e143bfa52 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xca52) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #7 0x7f1e143bfcd3 in run_test_suite (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xccd3) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #8 0x561c2cc82839 in main <scratch>/r2/gates/quick/san-neg/tests/unit/main.c:30
+    #9 0x7f1e13027780  (/usr/lib/libc.so.6+0x27780) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #10 0x7f1e130278b8 in __libc_start_main (/usr/lib/libc.so.6+0x278b8) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #11 0x561c2cc82644 in _start (<scratch>/r2/gates/quick/san-neg/b/unit_tests+0x2c644) (BuildId: a7209ea3f5817d1f2be82f39047e44dae8c7e305)
+
+0x7c2e0f9e1158 is located 8 bytes after 208-byte region [0x7c2e0f9e1080,0x7c2e0f9e1150)
+allocated by thread T0 here:
+    #0 0x7f1e13d2bea9 in calloc (/usr/lib/libasan.so.8+0x12bea9) (BuildId: b8a4241051a1621937fdc46e867ba7ecb56d96ea)
+    #1 0x561c2cc82939 in shlan_calloc <scratch>/r2/gates/quick/san-neg/tests/unit/fault_alloc.c:41
+    #2 0x7f1e143e77fa in get_or_create_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:484
+    #3 0x7f1e143ebcc9 in rx_on_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1026
+    #4 0x7f1e143f1ecb in parse_pass <scratch>/r2/gates/quick/san-neg/src/core/mrp_pdu.c:208
+    #5 0x7f1e143f262e in mrpdu_parse <scratch>/r2/gates/quick/san-neg/src/core/mrp_pdu.c:232
+    #6 0x7f1e143ecdf0 in mrp_rx <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1098
+    #7 0x561c2cc8fa8a in receive_stream <scratch>/r2/gates/quick/san-neg/tests/unit/milan_test.c:90
+    #8 0x561c2cc8fe3f in register_stream <scratch>/r2/gates/quick/san-neg/tests/unit/milan_test.c:131
+    #9 0x561c2cc90dd4 in Milan__transmitted_leaveall_keeps_the_ieee_deadline <scratch>/r2/gates/quick/san-neg/tests/unit/milan_test.c:315
+    #10 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778 in sla_registrars
+Shadow bytes around the buggy address:
+  0x7c2e0f9e0e80: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fa fa
+  0x7c2e0f9e0f00: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00
+  0x7c2e0f9e0f80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1000: 00 00 00 00 00 00 fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1080: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x7c2e0f9e1100: 00 00 00 00 00 00 00 00 00 00 fa[fa]fa fa fa fa
+  0x7c2e0f9e1180: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1200: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1280: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1300: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1380: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==3303464==ABORTING
+<scratch>/r2/gates/quick/san-neg/tests/unit/milan_test.c:310: Exception: milan_suite -> transmitted_leaveall_keeps_the_ieee_deadline 
+	Test terminated unexpectedly, likely from a non-standard exception or Posix signal
+
+  "milan_suite": 424 passes, 1 exception in 131ms.
+=================================================================
+==3303513==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7c2e0f9e1298 at pc 0x7f1e143f0cda bp 0x7ffea1374530 sp 0x7ffea1374520
+READ of size 1 at 0x7c2e0f9e1298 thread T0
+    #0 0x7f1e143f0cd9 in sla_registrars <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778
+    #1 0x7f1e143f0cd9 in mrp_transmit <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1534
+    #2 0x561c2cc9510b in Boundaries__committed_leaveall_gives_each_applicant_one_leaveall_event <scratch>/r2/gates/quick/san-neg/tests/unit/review_test.c:349
+    #3 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #4 0x7f1e143c2ee5 in run_test_in_its_own_process (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xfee5) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #5 0x7f1e143bfaf1 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xcaf1) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #6 0x7f1e143bfa52 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xca52) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #7 0x7f1e143bfcd3 in run_test_suite (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xccd3) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #8 0x561c2cc82839 in main <scratch>/r2/gates/quick/san-neg/tests/unit/main.c:30
+    #9 0x7f1e13027780  (/usr/lib/libc.so.6+0x27780) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #10 0x7f1e130278b8 in __libc_start_main (/usr/lib/libc.so.6+0x278b8) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #11 0x561c2cc82644 in _start (<scratch>/r2/gates/quick/san-neg/b/unit_tests+0x2c644) (BuildId: a7209ea3f5817d1f2be82f39047e44dae8c7e305)
+
+0x7c2e0f9e1298 is located 8 bytes after 208-byte region [0x7c2e0f9e11c0,0x7c2e0f9e1290)
+allocated by thread T0 here:
+    #0 0x7f1e13d2bea9 in calloc (/usr/lib/libasan.so.8+0x12bea9) (BuildId: b8a4241051a1621937fdc46e867ba7ecb56d96ea)
+    #1 0x561c2cc82939 in shlan_calloc <scratch>/r2/gates/quick/san-neg/tests/unit/fault_alloc.c:41
+    #2 0x7f1e143e77fa in get_or_create_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:484
+    #3 0x7f1e143ec323 in mrp_mad_join <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:961
+    #4 0x7f1e143f3744 in mvrp_declare <scratch>/r2/gates/quick/san-neg/src/modules/mvrp.c:128
+    #5 0x561c2cc94b34 in two_quiet_vlans <scratch>/r2/gates/quick/san-neg/tests/unit/review_test.c:334
+    #6 0x561c2cc950ce in Boundaries__committed_leaveall_gives_each_applicant_one_leaveall_event <scratch>/r2/gates/quick/san-neg/tests/unit/review_test.c:347
+    #7 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778 in sla_registrars
+Shadow bytes around the buggy address:
+  0x7c2e0f9e1000: 00 00 00 00 00 00 fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1080: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1100: 00 00 00 00 00 00 00 00 00 00 fa fa fa fa fa fa
+  0x7c2e0f9e1180: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x7c2e0f9e1280: 00 00 fa[fa]fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1300: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1380: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1400: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1480: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1500: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==3303513==ABORTING
+<scratch>/r2/gates/quick/san-neg/tests/unit/review_test.c:345: Exception: boundaries_suite -> committed_leaveall_gives_each_applicant_one_leaveall_event 
+	Test terminated unexpectedly, likely from a non-standard exception or Posix signal
+
+=================================================================
+==3303514==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7c2e0f9e1298 at pc 0x7f1e143f0cda bp 0x7ffea13745d0 sp 0x7ffea13745c0
+READ of size 1 at 0x7c2e0f9e1298 thread T0
+    #0 0x7f1e143f0cd9 in sla_registrars <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778
+    #1 0x7f1e143f0cd9 in mrp_transmit <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1534
+    #2 0x561c2cc94e9f in Boundaries__full_leaveall_reports_each_required_transition <scratch>/r2/gates/quick/san-neg/tests/unit/review_test.c:378
+    #3 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #4 0x7f1e143c2ee5 in run_test_in_its_own_process (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xfee5) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #5 0x7f1e143bfaf1 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xcaf1) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #6 0x7f1e143bfa52 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xca52) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #7 0x7f1e143bfcd3 in run_test_suite (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xccd3) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #8 0x561c2cc82839 in main <scratch>/r2/gates/quick/san-neg/tests/unit/main.c:30
+    #9 0x7f1e13027780  (/usr/lib/libc.so.6+0x27780) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #10 0x7f1e130278b8 in __libc_start_main (/usr/lib/libc.so.6+0x278b8) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #11 0x561c2cc82644 in _start (<scratch>/r2/gates/quick/san-neg/b/unit_tests+0x2c644) (BuildId: a7209ea3f5817d1f2be82f39047e44dae8c7e305)
+
+0x7c2e0f9e1298 is located 8 bytes after 208-byte region [0x7c2e0f9e11c0,0x7c2e0f9e1290)
+allocated by thread T0 here:
+    #0 0x7f1e13d2bea9 in calloc (/usr/lib/libasan.so.8+0x12bea9) (BuildId: b8a4241051a1621937fdc46e867ba7ecb56d96ea)
+    #1 0x561c2cc82939 in shlan_calloc <scratch>/r2/gates/quick/san-neg/tests/unit/fault_alloc.c:41
+    #2 0x7f1e143e77fa in get_or_create_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:484
+    #3 0x7f1e143ec323 in mrp_mad_join <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:961
+    #4 0x7f1e143f3744 in mvrp_declare <scratch>/r2/gates/quick/san-neg/src/modules/mvrp.c:128
+    #5 0x561c2cc94b34 in two_quiet_vlans <scratch>/r2/gates/quick/san-neg/tests/unit/review_test.c:334
+    #6 0x561c2cc94e22 in Boundaries__full_leaveall_reports_each_required_transition <scratch>/r2/gates/quick/san-neg/tests/unit/review_test.c:374
+    #7 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778 in sla_registrars
+Shadow bytes around the buggy address:
+  0x7c2e0f9e1000: 00 00 00 00 00 00 fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1080: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1100: 00 00 00 00 00 00 00 00 00 00 fa fa fa fa fa fa
+  0x7c2e0f9e1180: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x7c2e0f9e1280: 00 00 fa[fa]fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1300: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1380: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1400: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1480: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1500: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==3303514==ABORTING
+<scratch>/r2/gates/quick/san-neg/tests/unit/review_test.c:372: Exception: boundaries_suite -> full_leaveall_reports_each_required_transition 
+	Test terminated unexpectedly, likely from a non-standard exception or Posix signal
+
+=================================================================
+==3303530==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7c2e0f9e1158 at pc 0x7f1e143f0cda bp 0x7ffea13743e0 sp 0x7ffea13743d0
+READ of size 1 at 0x7c2e0f9e1158 thread T0
+    #0 0x7f1e143f0cd9 in sla_registrars <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778
+    #1 0x7f1e143f0cd9 in mrp_transmit <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1534
+    #2 0x561c2cca088c in changed_after_leaveall <scratch>/r2/gates/quick/san-neg/tests/unit/review_test.c:496
+    #3 0x561c2cca1027 in Boundaries__changed_values_after_transmitted_leaveall_are_indicated_and_propagated <scratch>/r2/gates/quick/san-neg/tests/unit/review_test.c:529
+    #4 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #5 0x7f1e143c2ee5 in run_test_in_its_own_process (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xfee5) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #6 0x7f1e143bfaf1 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xcaf1) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #7 0x7f1e143bfa52 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xca52) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #8 0x7f1e143bfcd3 in run_test_suite (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xccd3) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #9 0x561c2cc82839 in main <scratch>/r2/gates/quick/san-neg/tests/unit/main.c:30
+    #10 0x7f1e13027780  (/usr/lib/libc.so.6+0x27780) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #11 0x7f1e130278b8 in __libc_start_main (/usr/lib/libc.so.6+0x278b8) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #12 0x561c2cc82644 in _start (<scratch>/r2/gates/quick/san-neg/b/unit_tests+0x2c644) (BuildId: a7209ea3f5817d1f2be82f39047e44dae8c7e305)
+
+0x7c2e0f9e1158 is located 8 bytes after 208-byte region [0x7c2e0f9e1080,0x7c2e0f9e1150)
+allocated by thread T0 here:
+    #0 0x7f1e13d2bea9 in calloc (/usr/lib/libasan.so.8+0x12bea9) (BuildId: b8a4241051a1621937fdc46e867ba7ecb56d96ea)
+    #1 0x561c2cc82939 in shlan_calloc <scratch>/r2/gates/quick/san-neg/tests/unit/fault_alloc.c:41
+    #2 0x7f1e143e77fa in get_or_create_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:484
+    #3 0x7f1e143ebcc9 in rx_on_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1026
+    #4 0x7f1e143f1ecb in parse_pass <scratch>/r2/gates/quick/san-neg/src/core/mrp_pdu.c:208
+    #5 0x7f1e143f262e in mrpdu_parse <scratch>/r2/gates/quick/san-neg/src/core/mrp_pdu.c:232
+    #6 0x7f1e143ecdf0 in mrp_rx <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1098
+    #7 0x561c2cca082d in changed_after_leaveall <scratch>/r2/gates/quick/san-neg/tests/unit/review_test.c:493
+    #8 0x561c2cca1027 in Boundaries__changed_values_after_transmitted_leaveall_are_indicated_and_propagated <scratch>/r2/gates/quick/san-neg/tests/unit/review_test.c:529
+    #9 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778 in sla_registrars
+Shadow bytes around the buggy address:
+  0x7c2e0f9e0e80: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fa fa
+  0x7c2e0f9e0f00: fa fa fa fa fa fa fa fa fd fd fd fd fd fd fd fd
+  0x7c2e0f9e0f80: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x7c2e0f9e1000: fd fd fd fd fd fd fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1080: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x7c2e0f9e1100: 00 00 00 00 00 00 00 00 00 00 fa[fa]fa fa fa fa
+  0x7c2e0f9e1180: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1280: 00 00 fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1300: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1380: 00 00 00 00 00 00 00 00 00 00 fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==3303530==ABORTING
+<scratch>/r2/gates/quick/san-neg/tests/unit/review_test.c:527: Exception: boundaries_suite -> changed_values_after_transmitted_leaveall_are_indicated_and_propagated 
+	Test terminated unexpectedly, likely from a non-standard exception or Posix signal
+
+  "boundaries_suite": 17083 passes, 3 exceptions in 714ms.
+=================================================================
+==3303847==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7c2e0f9e1018 at pc 0x7f1e143f0cda bp 0x7ffea13745a0 sp 0x7ffea1374590
+READ of size 1 at 0x7c2e0f9e1018 thread T0
+    #0 0x7f1e143f0cd9 in sla_registrars <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778
+    #1 0x7f1e143f0cd9 in mrp_transmit <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1534
+    #2 0x561c2cca21ab in transmit <scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:68
+    #3 0x561c2cca43c8 in Grouping__leaveall_flags_every_stream_type_including_empty_ones <scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:177
+    #4 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #5 0x7f1e143c2ee5 in run_test_in_its_own_process (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xfee5) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #6 0x7f1e143bfaf1 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xcaf1) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #7 0x7f1e143bfa52 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xca52) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #8 0x7f1e143bfcd3 in run_test_suite (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xccd3) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #9 0x561c2cc82839 in main <scratch>/r2/gates/quick/san-neg/tests/unit/main.c:30
+    #10 0x7f1e13027780  (/usr/lib/libc.so.6+0x27780) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #11 0x7f1e130278b8 in __libc_start_main (/usr/lib/libc.so.6+0x278b8) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #12 0x561c2cc82644 in _start (<scratch>/r2/gates/quick/san-neg/b/unit_tests+0x2c644) (BuildId: a7209ea3f5817d1f2be82f39047e44dae8c7e305)
+
+0x7c2e0f9e1018 is located 8 bytes after 208-byte region [0x7c2e0f9e0f40,0x7c2e0f9e1010)
+allocated by thread T0 here:
+    #0 0x7f1e13d2bea9 in calloc (/usr/lib/libasan.so.8+0x12bea9) (BuildId: b8a4241051a1621937fdc46e867ba7ecb56d96ea)
+    #1 0x561c2cc82939 in shlan_calloc <scratch>/r2/gates/quick/san-neg/tests/unit/fault_alloc.c:41
+    #2 0x7f1e143e77fa in get_or_create_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:484
+    #3 0x7f1e143ec323 in mrp_mad_join <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:961
+    #4 0x7f1e143f6869 in msrp_declare_listener <scratch>/r2/gates/quick/san-neg/src/modules/msrp.c:449
+    #5 0x561c2cca209c in listener <scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:76
+    #6 0x561c2cca43b1 in Grouping__leaveall_flags_every_stream_type_including_empty_ones <scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:175
+    #7 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778 in sla_registrars
+Shadow bytes around the buggy address:
+  0x7c2e0f9e0d80: 00 00 00 00 00 00 fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e0e00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7c2e0f9e0e80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 fa fa
+  0x7c2e0f9e0f00: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00
+  0x7c2e0f9e0f80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x7c2e0f9e1000: 00 00 fa[fa]fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1080: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1100: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1180: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1200: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1280: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==3303847==ABORTING
+<scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:171: Exception: grouping_suite -> leaveall_flags_every_stream_type_including_empty_ones 
+	Test terminated unexpectedly, likely from a non-standard exception or Posix signal
+
+=================================================================
+==3303851==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7c2e0f9e1158 at pc 0x7f1e143f0cda bp 0x7ffea13745c0 sp 0x7ffea13745b0
+READ of size 1 at 0x7c2e0f9e1158 thread T0
+    #0 0x7f1e143f0cd9 in sla_registrars <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778
+    #1 0x7f1e143f0cd9 in mrp_transmit <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1534
+    #2 0x561c2cca21ab in transmit <scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:68
+    #3 0x561c2cca4794 in Grouping__vlan_leaveall_message_carries_the_declared_vectors <scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:206
+    #4 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #5 0x7f1e143c2ee5 in run_test_in_its_own_process (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xfee5) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #6 0x7f1e143bfaf1 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xcaf1) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #7 0x7f1e143bfa52 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xca52) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #8 0x7f1e143bfcd3 in run_test_suite (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xccd3) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #9 0x561c2cc82839 in main <scratch>/r2/gates/quick/san-neg/tests/unit/main.c:30
+    #10 0x7f1e13027780  (/usr/lib/libc.so.6+0x27780) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #11 0x7f1e130278b8 in __libc_start_main (/usr/lib/libc.so.6+0x278b8) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #12 0x561c2cc82644 in _start (<scratch>/r2/gates/quick/san-neg/b/unit_tests+0x2c644) (BuildId: a7209ea3f5817d1f2be82f39047e44dae8c7e305)
+
+0x7c2e0f9e1158 is located 8 bytes after 208-byte region [0x7c2e0f9e1080,0x7c2e0f9e1150)
+allocated by thread T0 here:
+    #0 0x7f1e13d2bea9 in calloc (/usr/lib/libasan.so.8+0x12bea9) (BuildId: b8a4241051a1621937fdc46e867ba7ecb56d96ea)
+    #1 0x561c2cc82939 in shlan_calloc <scratch>/r2/gates/quick/san-neg/tests/unit/fault_alloc.c:41
+    #2 0x7f1e143e77fa in get_or_create_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:484
+    #3 0x7f1e143ec323 in mrp_mad_join <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:961
+    #4 0x7f1e143f3744 in mvrp_declare <scratch>/r2/gates/quick/san-neg/src/modules/mvrp.c:128
+    #5 0x561c2cca4763 in Grouping__vlan_leaveall_message_carries_the_declared_vectors <scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:204
+    #6 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778 in sla_registrars
+Shadow bytes around the buggy address:
+  0x7c2e0f9e0e80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 fa fa
+  0x7c2e0f9e0f00: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00
+  0x7c2e0f9e0f80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1000: 00 00 fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1080: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x7c2e0f9e1100: 00 00 00 00 00 00 00 00 00 00 fa[fa]fa fa fa fa
+  0x7c2e0f9e1180: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1200: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1280: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1300: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1380: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==3303851==ABORTING
+<scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:199: Exception: grouping_suite -> vlan_leaveall_message_carries_the_declared_vectors 
+	Test terminated unexpectedly, likely from a non-standard exception or Posix signal
+
+=================================================================
+==3303905==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7c2e0f9e1a18 at pc 0x7f1e143f0cda bp 0x7ffea1374500 sp 0x7ffea13744f0
+READ of size 1 at 0x7c2e0f9e1a18 thread T0
+    #0 0x7f1e143f0cd9 in sla_registrars <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778
+    #1 0x7f1e143f0cd9 in mrp_transmit <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1534
+    #2 0x561c2cca630e in sweep <scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:371
+    #3 0x561c2cca65cb in Grouping__every_stream_pdu_keeps_one_ordered_message_per_type <scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:416
+    #4 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #5 0x7f1e143c2ee5 in run_test_in_its_own_process (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xfee5) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #6 0x7f1e143bfaf1 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xcaf1) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #7 0x7f1e143bfa52 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xca52) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #8 0x7f1e143bfcd3 in run_test_suite (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xccd3) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #9 0x561c2cc82839 in main <scratch>/r2/gates/quick/san-neg/tests/unit/main.c:30
+    #10 0x7f1e13027780  (/usr/lib/libc.so.6+0x27780) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #11 0x7f1e130278b8 in __libc_start_main (/usr/lib/libc.so.6+0x278b8) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #12 0x561c2cc82644 in _start (<scratch>/r2/gates/quick/san-neg/b/unit_tests+0x2c644) (BuildId: a7209ea3f5817d1f2be82f39047e44dae8c7e305)
+
+0x7c2e0f9e1a18 is located 8 bytes after 208-byte region [0x7c2e0f9e1940,0x7c2e0f9e1a10)
+allocated by thread T0 here:
+    #0 0x7f1e13d2bea9 in calloc (/usr/lib/libasan.so.8+0x12bea9) (BuildId: b8a4241051a1621937fdc46e867ba7ecb56d96ea)
+    #1 0x561c2cc82939 in shlan_calloc <scratch>/r2/gates/quick/san-neg/tests/unit/fault_alloc.c:41
+    #2 0x7f1e143e77fa in get_or_create_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:484
+    #3 0x7f1e143ec323 in mrp_mad_join <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:961
+    #4 0x561c2cca2e7b in stream_changes <scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:397
+    #5 0x561c2cca62a5 in sweep <scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:368
+    #6 0x561c2cca65cb in Grouping__every_stream_pdu_keeps_one_ordered_message_per_type <scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:416
+    #7 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778 in sla_registrars
+Shadow bytes around the buggy address:
+  0x7c2e0f9e1780: 00 00 fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1800: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1880: 00 00 00 00 00 00 00 00 00 00 fa fa fa fa fa fa
+  0x7c2e0f9e1900: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1980: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x7c2e0f9e1a00: 00 00 fa[fa]fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1a80: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1b00: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1b80: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1c00: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1c80: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==3303905==ABORTING
+<scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:411: Exception: grouping_suite -> every_stream_pdu_keeps_one_ordered_message_per_type 
+	Test terminated unexpectedly, likely from a non-standard exception or Posix signal
+
+=================================================================
+==3303907==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7c2e0f9e1518 at pc 0x7f1e143f0cda bp 0x7ffea1374500 sp 0x7ffea13744f0
+READ of size 1 at 0x7c2e0f9e1518 thread T0
+    #0 0x7f1e143f0cd9 in sla_registrars <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778
+    #1 0x7f1e143f0cd9 in mrp_transmit <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1534
+    #2 0x561c2cca630e in sweep <scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:371
+    #3 0x561c2cca6725 in Grouping__every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type <scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:448
+    #4 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #5 0x7f1e143c2ee5 in run_test_in_its_own_process (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xfee5) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #6 0x7f1e143bfaf1 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xcaf1) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #7 0x7f1e143bfa52 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xca52) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #8 0x7f1e143bfcd3 in run_test_suite (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xccd3) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #9 0x561c2cc82839 in main <scratch>/r2/gates/quick/san-neg/tests/unit/main.c:30
+    #10 0x7f1e13027780  (/usr/lib/libc.so.6+0x27780) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #11 0x7f1e130278b8 in __libc_start_main (/usr/lib/libc.so.6+0x278b8) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #12 0x561c2cc82644 in _start (<scratch>/r2/gates/quick/san-neg/b/unit_tests+0x2c644) (BuildId: a7209ea3f5817d1f2be82f39047e44dae8c7e305)
+
+0x7c2e0f9e1518 is located 8 bytes after 208-byte region [0x7c2e0f9e1440,0x7c2e0f9e1510)
+allocated by thread T0 here:
+    #0 0x7f1e13d2bea9 in calloc (/usr/lib/libasan.so.8+0x12bea9) (BuildId: b8a4241051a1621937fdc46e867ba7ecb56d96ea)
+    #1 0x561c2cc82939 in shlan_calloc <scratch>/r2/gates/quick/san-neg/tests/unit/fault_alloc.c:41
+    #2 0x7f1e143e77fa in get_or_create_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:484
+    #3 0x7f1e143ec323 in mrp_mad_join <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:961
+    #4 0x7f1e143f3744 in mvrp_declare <scratch>/r2/gates/quick/san-neg/src/modules/mvrp.c:128
+    #5 0x561c2cca341d in vlan_changes <scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:424
+    #6 0x561c2cca62a5 in sweep <scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:368
+    #7 0x561c2cca6725 in Grouping__every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type <scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:448
+    #8 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778 in sla_registrars
+Shadow bytes around the buggy address:
+  0x7c2e0f9e1280: 00 00 fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1300: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1380: 00 00 00 00 00 00 00 00 00 00 fa fa fa fa fa fa
+  0x7c2e0f9e1400: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1480: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x7c2e0f9e1500: 00 00 fa[fa]fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1580: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1600: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1680: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1700: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1780: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==3303907==ABORTING
+<scratch>/r2/gates/quick/san-neg/tests/unit/grouping_test.c:443: Exception: grouping_suite -> every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type 
+	Test terminated unexpectedly, likely from a non-standard exception or Posix signal
+
+  "grouping_suite": 4282 passes, 4 exceptions in 320ms.
+=================================================================
+==3303926==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7c2e0f9e1298 at pc 0x7f1e143f0cda bp 0x7ffea13745a0 sp 0x7ffea1374590
+READ of size 1 at 0x7c2e0f9e1298 thread T0
+    #0 0x7f1e143f0cd9 in sla_registrars <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778
+    #1 0x7f1e143f0cd9 in mrp_transmit <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1534
+    #2 0x561c2cca947f in send_one <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:69
+    #3 0x561c2ccaa62a in OwnLeaveAll__a_declaration_that_fits_the_leaveall_pdu_stays_quiet <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:348
+    #4 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #5 0x7f1e143c2ee5 in run_test_in_its_own_process (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xfee5) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #6 0x7f1e143bfaf1 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xcaf1) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #7 0x7f1e143bfa52 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xca52) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #8 0x7f1e143bfcd3 in run_test_suite (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xccd3) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #9 0x561c2cc82839 in main <scratch>/r2/gates/quick/san-neg/tests/unit/main.c:30
+    #10 0x7f1e13027780  (/usr/lib/libc.so.6+0x27780) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #11 0x7f1e130278b8 in __libc_start_main (/usr/lib/libc.so.6+0x278b8) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #12 0x561c2cc82644 in _start (<scratch>/r2/gates/quick/san-neg/b/unit_tests+0x2c644) (BuildId: a7209ea3f5817d1f2be82f39047e44dae8c7e305)
+
+0x7c2e0f9e1298 is located 8 bytes after 208-byte region [0x7c2e0f9e11c0,0x7c2e0f9e1290)
+allocated by thread T0 here:
+    #0 0x7f1e13d2bea9 in calloc (/usr/lib/libasan.so.8+0x12bea9) (BuildId: b8a4241051a1621937fdc46e867ba7ecb56d96ea)
+    #1 0x561c2cc82939 in shlan_calloc <scratch>/r2/gates/quick/san-neg/tests/unit/fault_alloc.c:41
+    #2 0x7f1e143e77fa in get_or_create_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:484
+    #3 0x7f1e143ec323 in mrp_mad_join <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:961
+    #4 0x7f1e143f6869 in msrp_declare_listener <scratch>/r2/gates/quick/san-neg/src/modules/msrp.c:449
+    #5 0x561c2ccaa4aa in stream_board <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:303
+    #6 0x561c2ccaa61a in OwnLeaveAll__a_declaration_that_fits_the_leaveall_pdu_stays_quiet <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:347
+    #7 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778 in sla_registrars
+Shadow bytes around the buggy address:
+  0x7c2e0f9e1000: 00 00 fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1080: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1100: 00 00 00 00 00 00 00 00 00 00 fa fa fa fa fa fa
+  0x7c2e0f9e1180: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x7c2e0f9e1280: 00 00 fa[fa]fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1300: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1380: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1400: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1480: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1500: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==3303926==ABORTING
+<scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:345: Exception: own_leaveall_suite -> a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Test terminated unexpectedly, likely from a non-standard exception or Posix signal
+
+=================================================================
+==3303936==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7c2e0f9e1298 at pc 0x7f1e143f0cda bp 0x7ffea13745b0 sp 0x7ffea13745a0
+READ of size 1 at 0x7c2e0f9e1298 thread T0
+    #0 0x7f1e143f0cd9 in sla_registrars <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778
+    #1 0x7f1e143f0cd9 in mrp_transmit <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1534
+    #2 0x561c2cca947f in send_one <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:69
+    #3 0x561c2ccaaad9 in OwnLeaveAll__a_withdrawal_after_the_leaveall_pdu_sends_its_leave <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:378
+    #4 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #5 0x7f1e143c2ee5 in run_test_in_its_own_process (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xfee5) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #6 0x7f1e143bfaf1 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xcaf1) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #7 0x7f1e143bfa52 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xca52) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #8 0x7f1e143bfcd3 in run_test_suite (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xccd3) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #9 0x561c2cc82839 in main <scratch>/r2/gates/quick/san-neg/tests/unit/main.c:30
+    #10 0x7f1e13027780  (/usr/lib/libc.so.6+0x27780) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #11 0x7f1e130278b8 in __libc_start_main (/usr/lib/libc.so.6+0x278b8) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #12 0x561c2cc82644 in _start (<scratch>/r2/gates/quick/san-neg/b/unit_tests+0x2c644) (BuildId: a7209ea3f5817d1f2be82f39047e44dae8c7e305)
+
+0x7c2e0f9e1298 is located 8 bytes after 208-byte region [0x7c2e0f9e11c0,0x7c2e0f9e1290)
+allocated by thread T0 here:
+    #0 0x7f1e13d2bea9 in calloc (/usr/lib/libasan.so.8+0x12bea9) (BuildId: b8a4241051a1621937fdc46e867ba7ecb56d96ea)
+    #1 0x561c2cc82939 in shlan_calloc <scratch>/r2/gates/quick/san-neg/tests/unit/fault_alloc.c:41
+    #2 0x7f1e143e77fa in get_or_create_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:484
+    #3 0x7f1e143ec323 in mrp_mad_join <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:961
+    #4 0x7f1e143f6869 in msrp_declare_listener <scratch>/r2/gates/quick/san-neg/src/modules/msrp.c:449
+    #5 0x561c2ccaa4aa in stream_board <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:303
+    #6 0x561c2ccaaac9 in OwnLeaveAll__a_withdrawal_after_the_leaveall_pdu_sends_its_leave <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:377
+    #7 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778 in sla_registrars
+Shadow bytes around the buggy address:
+  0x7c2e0f9e1000: 00 00 fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1080: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1100: 00 00 00 00 00 00 00 00 00 00 fa fa fa fa fa fa
+  0x7c2e0f9e1180: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x7c2e0f9e1280: 00 00 fa[fa]fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1300: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1380: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1400: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1480: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1500: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==3303936==ABORTING
+<scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:375: Exception: own_leaveall_suite -> a_withdrawal_after_the_leaveall_pdu_sends_its_leave 
+	Test terminated unexpectedly, likely from a non-standard exception or Posix signal
+
+=================================================================
+==3303954==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7c2e0f9e1298 at pc 0x7f1e143f0cda bp 0x7ffea13745a0 sp 0x7ffea1374590
+READ of size 1 at 0x7c2e0f9e1298 thread T0
+    #0 0x7f1e143f0cd9 in sla_registrars <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778
+    #1 0x7f1e143f0cd9 in mrp_transmit <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1534
+    #2 0x561c2cca947f in send_one <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:69
+    #3 0x561c2ccac177 in OwnLeaveAll__a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:404
+    #4 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #5 0x7f1e143c2ee5 in run_test_in_its_own_process (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xfee5) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #6 0x7f1e143bfaf1 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xcaf1) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #7 0x7f1e143bfa52 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xca52) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #8 0x7f1e143bfcd3 in run_test_suite (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xccd3) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #9 0x561c2cc82839 in main <scratch>/r2/gates/quick/san-neg/tests/unit/main.c:30
+    #10 0x7f1e13027780  (/usr/lib/libc.so.6+0x27780) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #11 0x7f1e130278b8 in __libc_start_main (/usr/lib/libc.so.6+0x278b8) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #12 0x561c2cc82644 in _start (<scratch>/r2/gates/quick/san-neg/b/unit_tests+0x2c644) (BuildId: a7209ea3f5817d1f2be82f39047e44dae8c7e305)
+
+0x7c2e0f9e1298 is located 8 bytes after 208-byte region [0x7c2e0f9e11c0,0x7c2e0f9e1290)
+allocated by thread T0 here:
+    #0 0x7f1e13d2bea9 in calloc (/usr/lib/libasan.so.8+0x12bea9) (BuildId: b8a4241051a1621937fdc46e867ba7ecb56d96ea)
+    #1 0x561c2cc82939 in shlan_calloc <scratch>/r2/gates/quick/san-neg/tests/unit/fault_alloc.c:41
+    #2 0x7f1e143e77fa in get_or_create_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:484
+    #3 0x7f1e143ec323 in mrp_mad_join <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:961
+    #4 0x7f1e143f6869 in msrp_declare_listener <scratch>/r2/gates/quick/san-neg/src/modules/msrp.c:449
+    #5 0x561c2ccaa4aa in stream_board <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:303
+    #6 0x561c2ccac167 in OwnLeaveAll__a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:402
+    #7 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778 in sla_registrars
+Shadow bytes around the buggy address:
+  0x7c2e0f9e1000: 00 00 fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1080: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1100: 00 00 00 00 00 00 00 00 00 00 fa fa fa fa fa fa
+  0x7c2e0f9e1180: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x7c2e0f9e1280: 00 00 fa[fa]fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1300: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1380: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1400: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1480: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1500: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==3303954==ABORTING
+<scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:400: Exception: own_leaveall_suite -> a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently 
+	Test terminated unexpectedly, likely from a non-standard exception or Posix signal
+
+=================================================================
+==3303972==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7c2e0f9e1298 at pc 0x7f1e143f0cda bp 0x7ffea13744f0 sp 0x7ffea13744e0
+READ of size 1 at 0x7c2e0f9e1298 thread T0
+    #0 0x7f1e143f0cd9 in sla_registrars <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778
+    #1 0x7f1e143f0cd9 in mrp_transmit <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1534
+    #2 0x561c2cca947f in send_one <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:69
+    #3 0x561c2ccaca2a in OwnLeaveAll__a_withdrawal_before_the_leaveall_pdu_sends_no_join <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:438
+    #4 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #5 0x7f1e143c2ee5 in run_test_in_its_own_process (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xfee5) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #6 0x7f1e143bfaf1 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xcaf1) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #7 0x7f1e143bfa52 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xca52) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #8 0x7f1e143bfcd3 in run_test_suite (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xccd3) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #9 0x561c2cc82839 in main <scratch>/r2/gates/quick/san-neg/tests/unit/main.c:30
+    #10 0x7f1e13027780  (/usr/lib/libc.so.6+0x27780) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #11 0x7f1e130278b8 in __libc_start_main (/usr/lib/libc.so.6+0x278b8) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #12 0x561c2cc82644 in _start (<scratch>/r2/gates/quick/san-neg/b/unit_tests+0x2c644) (BuildId: a7209ea3f5817d1f2be82f39047e44dae8c7e305)
+
+0x7c2e0f9e1298 is located 8 bytes after 208-byte region [0x7c2e0f9e11c0,0x7c2e0f9e1290)
+allocated by thread T0 here:
+    #0 0x7f1e13d2bea9 in calloc (/usr/lib/libasan.so.8+0x12bea9) (BuildId: b8a4241051a1621937fdc46e867ba7ecb56d96ea)
+    #1 0x561c2cc82939 in shlan_calloc <scratch>/r2/gates/quick/san-neg/tests/unit/fault_alloc.c:41
+    #2 0x7f1e143e77fa in get_or_create_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:484
+    #3 0x7f1e143ec323 in mrp_mad_join <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:961
+    #4 0x7f1e143f6869 in msrp_declare_listener <scratch>/r2/gates/quick/san-neg/src/modules/msrp.c:449
+    #5 0x561c2ccaa4aa in stream_board <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:303
+    #6 0x561c2ccac9f1 in OwnLeaveAll__a_withdrawal_before_the_leaveall_pdu_sends_no_join <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:434
+    #7 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778 in sla_registrars
+Shadow bytes around the buggy address:
+  0x7c2e0f9e1000: 00 00 fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1080: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1100: 00 00 00 00 00 00 00 00 00 00 fa fa fa fa fa fa
+  0x7c2e0f9e1180: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x7c2e0f9e1280: 00 00 fa[fa]fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1300: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1380: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1400: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1480: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1500: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==3303972==ABORTING
+<scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:432: Exception: own_leaveall_suite -> a_withdrawal_before_the_leaveall_pdu_sends_no_join 
+	Test terminated unexpectedly, likely from a non-standard exception or Posix signal
+
+=================================================================
+==3303984==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7c2e0f9e1dd8 at pc 0x7f1e143f0cda bp 0x7ffea13744f0 sp 0x7ffea13744e0
+READ of size 1 at 0x7c2e0f9e1dd8 thread T0
+    #0 0x7f1e143f0cd9 in sla_registrars <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778
+    #1 0x7f1e143f0cd9 in mrp_transmit <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1534
+    #2 0x561c2cca947f in send_one <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:69
+    #3 0x561c2ccab904 in OwnLeaveAll__a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:575
+    #4 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #5 0x7f1e143c2ee5 in run_test_in_its_own_process (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xfee5) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #6 0x7f1e143bfaf1 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xcaf1) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #7 0x7f1e143bfa52 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xca52) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #8 0x7f1e143bfcd3 in run_test_suite (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xccd3) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #9 0x561c2cc82839 in main <scratch>/r2/gates/quick/san-neg/tests/unit/main.c:30
+    #10 0x7f1e13027780  (/usr/lib/libc.so.6+0x27780) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #11 0x7f1e130278b8 in __libc_start_main (/usr/lib/libc.so.6+0x278b8) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #12 0x561c2cc82644 in _start (<scratch>/r2/gates/quick/san-neg/b/unit_tests+0x2c644) (BuildId: a7209ea3f5817d1f2be82f39047e44dae8c7e305)
+
+0x7c2e0f9e1dd8 is located 8 bytes after 208-byte region [0x7c2e0f9e1d00,0x7c2e0f9e1dd0)
+allocated by thread T0 here:
+    #0 0x7f1e13d2bea9 in calloc (/usr/lib/libasan.so.8+0x12bea9) (BuildId: b8a4241051a1621937fdc46e867ba7ecb56d96ea)
+    #1 0x561c2cc82939 in shlan_calloc <scratch>/r2/gates/quick/san-neg/tests/unit/fault_alloc.c:41
+    #2 0x7f1e143e77fa in get_or_create_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:484
+    #3 0x7f1e143ebcc9 in rx_on_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1026
+    #4 0x7f1e143f1ecb in parse_pass <scratch>/r2/gates/quick/san-neg/src/core/mrp_pdu.c:208
+    #5 0x7f1e143f262e in mrpdu_parse <scratch>/r2/gates/quick/san-neg/src/core/mrp_pdu.c:232
+    #6 0x7f1e143ecdf0 in mrp_rx <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1098
+    #7 0x561c2cca7909 in receive <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:512
+    #8 0x561c2ccab526 in vlan_states <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:550
+    #9 0x561c2ccab8f0 in OwnLeaveAll__a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:574
+    #10 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778 in sla_registrars
+Shadow bytes around the buggy address:
+  0x7c2e0f9e1b00: 00 00 00 00 00 00 00 00 00 00 fa fa fa fa fa fa
+  0x7c2e0f9e1b80: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1c00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1c80: 00 00 fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1d00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x7c2e0f9e1d80: 00 00 00 00 00 00 00 00 00 00 fa[fa]fa fa fa fa
+  0x7c2e0f9e1e00: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1e80: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1f00: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1f80: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e2000: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==3303984==ABORTING
+<scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:572: Exception: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Test terminated unexpectedly, likely from a non-standard exception or Posix signal
+
+=================================================================
+==3304002==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7c2e0f9e1dd8 at pc 0x7f1e143f0cda bp 0x7ffea1374580 sp 0x7ffea1374570
+READ of size 1 at 0x7c2e0f9e1dd8 thread T0
+    #0 0x7f1e143f0cd9 in sla_registrars <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778
+    #1 0x7f1e143f0cd9 in mrp_transmit <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1534
+    #2 0x561c2cca947f in send_one <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:69
+    #3 0x561c2ccabeb0 in OwnLeaveAll__a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:594
+    #4 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #5 0x7f1e143c2ee5 in run_test_in_its_own_process (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xfee5) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #6 0x7f1e143bfaf1 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xcaf1) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #7 0x7f1e143bfa52 in run_every_test (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xca52) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #8 0x7f1e143bfcd3 in run_test_suite (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xccd3) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+    #9 0x561c2cc82839 in main <scratch>/r2/gates/quick/san-neg/tests/unit/main.c:30
+    #10 0x7f1e13027780  (/usr/lib/libc.so.6+0x27780) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #11 0x7f1e130278b8 in __libc_start_main (/usr/lib/libc.so.6+0x278b8) (BuildId: 6961407ef2e7877eabf5ed8c5a39aea9de7194c1)
+    #12 0x561c2cc82644 in _start (<scratch>/r2/gates/quick/san-neg/b/unit_tests+0x2c644) (BuildId: a7209ea3f5817d1f2be82f39047e44dae8c7e305)
+
+0x7c2e0f9e1dd8 is located 8 bytes after 208-byte region [0x7c2e0f9e1d00,0x7c2e0f9e1dd0)
+allocated by thread T0 here:
+    #0 0x7f1e13d2bea9 in calloc (/usr/lib/libasan.so.8+0x12bea9) (BuildId: b8a4241051a1621937fdc46e867ba7ecb56d96ea)
+    #1 0x561c2cc82939 in shlan_calloc <scratch>/r2/gates/quick/san-neg/tests/unit/fault_alloc.c:41
+    #2 0x7f1e143e77fa in get_or_create_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:484
+    #3 0x7f1e143ebcc9 in rx_on_attr <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1026
+    #4 0x7f1e143f1ecb in parse_pass <scratch>/r2/gates/quick/san-neg/src/core/mrp_pdu.c:208
+    #5 0x7f1e143f262e in mrpdu_parse <scratch>/r2/gates/quick/san-neg/src/core/mrp_pdu.c:232
+    #6 0x7f1e143ecdf0 in mrp_rx <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:1098
+    #7 0x561c2cca7909 in receive <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:512
+    #8 0x561c2ccab526 in vlan_states <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:550
+    #9 0x561c2ccabe9f in OwnLeaveAll__a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell <scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:592
+    #10 0x7f1e143bf8e9 in run_the_test_code (<scratch>/cgreen/prefix/lib/libcgreen.so.1+0xc8e9) (BuildId: cc5b8503f38781e675633776d59e71938480aa8c)
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow <scratch>/r2/gates/quick/san-neg/src/core/mrp_mad.c:778 in sla_registrars
+Shadow bytes around the buggy address:
+  0x7c2e0f9e1b00: 00 00 00 00 00 00 00 00 00 00 fa fa fa fa fa fa
+  0x7c2e0f9e1b80: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1c00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7c2e0f9e1c80: 00 00 fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1d00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x7c2e0f9e1d80: 00 00 00 00 00 00 00 00 00 00 fa[fa]fa fa fa fa
+  0x7c2e0f9e1e00: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1e80: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1f00: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e1f80: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7c2e0f9e2000: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==3304002==ABORTING
+<scratch>/r2/gates/quick/san-neg/tests/unit/own_leaveall_test.c:590: Exception: own_leaveall_suite -> a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell 
+	Test terminated unexpectedly, likely from a non-standard exception or Posix signal
+
+  "own_leaveall_suite": 293 passes, 6 exceptions in 83ms.
+Completed "main": 24382 passes, 15 exceptions in 1743ms.

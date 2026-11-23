@@ -1,0 +1,55 @@
+{
+  "milan": "OFF",
+  "controls": [
+    {
+      "control": "revised",
+      "gate_rc": 0,
+      "problems": [],
+      "revised": [
+        "full_leaveall_reports_each_required_transition"
+      ],
+      "reasons": []
+    },
+    {
+      "control": "signal",
+      "gate_rc": 0,
+      "problems": [],
+      "revised": [
+        "full_leaveall_reports_each_required_transition"
+      ],
+      "reasons": [
+        "gate rc=0, problems []; wanted rc=1 and one problem 'candidate unit suite: ended by signal 15 (SIGTERM)'"
+      ]
+    },
+    {
+      "control": "timeout",
+      "gate_rc": 2,
+      "problems": null,
+      "revised": null,
+      "reasons": [
+        "gate rc=2 without equivalence.json",
+        "the fault did not follow the revised failure and the completion line"
+      ]
+    },
+    {
+      "control": "other-assertion",
+      "gate_rc": 0,
+      "problems": [],
+      "revised": [
+        "full_leaveall_reports_each_required_transition"
+      ],
+      "reasons": [
+        "gate rc=0, problems []; wanted rc=1 and one problem 'candidate unit suite: rc=1; not revised: full_leaveall_reports_each_required_transition: Failure 'Expected [omitted_txlaf] to [equal] [1]''"
+      ]
+    },
+    {
+      "control": "other-test",
+      "gate_rc": 1,
+      "problems": [
+        "candidate unit suite: rc=1"
+      ],
+      "revised": [],
+      "reasons": []
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+25b5a7400ff618fa1404e452668ed6902daa5f74 f7111b27f44542cb706c3ca4efd538c6503d56c7 Link the Registrar table that the Leave indication sentence cites
+f7111b27f44542cb706c3ca4efd538c6503d56c7 7b2f0b6ea11fbbc0b273395d60860e504e62c445 97677fcb249bc69c7acec94690419480e839f5b4 Merge main into the own-LeaveAll branch
+7b2f0b6ea11fbbc0b273395d60860e504e62c445 8ca2c3a89103959f3df8a50d7394c94dc6c16d4f Document the suite-ending rule, its controls, the Leave indication checks and the new counts
+8ca2c3a89103959f3df8a50d7394c94dc6c16d4f 8caa6abab246783d7cad1325c20bc8afb533bb3b Require no Leave indication at the own LeaveAll and plant one in the Registrar's rLA! row
+8caa6abab246783d7cad1325c20bc8afb533bb3b c035764f2d6105fd9598b138112ba01eaa006958 Fail the equivalence check on a suite ended by a signal or a time limit, and exempt only the revised assertion
+97677fcb249bc69c7acec94690419480e839f5b4 08ee86e812a0eb5e1dc6cd61b494d8baf3491348 a8fe0849f37a0908bc899754c2644cf30a54b67f Merge pull request #19 from kebag-logic/lwsrp4-steps
+a8fe0849f37a0908bc899754c2644cf30a54b67f 95a1793754a6babcaa0b7a81e157643ef319bb1f Take the simulated port flag count from the adapter and stop on a layout change
+95a1793754a6babcaa0b7a81e157643ef319bb1f 50e8189a6c8112aa7556119eea1cb3fa0df53fdf Describe the state-checking switch steps, their planted faults and limits
+50e8189a6c8112aa7556119eea1cb3fa0df53fdf 090252cc26f4012f1f00e6369563191e7c7986ca Plant miswired switch bindings that must fail named scenarios
+090252cc26f4012f1f00e6369563191e7c7986ca 08ee86e812a0eb5e1dc6cd61b494d8baf3491348 Check every switch scenario step against the simulated port flags

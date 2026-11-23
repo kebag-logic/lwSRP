@@ -1,0 +1,6 @@
+export S=<scratch>
+export CGREEN_PREFIX=$S/cgreen/prefix
+export CMAKE_PREFIX_PATH=$CGREEN_PREFIX
+export LD_LIBRARY_PATH=$CGREEN_PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+export CPATH=$CGREEN_PREFIX/include
+export LIBRARY_PATH=$CGREEN_PREFIX/lib

@@ -1,0 +1,57 @@
+Running "main" (87 tests)...
+  "mrp_pdu_suite": 1690 passes in 18ms.
+  "timer_suite": 14 passes in 2ms.
+  "msrp_values_suite": 23 passes in 2ms.
+  "receive_suite": 83 passes in 25ms.
+  "transmit_suite": 106 passes in 10ms.
+<scratch>/r2/ctl/fix-OFF/other-test/candidate/tests/unit/integration_test.c:212: Failure: integration_suite -> leaveall_draws_are_inside_the_required_interval 
+	Expected [la] to [equal] [MRP_LA_STATE_PASSIVE]
+		actual value:			[0]
+		expected value:			[1]
+
+<scratch>/r2/ctl/fix-OFF/other-test/candidate/tests/unit/integration_test.c:212: Failure: integration_suite -> leaveall_draws_are_inside_the_required_interval 
+	Expected [la] to [equal] [MRP_LA_STATE_PASSIVE]
+		actual value:			[0]
+		expected value:			[1]
+
+<scratch>/r2/ctl/fix-OFF/other-test/candidate/tests/unit/integration_test.c:222: Failure: integration_suite -> leaveall_draws_are_inside_the_required_interval 
+	Expected [elapsed] to [not equal] [previous]
+		actual value:			[1001]
+
+<scratch>/r2/ctl/fix-OFF/other-test/candidate/tests/unit/integration_test.c:212: Failure: integration_suite -> leaveall_draws_are_inside_the_required_interval 
+	Expected [la] to [equal] [MRP_LA_STATE_PASSIVE]
+		actual value:			[0]
+		expected value:			[1]
+
+<scratch>/r2/ctl/fix-OFF/other-test/candidate/tests/unit/integration_test.c:222: Failure: integration_suite -> leaveall_draws_are_inside_the_required_interval 
+	Expected [elapsed] to [not equal] [previous]
+		actual value:			[1001]
+
+<scratch>/r2/ctl/fix-OFF/other-test/candidate/tests/unit/integration_test.c:212: Failure: integration_suite -> leaveall_draws_are_inside_the_required_interval 
+	Expected [la] to [equal] [MRP_LA_STATE_PASSIVE]
+		actual value:			[0]
+		expected value:			[1]
+
+<scratch>/r2/ctl/fix-OFF/other-test/candidate/tests/unit/integration_test.c:222: Failure: integration_suite -> leaveall_draws_are_inside_the_required_interval 
+	Expected [elapsed] to [not equal] [previous]
+		actual value:			[1001]
+
+<scratch>/r2/ctl/fix-OFF/other-test/candidate/tests/unit/integration_test.c:394: Failure: integration_suite -> transmitted_leaveall_includes_every_supported_type 
+	Expected [la] to [equal] [MRP_LA_STATE_PASSIVE]
+		actual value:			[0]
+		expected value:			[1]
+
+  "integration_suite": 379 passes, 8 failures in 15ms.
+  "milan_suite": 442 passes in 15ms.
+<scratch>/r2/ctl/fix-OFF/other-test/candidate/tests/unit/review_test.c:347: Failure: boundaries_suite -> full_leaveall_reports_each_required_transition 
+	Expected [local_rla] to [equal] [1]
+		actual value:			[0]
+		expected value:			[1]
+
+<scratch>/r2/ctl/fix-OFF/other-test/candidate/tests/unit/review_test.c:372: Failure: boundaries_suite -> received_leaveall_restarts_the_participant_deadline 
+	Expected [la] to [equal] [MRP_LA_STATE_PASSIVE]
+		actual value:			[0]
+		expected value:			[1]
+
+  "boundaries_suite": 17154 passes, 2 failures in 173ms.
+Completed "main": 19891 passes, 10 failures in 263ms.

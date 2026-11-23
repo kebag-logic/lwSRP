@@ -1,0 +1,504 @@
+diff --git a/README.md b/README.md
+index f260996..7ba1ea9 100644
+--- a/README.md
++++ b/README.md
+@@ -42,7 +42,7 @@ ctest --test-dir "$LWSRP_BUILD" --output-on-failure
+ SHLAN_LIBRARY="$LWSRP_BUILD/libshlan.so" behave
+ ~~~
+ 
+-The default unit target runs 108 tests with 27197 assertions.
++The default unit target runs 108 tests with 27199 assertions.
+ The scenario suite passes three scenarios and ten steps.
+ The [tester guide](doc/tester.md) explains their coverage and limits.
+ An [optional Milan setting](doc/integrator.md#milan-received-leave) enables immediate withdrawal of received stream registrations.
+diff --git a/doc/integrator.md b/doc/integrator.md
+index cd30d67..9465607 100644
+--- a/doc/integrator.md
++++ b/doc/integrator.md
+@@ -147,8 +147,8 @@ Register [mrp_set_observer](../src/include/shish_lan/mrp.h) before events when t
+ Use [mrp_attr_visit](../src/include/shish_lan/mrp.h) for current attribute state.
+ Use [mrp_port_status](../src/include/shish_lan/mrp.h) for LeaveAll and periodic state.
+ The observer reports changed Applicant or Registrar states only.
+-An accepted LeaveAll reports each Applicant change as txLA! or txLAF!.
+-Its local rLA! then reports Registrar changes only, with the Applicant state unchanged.
++An accepted LeaveAll reports each Applicant change as txLA! or txLAF!, and a fitted value's Registrar change as txLA!.
++Its local rLA! then reports the remaining Registrar changes, with the Applicant state unchanged.
+ This follows [issue #20](https://github.com/kebag-logic/lwSRP/issues/20).
+ Callbacks run synchronously.
+ Copy values that must survive the callback.
+diff --git a/doc/manager.md b/doc/manager.md
+index 00b3bf9..b9cd916 100644
+--- a/doc/manager.md
++++ b/doc/manager.md
+@@ -53,8 +53,8 @@ flowchart TD
+ ~~~
+ 
+ The [host build](../CMakeLists.txt) succeeds.
+-Its default [unit runner](../tests/unit/main.c) passes 108 tests with 27197 assertions.
+-The enabled [Milan build](tester.md#test-both-registrar-profiles) passes 108 tests with 27185 assertions.
++Its default [unit runner](../tests/unit/main.c) passes 108 tests with 27199 assertions.
++The enabled [Milan build](tester.md#test-both-registrar-profiles) passes 108 tests with 27187 assertions.
+ The [scenario harness](../tests/features/environment.py) passes three scenarios and ten steps through [test bindings](../tests/features/switch_bindings.c).
+ Both [active-state and inactive-state assertions](../tests/features/steps/switch_steps.py#L27-L37) only repeat the operation and check its return code.
+ Neither independently reads port state.
+diff --git a/doc/tester.md b/doc/tester.md
+index 0163769..c4b1cf6 100644
+--- a/doc/tester.md
++++ b/doc/tester.md
+@@ -26,7 +26,7 @@ behave --dry-run
+ | Check | Current result | Meaning |
+ | --- | --- | --- |
+ | Configure and build | Exit 0. | The host library and required unit target compile. |
+-| Default unit target | Exit 0; 108 tests and 27197 assertions. | The [runner](../tests/unit/main.c) executes ten suites. |
++| Default unit target | Exit 0; 108 tests and 27199 assertions. | The [runner](../tests/unit/main.c) executes ten suites. |
+ | Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c). |
+ | Scenario dry run | Validates step matching only. | It does not execute setup or verify behavior. |
+ 
+@@ -67,7 +67,7 @@ ctest --test-dir "$LWSRP_MILAN_BUILD" --output-on-failure
+ SHLAN_LIBRARY="$LWSRP_MILAN_BUILD/libshlan.so" behave
+ ~~~
+ 
+-The enabled build passes 108 tests with 27185 assertions.
++The enabled build passes 108 tests with 27187 assertions.
+ It also passes three scenarios and ten steps.
+ The [profile suite](../tests/unit/milan_test.c) checks both application options in each build.
+ It checks the actual constructor against the build selection.
+@@ -92,6 +92,9 @@ Its first four tests follow the ruling's rows on a stream participant with a pee
+ | An omitted declaration leaves silently | txLAF! gives VP; a Leave request then gives VO, without Lv or Join. | Passes. |
+ | A withdrawal before the LeaveAll PDU sends no Join | LA takes txLA! to LO, then sends Mt. | Passes. |
+ 
++The fitting and omitted tests also require no Leave indication at the LeaveAll.
++There, rLA! only starts each Registrar's leavetimer (Table 10-4).
++
+ Two more tests drive one VLAN to each of the twelve Applicant states on shared media.
+ They grade every state's txLA! cell with a fitting PDU and its txLAF! cell with a full one.
+ Each grade includes the sent message, the next state, and the Registrar's LV.
+@@ -115,8 +118,10 @@ One build uses the base sources; the other uses this checkout's sources.
+ A [trace library](../tests/unit/transmit_trace.c) wraps each transmit call and decodes every offered PDU.
+ Every opportunity must return the same result and decode to the same events.
+ Every new PDU must also have the grouped form.
+-The base suite may fail only the tests the [check](../tests/check_equivalence.py) lists as revised by a later issue.
++The base suite may fail only the assertions the [check](../tests/check_equivalence.py) lists as revised by a later issue.
+ One is listed: its expected local rLA! count changed with [issue #20](https://github.com/kebag-logic/lwSRP/issues/20).
++Each suite must also end normally: exit 0, or the runner's exit 1 with its completion line.
++A suite ended by a signal or by its time limit fails the check, whatever its log reports.
+ Set EQUIVALENCE_SCRATCH and MILAN_EQUIVALENCE_SCRATCH to new directories outside the checkout.
+ 
+ ~~~sh
+@@ -130,6 +135,21 @@ No decoded event differs.
+ Both profiles also report the one revised test.
+ The switch scenarios make no transmit calls.
+ 
++The [equivalence controls](../tests/check_equivalence_controls.py) plant one change each in a scratch clone and run the check there.
++The revised failure alone must pass.
++A signal or a time limit after that failure must fail the check.
++So must another assertion of the revised test, and a failure of another test.
++Every control must still find no decoded difference.
++Set CONTROLS_SCRATCH and MILAN_CONTROLS_SCRATCH to new directories outside the checkout.
++
++~~~sh
++python3 tests/check_equivalence_controls.py --work-dir "$CONTROLS_SCRATCH" --prefix "$CGREEN_PREFIX"
++python3 tests/check_equivalence_controls.py --work-dir "$MILAN_CONTROLS_SCRATCH" --prefix "$CGREEN_PREFIX" --milan ON
++~~~
++
++The time-limit control lets each suite run for 480 seconds; set `--timeout` above one normal suite run.
++Both profiles pass all five controls.
++
+ ## Run the existing codec tests
+ 
+ The [codec test source](../tests/unit/mrp_pdu_test.c) contains nine tests.
+@@ -244,9 +264,10 @@ The second must fail the deadline test while the immediate-indication tests stil
+ Additional reversals check build selection and application scope.
+ Five grouping reversals split a Message, omit the PDU EndMark, reverse vector order, drop a vector, and remove the length bound.
+ Each must fail its named [grouping tests](../tests/unit/grouping_test.c).
+-Four LeaveAll reversals restore the local rLA! for Applicants, apply it before txLA!, drop it for Registrars, and send txLA! for omitted values.
++Five LeaveAll reversals restore the local rLA! for Applicants, apply it before txLA!, and drop it for Registrars.
++They also send txLA! for omitted values, and give the Registrars' rLA! a Leave indication.
+ Each must fail its named [LeaveAll tests](../tests/unit/own_leaveall_test.c).
+-Both profiles run all 102 reversals.
++Both profiles run all 103 reversals.
+ They also pin propagation order, recovery indications, extension handling, range errors, and all reported LeaveAll boundaries.
+ Each added behavioral reversal must fail its named regression after successful compilation.
+ The [embedded check](../tests/check_embedded.py) exercises the actual module source list with a host compiler in both profiles.
+diff --git a/tests/check_equivalence.py b/tests/check_equivalence.py
+index 9d47480..30e69af 100644
+--- a/tests/check_equivalence.py
++++ b/tests/check_equivalence.py
+@@ -7,8 +7,10 @@ Both runs preload tests/unit/transmit_trace.c, which decodes every offered
+ MRPDU with the test-side decoder (IEEE 802.1Q-2018 10.8.1.2 and 10.8.2).
+ Each transmit opportunity must return the same result and offer PDUs whose
+ decoded events are equal. The checkout's PDUs must also have the grouped form.
+-The candidate run may fail only the base tests listed in REVISED, whose
++The candidate run may fail only the assertions listed in REVISED, whose
+ expectations a later issue corrected; every opportunity is still compared.
++Each suite must also end normally: rc 0, or the runner's rc 1 for failed
++assertions, with its completion line. A signal or a timeout is a failure.
+ """
+ 
+ import argparse
+@@ -18,26 +20,77 @@ import os
+ from pathlib import Path
+ import re
+ import shutil
++import signal
+ import subprocess
+ import sys
+ 
+ ROOT = Path(__file__).resolve().parents[1]
+ BASE = "9197193e47a6bb1c45a56d90a18c1784123aba44"
+-# Base tests that pinned behaviour a later issue corrected, with that issue.
++# Base assertions that pinned behaviour a later issue corrected: the test, the
++# assertion's message, and that issue.
+ REVISED = {
+-    "full_leaveall_reports_each_required_transition":
+-        "issue #20: no Applicant takes the local rLA! of its own LeaveAll (IEEE 802.1Q-2018 10.7.6.6)",
++    "full_leaveall_reports_each_required_transition": (
++        "Expected [local_rla] to [equal] [1]",
++        "issue #20: no Applicant takes the local rLA! of its own LeaveAll (IEEE 802.1Q-2018 10.7.6.6)"),
+ }
+-FAILURE = re.compile(r"(Failure|Exception): \S+ -> (\S+)")
++# The unit runner's report of one failed assertion or one abnormal test end.
++REPORT = re.compile(r"^\S+:\d+: (Failure|Exception): \S+ -> (\S+) *\n\t(.*)$", re.M)
++# The runner's last line, printed only when every suite has run.
++COMPLETED = re.compile(r'^Completed "main": (.*) in \d+ms\.$', re.M)
++COUNT = re.compile(r"(\d+) (failure|exception)")
++TIMEOUT = "timeout"
+ 
+ 
+-def run(label, command, work, env=None, cwd=None):
+-    result = subprocess.run(command, cwd=cwd, env=env, capture_output=True, text=True, timeout=600)
++def run(label, command, work, env=None, cwd=None, timeout=600):
++    """Return the exit status, or TIMEOUT once the command is killed at its limit."""
++    try:
++        result = subprocess.run(command, cwd=cwd, env=env, capture_output=True, text=True, timeout=timeout)
++    except subprocess.TimeoutExpired as expired:
++        output = [part.decode(errors="replace") if isinstance(part, bytes) else part or ""
++                  for part in (expired.stdout, expired.stderr)]
++        (work / f"{label}.log").write_text("".join(output))
++        print(f"{label}: timed out after {timeout} s", flush=True)
++        return TIMEOUT
+     (work / f"{label}.log").write_text(result.stdout + result.stderr)
+     print(f"{label}: rc={result.returncode}", flush=True)
+     return result.returncode
+ 
+ 
++def judge_suite(name, rc, log, timeout):
++    """Return the revised tests that failed, and a problem or None.
++
++    Only a normal runner exit is judged by its log. A signal, a timeout or an
++    unknown status fails whatever the log reports. So does a suite whose
++    completion line is missing or disagrees with the listed reports.
++    """
++    if rc == TIMEOUT:
++        return [], f"{name} unit suite: timed out after {timeout} s"
++    if rc < 0:
++        known = {member.value: member.name for member in signal.Signals}
++        return [], f"{name} unit suite: ended by signal {-rc} ({known.get(-rc, 'unnamed')})"
++    if rc not in (0, 1):
++        return [], f"{name} unit suite: rc={rc}"
++    completed = COMPLETED.findall(log)
++    if len(completed) != 1:
++        return [], f"{name} unit suite: rc={rc} without the runner's completion line"
++    counts = {kind: int(number) for number, kind in COUNT.findall(completed[0])}
++    reports = REPORT.findall(log)
++    listed = {kind: sum(1 for report in reports if report[0] == kind.capitalize())
++              for kind in ("failure", "exception")}
++    if rc != int(bool(reports)) or any(counts.get(kind, 0) != listed[kind] for kind in listed):
++        return [], f"{name} unit suite: rc={rc}, completion line '{completed[0]}' and {len(reports)} reports disagree"
++    if not reports:
++        return [], None
++    if name != "candidate":
++        return [], f"{name} unit suite: rc={rc}"
++    unrevised = list(OrderedDict.fromkeys(
++        f"{test}: {kind} '{message.strip()}'" for kind, test, message in reports
++        if kind != "Failure" or REVISED.get(test, ("",))[0] != message.strip()))
++    if unrevised:
++        return [], f"{name} unit suite: rc={rc}; not revised: " + "; ".join(unrevised)
++    return sorted({test for _, test, _ in reports}), None
++
++
+ def read_trace(path):
+     """Group records by test, then by transmit opportunity."""
+     tests = OrderedDict()
+@@ -113,6 +166,7 @@ def main():
+     parser.add_argument("--prefix", type=Path, required=True, help="unit framework prefix")
+     parser.add_argument("--base", default=BASE, help="revision whose encoder and suite are the reference")
+     parser.add_argument("--milan", choices=["OFF", "ON"], default="OFF")
++    parser.add_argument("--suite-timeout", type=int, default=600, help="seconds allowed for each unit suite")
+     args = parser.parse_args()
+     work = args.work_dir.resolve()
+     if work.is_relative_to(ROOT) or work.exists():
+@@ -149,17 +203,15 @@ def main():
+         env["LD_PRELOAD"] = str(shim)
+         env["LWSRP_TRANSMIT_TRACE"] = str(traces[name])
+         # Compare even after a failing suite: the trace locates the first difference.
+-        suites[name] = run(f"unit-{name}", [str(build / "unit_tests")], work, env, cwd=build)
++        suites[name] = run(f"unit-{name}", [str(build / "unit_tests")], work, env, cwd=build,
++                           timeout=args.suite_timeout)
+     rows, problems = compare(read_trace(traces["base"]), read_trace(traces["candidate"]))
+     revised = []
+     for name, rc in suites.items():
+-        if not rc:
+-            continue
+-        failed = FAILURE.findall((work / f"unit-{name}.log").read_text())
+-        if name == "candidate" and failed and all(kind == "Failure" and test in REVISED for kind, test in failed):
+-            revised = sorted({test for _, test in failed})
+-        else:
+-            problems.append(f"{name} unit suite: rc={rc}")
++        failed, problem = judge_suite(name, rc, (work / f"unit-{name}.log").read_text(), args.suite_timeout)
++        revised += failed
++        if problem:
++            problems.append(problem)
+     (work / "equivalence.json").write_text(json.dumps({"base": args.base, "milan": args.milan, "rows": rows,
+                                                        "revised": revised, "problems": problems}, indent=2) + "\n")
+     print("| Scenario | Opportunities | PDUs | Byte-identical | Layout-only | Different |")
+@@ -173,7 +225,7 @@ def main():
+           f"byte-identical: {totals['identical']}; layout-only: {totals['layout_only']}; "
+           f"different: {totals['different']}; problems: {len(problems)}")
+     for test in revised:
+-        print(f"REVISED {test}: {REVISED[test]}")
++        print(f"REVISED {test}: {REVISED[test][1]}")
+     for problem in problems:
+         print(f"FAIL {problem}")
+     return int(bool(problems) or totals["sends"] == 0)
+diff --git a/tests/check_equivalence_controls.py b/tests/check_equivalence_controls.py
+new file mode 100644
+index 0000000..1ee4e8e
+--- /dev/null
++++ b/tests/check_equivalence_controls.py
+@@ -0,0 +1,160 @@
++# SPDX-License-Identifier: Apache-2.0
++"""Require the equivalence check to judge each planted suite ending correctly.
++
++Each control clones this checkout into a new scratch directory, copies its
++working tree over the clone, and plants one change in the clone's sources.
++It then runs the clone's tests/check_equivalence.py and grades the exit status
++and the recorded problems. The original checkout is never edited.
++
++The genuine revised failure must pass. A signal or a timeout after that
++failure, another assertion of the revised test, and a failure of another test
++must each fail, while every transmit trace still compares identically.
++"""
++
++import argparse
++from concurrent.futures import ThreadPoolExecutor
++import json
++import os
++from pathlib import Path
++import shutil
++import subprocess
++import sys
++
++ROOT = Path(__file__).resolve().parents[1]
++REVISED = "full_leaveall_reports_each_required_transition"
++TIMER = "src/ports/timer.c"
++MAD = "src/core/mrp_mad.c"
++# A fault in the suite process only, after its complete output is written.
++# The runner forks each test; the forked children are unaffected.
++SHUTDOWN = """
++/* Equivalence control: end only the suite process, after its output. */
++#include <signal.h>
++#include <stdio.h>
++#include <unistd.h>
++static pid_t suite_pid;
++__attribute__((constructor)) static void remember_suite_pid(void) { suite_pid = getpid(); }
++__attribute__((destructor)) static void end_suite(void)
++{
++    if (getpid() == suite_pid) {
++        fflush(NULL);
++        %s
++    }
++}
++"""
++# Each control: name, planted file, text to replace (None appends), its
++# replacement, and the problem the check must report (None for a pass).
++CONTROLS = [
++    ("revised", None, None, None, None),
++    ("signal", TIMER, None, SHUTDOWN % "raise(SIGTERM);",
++     "candidate unit suite: ended by signal 15 (SIGTERM)"),
++    ("timeout", TIMER, None, SHUTDOWN % "for (;;) { pause(); }",
++     "candidate unit suite: timed out after {timeout} s"),
++    ("other-assertion", MAD, "    if (!priv->obs_fn) {\n",
++     "    if (ev == MRP_EVENT_TXLAF) { return; }\n    if (!priv->obs_fn) {\n",
++     f"candidate unit suite: rc=1; not revised: {REVISED}: Failure 'Expected [omitted_txlaf] to [equal] [1]'"),
++    ("other-test", MAD, "        *la = priv->ports[port_id].la;\n", "        *la = MRP_LA_STATE_ACTIVE;\n",
++     "candidate unit suite: rc=1"),
++]
++
++
++def prepare(name, work):
++    """Clone the checkout, copy its working tree over the clone, and plant."""
++    _, path, old, new, _ = next(control for control in CONTROLS if control[0] == name)
++    clone = work / f"{name}-source"
++    subprocess.run(["git", "clone", "--quiet", "--shared", str(ROOT), str(clone)], check=True)
++    for part in ("CMakeLists.txt", "src", "tests"):
++        target = clone / part
++        if target.is_dir():
++            shutil.rmtree(target)
++            shutil.copytree(ROOT / part, target, ignore=shutil.ignore_patterns("__pycache__"))
++        else:
++            shutil.copy2(ROOT / part, target)
++    if path:
++        source = clone / path
++        text = source.read_text()
++        if old is None:
++            text += new
++        elif text.count(old) == 1:
++            text = text.replace(old, new)
++        else:
++            raise SystemExit(f"{name}: the planted text is not unique in {path}")
++        source.write_text(text)
++    return clone
++
++
++def failed_tests(suite):
++    return {line.split(" -> ", 1)[1].split()[0] for line in suite.splitlines()
++            if ": Failure: " in line and " -> " in line}
++
++
++def grade(name, rc, result, timeout):
++    """Return the reasons this control's outcome is wrong."""
++    expected = next(control for control in CONTROLS if control[0] == name)[4]
++    if result is None:
++        return [f"gate rc={rc} without equivalence.json"]
++    reasons = []
++    problems = result["problems"]
++    different = sum(row["different"] for row in result["rows"])
++    if different or not result["rows"]:
++        reasons.append(f"{different} decoded differences in {len(result['rows'])} scenarios")
++    if expected is None:
++        if rc != 0 or problems or result["revised"] != [REVISED]:
++            reasons.append(f"gate rc={rc}, problems {problems}, revised {result['revised']}")
++        return reasons
++    expected = expected.format(timeout=timeout)
++    if rc != 1 or len(problems) != 1 or not problems[0].startswith(expected):
++        reasons.append(f"gate rc={rc}, problems {problems}; wanted rc=1 and one problem '{expected}'")
++    return reasons
++
++
++def run_control(name, args, work):
++    clone = prepare(name, work)
++    gate = work / name
++    command = [sys.executable, "-I", "-B", str(clone / "tests/check_equivalence.py"), "--work-dir", str(gate),
++               "--prefix", str(args.prefix), "--milan", args.milan]
++    if name == "timeout":
++        command += ["--suite-timeout", str(args.timeout)]
++    log = work / f"{name}.log"
++    with log.open("w") as out:
++        rc = subprocess.run(command, cwd=clone, stdout=out, stderr=subprocess.STDOUT,
++                            env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1")).returncode
++    path = gate / "equivalence.json"
++    result = json.loads(path.read_text()) if path.exists() else None
++    reasons = grade(name, rc, result, args.timeout)
++    suite = gate / "unit-candidate.log"
++    suite = suite.read_text() if suite.exists() else ""
++    if name in ("signal", "timeout") and (f"-> {REVISED}" not in suite or 'Completed "main":' not in suite):
++        reasons.append("the fault did not follow the revised failure and the completion line")
++    if name == "other-test" and not failed_tests(suite) - {REVISED}:
++        reasons.append("no test other than the revised one failed")
++    print(f"{'PASS' if not reasons else 'FAIL'} {name}: gate rc={rc}" +
++          "".join(f"; {reason}" for reason in reasons), flush=True)
++    return {"control": name, "gate_rc": rc, "problems": result and result["problems"],
++            "revised": result and result["revised"], "reasons": reasons}
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--work-dir", type=Path, required=True)
++    parser.add_argument("--prefix", type=Path, required=True, help="unit framework prefix")
++    parser.add_argument("--milan", choices=["OFF", "ON"], default="OFF")
++    parser.add_argument("--timeout", type=int, default=480,
++                        help="suite limit for the timeout control; above a normal suite run")
++    parser.add_argument("--only", action="append", choices=[control[0] for control in CONTROLS])
++    args = parser.parse_args()
++    work = args.work_dir.resolve()
++    if work.is_relative_to(ROOT) or work.exists():
++        parser.error("Use a new scratch directory outside the checkout")
++    work.mkdir(parents=True)
++    args.prefix = args.prefix.resolve()
++    names = args.only or [control[0] for control in CONTROLS]
++    with ThreadPoolExecutor(max_workers=len(names)) as pool:
++        results = list(pool.map(lambda name: run_control(name, args, work), names))
++    (work / "controls.json").write_text(json.dumps({"milan": args.milan, "controls": results}, indent=2) + "\n")
++    failed = [result["control"] for result in results if result["reasons"]]
++    print(f"Controls: {len(results)}; failed: {len(failed)}" + (f" ({', '.join(failed)})" if failed else ""))
++    return int(bool(failed))
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/tests/check_reversals.py b/tests/check_reversals.py
+index a3e6877..d9f19d2 100644
+--- a/tests/check_reversals.py
++++ b/tests/check_reversals.py
+@@ -138,6 +138,9 @@ CASES = [
+      '    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {\n        if (a->tx_selected) {', "unit"),
+     ('own-leaveall-omitted-as-fitting', MAD, 'deliver_event(app, ps, a, MRP_EVENT_TXLAF, port_id);',
+      'deliver_event(app, ps, a, MRP_EVENT_TXLA, port_id); /* Plant: txLA! for an omitted value. */', "unit"),
++    ('own-leaveall-registrar-indication', MAD,
++     '    /* MRP_EVENT_RLA — same as RLV for Registrar */\n    {\n        _RE(REG_IND_NONE,',
++     '    /* MRP_EVENT_RLA — same as RLV for Registrar */\n    {\n        _RE(REG_IND_LV, /* Plant: rLA! indicates. */', "unit"),
+     ('omitted-leaveall-event', MAD, 'deliver_event(app, ps, a, MRP_EVENT_TXLAF, port_id);',
+      '/* Plant: omit txLAF. */', "unit"),
+     ('reserved-leaveall-event', PDU, 'bool unknown_event = la > MRP_LA_ALL;',
+@@ -279,6 +282,7 @@ REQUIRED_FAILURES = {
+                                    'a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell'],
+     'own-leaveall-applicant-rla-first': ['a_declaration_that_fits_the_leaveall_pdu_stays_quiet',
+                                          'a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell'],
++    'own-leaveall-registrar-indication': ['a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently'],
+     'own-leaveall-omitted-as-fitting': ['a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently',
+                                         'a_full_leaveall_pdu_gives_each_omitted_applicant_its_txlaf_cell'],
+     'reserved-leaveall-event': ['reserved_leaveall_events_are_rejected_atomically'],
+diff --git a/tests/unit/own_leaveall_test.c b/tests/unit/own_leaveall_test.c
+index 080a2ff..5487c4c 100644
+--- a/tests/unit/own_leaveall_test.c
++++ b/tests/unit/own_leaveall_test.c
+@@ -266,6 +266,14 @@ static void check(struct mrp_app *a, uint8_t type, enum mrp_appl_state appl, enu
+     assert_that(mrp_reg_state_name(s.reg), is_equal_to_string(mrp_reg_state_name(reg)));
+ }
+ 
++/* Leave indications since the board reached its LeaveAll. */
++static unsigned leaves;
++static void count_leave(struct msrp_ctx *ctx, uint8_t port_id, uint8_t attr_type, const void *attr_val)
++{
++    (void)ctx; (void)port_id; (void)attr_type; (void)attr_val;
++    ++leaves;
++}
++
+ /*
+  * The board of issue #20, at one input: a peer registers its Talker Advertise
+  * and its Domain; the participant declares the Domain and a Ready Listener for
+@@ -276,6 +284,7 @@ static struct mrp_app *stream_board(void)
+ {
+     static struct msrp_ctx ctx;
+     memset(&ctx, 0, sizeof(ctx));
++    ctx.on_leave = count_leave;
+     struct mrp_app *a = msrp_app_create(1, &ctx);
+     assert_that(mrp_port_configure(a, 0, JOIN_CS, 60, 1000, 7, true), is_equal_to(0));
+     mrp_set_periodic(a, 0, false);
+@@ -303,6 +312,7 @@ static struct mrp_app *stream_board(void)
+     check(a, MSRP_ATTR_TYPE_TALKER_ADV, MRP_APPL_STATE_VO, MRP_REG_STATE_IN);
+     until_leave_all(a);
+     seen_count = 0;
++    leaves = 0;
+     mrp_set_observer(a, record, NULL);
+     return a;
+ }
+@@ -346,6 +356,8 @@ Ensure(OwnLeaveAll, a_declaration_that_fits_the_leaveall_pdu_stays_quiet)
+     check(a, MSRP_ATTR_TYPE_DOMAIN, MRP_APPL_STATE_QA, MRP_REG_STATE_LV);
+     check(a, MSRP_ATTR_TYPE_TALKER_ADV, MRP_APPL_STATE_LO, MRP_REG_STATE_LV);
+     assert_that(leave_all_state(a), is_equal_to(MRP_LA_STATE_PASSIVE));
++    /* A Registrar's LeaveAll only starts its leavetimer; nothing is indicated yet. */
++    assert_that(leaves, is_equal_to(0));
+     one_leave_all_event_per_applicant();
+     /* Nothing re-declares the fitted values: LO alone sends its Mt. */
+     tick(JOIN_CS);
+@@ -398,6 +410,8 @@ Ensure(OwnLeaveAll, a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silent
+     check(a, MSRP_ATTR_TYPE_DOMAIN, MRP_APPL_STATE_VP, MRP_REG_STATE_LV);
+     assert_that(registrar_took_rla(MSRP_ATTR_TYPE_DOMAIN, domain_wire, 2), is_true);
+     check(a, MSRP_ATTR_TYPE_TALKER_ADV, MRP_APPL_STATE_LO, MRP_REG_STATE_LV);
++    /* That rLA! only starts the leavetimer (Table 10-4): no cell indicates. */
++    assert_that(leaves, is_equal_to(0));
+     one_leave_all_event_per_applicant();
+     withdraw_listener(a);
+     check(a, MSRP_ATTR_TYPE_LISTENER, MRP_APPL_STATE_VO, MRP_REG_STATE_MT);

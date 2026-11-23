@@ -1,0 +1,11 @@
+ README.md                            |   2 +-
+ doc/integrator.md                    |   4 +-
+ doc/manager.md                       |  10 +--
+ doc/tester.md                        |  52 +++++++++---
+ tests/check_equivalence.py           |  84 ++++++++++++++----
+ tests/check_equivalence_controls.py  | 160 +++++++++++++++++++++++++++++++++++
+ tests/check_reversals.py             |  62 +++++++++++++-
+ tests/features/environment.py        |  83 +++++++++++++++++-
+ tests/features/steps/switch_steps.py |  60 ++++++++++---
+ tests/unit/own_leaveall_test.c       |  14 +++
+ 10 files changed, 478 insertions(+), 53 deletions(-)

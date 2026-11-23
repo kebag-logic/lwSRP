@@ -1,0 +1,2 @@
+srp-srp_own_leaveall-if1-endstation_ax7101_8x8 withdrawals 387 sent 387 never sent 0 worst withdrawal-to-Lv ms 190 over 240 ms 0 peer not at the Lv 0 per input {0: 43, 1: 43, 2: 43, 3: 43, 4: 43, 5: 43, 6: 43, 7: 43, 8: 43}
+srp-srp_own_leaveall-if1-endstation_ax7101_1x1_tdm8 withdrawals 86 sent 86 never sent 0 worst withdrawal-to-Lv ms 190 over 240 ms 0 peer not at the Lv 0 per input {0: 43, 1: 43}

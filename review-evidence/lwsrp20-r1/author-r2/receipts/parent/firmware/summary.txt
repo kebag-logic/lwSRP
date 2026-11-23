@@ -1,0 +1,7 @@
+shard 0/4: rc=0 2026-11-23T18:43:01+01:00 -> 2026-11-23T19:03:48+01:00; [ok] lines 90; not-ok 0; last: test_ctrl_firmware: PASS
+shard 1/4: rc=0 2026-11-23T18:43:01+01:00 -> 2026-11-23T19:50:27+01:00; [ok] lines 826; not-ok 0; last: test_ctrl_firmware: PASS
+shard 2/4: rc=0 2026-11-23T18:43:01+01:00 -> 2026-11-23T19:24:45+01:00; [ok] lines 385; not-ok 0; last: test_ctrl_firmware: PASS
+shard 3/4: rc=0 2026-11-23T18:43:01+01:00 -> 2026-11-23T19:29:02+01:00; [ok] lines 543; not-ok 0; last: test_ctrl_firmware: PASS
+shard 0: arms ok 90; SRP arms ok 43 (own LeaveAll 2); gtest cases 2236; FAIL verdicts 0
+[ok] lwSRP pin, a compiled source edited: lwSRP's src/ differs from the pinned 25b5a740: src/core/mrp_mad.c
+[ok] lwSRP pin, another revision checked out: lwSRP at f7111b27f44542cb706c3ca4efd538c6503d56c7 is not the pinned 25b5a7400ff618fa1404e452668ed6902daa5f74 (fetch https://github.com/kebag-logic/lwSRP and check the pin out)

@@ -1,0 +1,6 @@
+PASS other-test: gate rc=1
+PASS signal: gate rc=1
+PASS revised: gate rc=0
+PASS other-assertion: gate rc=1
+PASS timeout: gate rc=1
+Controls: 5; failed: 0

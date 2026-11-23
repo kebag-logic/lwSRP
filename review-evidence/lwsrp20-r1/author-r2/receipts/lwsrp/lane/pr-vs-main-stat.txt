@@ -1,0 +1,15 @@
+ CMakeLists.txt                      |   1 +
+ README.md                           |   2 +-
+ doc/architecture.md                 |   6 +-
+ doc/developer.md                    |  42 ++-
+ doc/integrator.md                   |  11 +-
+ doc/manager.md                      |  12 +-
+ doc/tester.md                       |  52 ++-
+ src/core/mrp_mad.c                  |  41 +--
+ tests/check_equivalence.py          |  83 ++++-
+ tests/check_equivalence_controls.py | 160 ++++++++++
+ tests/check_reversals.py            |  37 ++-
+ tests/unit/main.c                   |   2 +
+ tests/unit/own_leaveall_test.c      | 618 ++++++++++++++++++++++++++++++++++++
+ tests/unit/review_test.c            |  76 +++--
+ 14 files changed, 1066 insertions(+), 77 deletions(-)

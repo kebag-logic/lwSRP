@@ -1,0 +1,32 @@
+HEAD f7111b27f44542cb706c3ca4efd538c6503d56c7 status ''
+build OFF rc=0 warnings=0
+unit OFF rc=0 Completed "main": 27199 passes in 1329ms.
+ctest OFF rc=0 100% tests passed out of 1
+behave OFF rc=0 3 scenarios passed, 0 failed, 0 skipped 10 steps passed, 0 failed, 0 skipped 
+build ON rc=0 warnings=0
+unit ON rc=0 Completed "main": 27187 passes in 179ms.
+ctest ON rc=0 100% tests passed out of 1
+behave ON rc=0 3 scenarios passed, 0 failed, 0 skipped 10 steps passed, 0 failed, 0 skipped 
+behave dry rc=0 0 scenarios passed, 0 failed, 0 skipped, 3 untested 0 steps passed, 0 failed, 0 skipped, 10 untested 
+codec rc=0 Completed "mrp_pdu_suite": 1690 passes in 10ms.
+freestanding OFF rc=0 Freestanding sources: 7; failures: 0
+freestanding ON rc=0 Freestanding sources: 7; failures: 0
+embedded rc=0 Embedded source list: both profile links and dispatch probes pass
+strict gcc milan=0 rc=0 bytes=0
+strict gcc milan=1 rc=0 bytes=0
+strict clang milan=0 rc=0 bytes=0
+strict clang milan=1 rc=0 bytes=0
+sanitizer gcc OFF rc=0 symbols=8 reports=0 Completed "main": 27199 passes in 1753ms.
+sanitizer gcc ON rc=0 symbols=8 reports=0 Completed "main": 27187 passes in 1766ms.
+sanitizer clang OFF rc=0 symbols=50 reports=0 Completed "main": 27199 passes in 1348ms.
+sanitizer clang ON rc=0 symbols=50 reports=0 Completed "main": 27187 passes in 1547ms.
+sanitizer planted overread rc=1 reports=15
+coverage build OFF unit rc=0 Completed "main": 27199 passes in 314ms.
+coverage build ON unit rc=0 Completed "main": 27187 passes in 290ms.
+coverage rc=0 src/core/mrp_mad.c                         642/672      407/469    lines  95.54 %  branches  86.78 % function sla_registrars (src/core/mrp_mad.c:774-782): lines 6/6, branches 2/2, lines with an uncovered item: [] 
+sentences rc=1 ModuleNotFoundError: No module named 'common'
+references rc=1 ModuleNotFoundError: No module named 'common'
+references self-test rc=1 ModuleNotFoundError: No module named 'common'
+links rc=1 ModuleNotFoundError: No module named 'common'
+graphs rc=1 ModuleNotFoundError: No module named 'common'
+git status after ''

@@ -1,0 +1,13 @@
+== save-held.log: 2884 passes to 15.682 s; longest 157,621 cycles (within THE SHARE 200,000)
+  MSRP if0 leavealltimer at 14.092 s; its LeaveAll MRPDU on the wire 160.300 ms later; 203 passes in the next 1 s, longest 154,354 cycles
+  MVRP if0 leavealltimer at 14.922 s; its LeaveAll MRPDU on the wire 0.417 ms later; 154 passes in the next 1 s, longest 152,983 cycles
+== save-burst.log: 2724 passes to 15.482 s; longest 156,670 cycles (within THE SHARE 200,000)
+  MSRP if0 leavealltimer at 14.092 s; its LeaveAll MRPDU on the wire 160.393 ms later; 179 passes in the next 1 s, longest 153,536 cycles
+  MVRP if0 leavealltimer at 14.922 s; its LeaveAll MRPDU on the wire 0.416 ms later; 99 passes in the next 1 s, longest 152,478 cycles
+== save-starved.log: 70662 passes to 15.685 s; longest 157,621 cycles (within THE SHARE 200,000)
+  MSRP if0 leavealltimer at 14.092 s; its LeaveAll MRPDU on the wire 160.551 ms later; 5371 passes in the next 1 s, longest 155,308 cycles
+  MVRP if0 leavealltimer at 14.922 s; its LeaveAll MRPDU on the wire 0.433 ms later; 4168 passes in the next 1 s, longest 154,273 cycles
+== save-second.log: 146988 passes to 27.163 s; longest 48,487 cycles (within THE SHARE 200,000)
+  MSRP if0 leavealltimer at 14.092 s; its LeaveAll MRPDU on the wire 160.473 ms later; 5955 passes in the next 1 s, longest 29,561 cycles
+  MVRP if0 leavealltimer at 14.922 s; its LeaveAll MRPDU on the wire 0.421 ms later; 6029 passes in the next 1 s, longest 29,561 cycles
+  MVRP if0 leavealltimer at 25.882 s; its LeaveAll MRPDU on the wire 0.416 ms later; 5993 passes in the next 1 s, longest 28,586 cycles
