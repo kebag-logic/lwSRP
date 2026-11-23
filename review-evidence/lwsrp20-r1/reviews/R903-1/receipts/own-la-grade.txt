@@ -1,0 +1,4 @@
+head-8x8-1if.log: withdrawals=387 inputs=9 offsets=43 [5..200] unsent=0 max_latency_ms=190 over_240ms=0 peer_not_at_lv=0
+base-08ee86e8-8x8-1if.log.gz: withdrawals=387 inputs=9 offsets=43 [5..200] unsent=351 max_latency_ms=190 over_240ms=0 peer_not_at_lv=0
+head-1x1-1if.log: withdrawals=86 inputs=2 offsets=43 [5..200] unsent=0 max_latency_ms=190 over_240ms=0 peer_not_at_lv=0
+base-08ee86e8-1x1-1if.log: withdrawals=86 inputs=2 offsets=43 [5..200] unsent=78 max_latency_ms=190 over_240ms=0 peer_not_at_lv=0

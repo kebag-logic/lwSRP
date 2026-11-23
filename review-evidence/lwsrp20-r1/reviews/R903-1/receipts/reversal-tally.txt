@@ -1,0 +1,14 @@
+OFF labels killed 1 time(s): 102
+ON labels killed 1 time(s): 102
+KILLED omitted-leaveall-event
+KILLED received-leaveall-restart
+KILLED committed-local-leaveall
+KILLED own-leaveall-applicant-rla
+KILLED own-leaveall-applicant-rla-first
+KILLED own-leaveall-omitted-as-fitting
+KILLED omitted-leaveall-event
+KILLED received-leaveall-restart
+KILLED committed-local-leaveall
+KILLED own-leaveall-applicant-rla
+KILLED own-leaveall-applicant-rla-first
+KILLED own-leaveall-omitted-as-fitting

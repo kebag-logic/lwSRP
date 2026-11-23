@@ -1,0 +1,37 @@
+# git merge-tree --write-tree origin/main(97677fcb) c035764f (read-only)
+69d8e7f37e4814288b63026ae05b4a4226405cc3
+doc/tester.md
+
+Auto-merging doc/manager.md
+Auto-merging doc/tester.md
+CONFLICT (content): Merge conflict in doc/tester.md
+Auto-merging tests/check_reversals.py
+rc=1
+# conflict hunks in doc/tester.md
+29:<<<<<<< origin/main
+30-| Default unit target | Exit 0; 102 tests and 26658 assertions. | The [runner](../tests/unit/main.c) executes nine suites. |
+31-| Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c) and reads the simulated port flags. |
+32-=======
+33-| Default unit target | Exit 0; 108 tests and 27197 assertions. | The [runner](../tests/unit/main.c) executes ten suites. |
+34-| Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c). |
+35->>>>>>> c035764f
+36-| Scenario dry run | Validates step matching only. | It does not execute setup or verify behavior. |
+37-
+38-The [fault-injecting allocation port](../tests/unit/fault_alloc.c) replaces hosted allocation symbols in the unit executable.
+39-The [boundary suite](../tests/unit/review_test.c) fails selected allocations and checks the count of live allocations after teardown.
+--
+255:<<<<<<< origin/main
+256-Seven scenario reversals miswire the [test bindings](../tests/features/switch_bindings.c) or their [scenario setup](../tests/features/environment.py) for [issue #4](https://github.com/kebag-logic/lwSRP/issues/4).
+257-They swap enable and disable, disable the next port, skip connection, and swap connection with disconnection.
+258-Each must fail exactly its named [scenarios](../tests/features/switch.feature) with the expected assertion words.
+259-The runner's interpreter must import [behave](https://behave.readthedocs.io/en/stable/), because it also runs the scenarios before and after the plants.
+260-Both profiles run all 106 reversals.
+261-=======
+262-Four LeaveAll reversals restore the local rLA! for Applicants, apply it before txLA!, drop it for Registrars, and send txLA! for omitted values.
+263-Each must fail its named [LeaveAll tests](../tests/unit/own_leaveall_test.c).
+264-Both profiles run all 102 reversals.
+265->>>>>>> c035764f
+# main's reversal CASES count
+[106]
+# merged tree reversal CASES count
+[109]

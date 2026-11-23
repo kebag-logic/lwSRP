@@ -1,0 +1,9 @@
+HEAD c035764f2d6105fd9598b138112ba01eaa006958 tree 7f9bd6070b209cd246a9459104c1b1e531fa25da
+status-porcelain-lines 0
+worktree==HEAD: yes
+index==HEAD: yes
+index entries (mode blob path) sha256 ad0f40c947840b2b69476fa3007bbd684034660784741dc01dabd0ef1bcda2fa  -
+tree  entries (mode blob path) sha256 ad0f40c947840b2b69476fa3007bbd684034660784741dc01dabd0ef1bcda2fa  -
+index modes/blobs == HEAD tree: yes
+blobs rehashed 66 mismatches 0
+gitlinks in tree: 0 (lwSRP has no submodules)

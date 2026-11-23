@@ -1,0 +1,210 @@
+-- The C compiler identification is GNU 16.2.1
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Configuring done (1.1s)
+-- Generating done (0.0s)
+-- Build files have been written to: <packet>/scratch/build-first-OFF
+[  8%] Building C object CMakeFiles/shlan.dir/src/ports/timer.c.o
+[ 12%] Building C object CMakeFiles/shlan.dir/src/ports/alloc.c.o
+[ 20%] Building C object CMakeFiles/shlan.dir/src/core/switch.c.o
+[ 16%] Building C object CMakeFiles/shlan.dir/src/core/mrp_pdu.c.o
+[ 24%] Building C object CMakeFiles/shlan.dir/src/modules/sim_adapter.c.o
+[  4%] Building C object CMakeFiles/shlan.dir/src/core/mrp_mad.c.o
+[ 28%] Building C object CMakeFiles/shlan.dir/src/modules/mvrp.c.o
+[ 36%] Building C object CMakeFiles/shlan.dir/src/modules/msrp.c.o
+[ 32%] Building C object CMakeFiles/shlan.dir/src/modules/mmrp.c.o
+[ 40%] Building C object CMakeFiles/shlan.dir/tests/features/switch_bindings.c.o
+[ 44%] Linking C shared library libshlan.so
+[ 44%] Built target shlan
+[ 48%] Building C object CMakeFiles/unit_tests.dir/tests/unit/fault_alloc.c.o
+[ 52%] Building C object CMakeFiles/unit_tests.dir/tests/unit/main.c.o
+[ 60%] Building C object CMakeFiles/unit_tests.dir/tests/unit/timer_test.c.o
+[ 68%] Building C object CMakeFiles/unit_tests.dir/tests/unit/msrp_values_test.c.o
+[ 56%] Building C object CMakeFiles/unit_tests.dir/tests/unit/mrp_pdu_test.c.o
+[ 64%] Building C object CMakeFiles/unit_tests.dir/tests/unit/receive_test.c.o
+[ 72%] Building C object CMakeFiles/unit_tests.dir/tests/unit/transmit_test.c.o
+[ 80%] Building C object CMakeFiles/unit_tests.dir/tests/unit/milan_test.c.o
+[ 76%] Building C object CMakeFiles/unit_tests.dir/tests/unit/integration_test.c.o
+[ 88%] Building C object CMakeFiles/unit_tests.dir/tests/unit/grouping_test.c.o
+[ 96%] Building C object CMakeFiles/unit_tests.dir/tests/unit/mrpdu_decoder.c.o
+[ 92%] Building C object CMakeFiles/unit_tests.dir/tests/unit/own_leaveall_test.c.o
+[ 84%] Building C object CMakeFiles/unit_tests.dir/tests/unit/review_test.c.o
+[100%] Linking C executable unit_tests
+[100%] Built target unit_tests
+WARNINGS: 0
+Running "main" (108 tests)...
+  "mrp_pdu_suite": 1690 passes in 9380ms.
+  "timer_suite": 14 passes in 118ms.
+  "msrp_values_suite": 23 passes in 98ms.
+  "receive_suite": 83 passes in 511ms.
+  "transmit_suite": 106 passes in 509ms.
+  "integration_suite": 387 passes in 420ms.
+  "milan_suite": 442 passes in 11ms.
+<packet>/scratch/first-OFF/tests/unit/review_test.c:354: Failure: boundaries_suite -> committed_leaveall_gives_each_applicant_one_leaveall_event 
+	Expected [vid_state(a, 3).appl] to [equal] [MRP_APPL_STATE_QA]
+		actual value:			[1]
+		expected value:			[5]
+
+<packet>/scratch/first-OFF/tests/unit/review_test.c:383: Failure: boundaries_suite -> full_leaveall_reports_each_required_transition 
+	Expected [local_rla] to [equal] [1]
+		actual value:			[2]
+		expected value:			[1]
+
+<packet>/scratch/first-OFF/tests/unit/review_test.c:384: Failure: boundaries_suite -> full_leaveall_reports_each_required_transition 
+	Expected [applicant_rla] to [equal] [0]
+		actual value:			[1]
+		expected value:			[0]
+
+  "boundaries_suite": 17161 passes, 3 failures in 34495ms.
+  "grouping_suite": 6757 passes in 34987ms.
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:265: Failure: own_leaveall_suite -> a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [mrp_appl_state_name(s.appl)] to [equal string] [mrp_appl_state_name(appl)]
+		actual value:			["VP"]
+		expected to equal:		["QA"]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:265: Failure: own_leaveall_suite -> a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [mrp_appl_state_name(s.appl)] to [equal string] [mrp_appl_state_name(appl)]
+		actual value:			["VP"]
+		expected to equal:		["QA"]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:183: Failure: own_leaveall_suite -> a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:183: Failure: own_leaveall_suite -> a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:353: Failure: own_leaveall_suite -> a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [event_of(3u, stream, 8)] to [equal] [ABSENT]
+		actual value:			[3]
+		expected value:			[99]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:354: Failure: own_leaveall_suite -> a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [event_of(4u, domain_wire, 4)] to [equal] [ABSENT]
+		actual value:			[3]
+		expected value:			[99]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:355: Failure: own_leaveall_suite -> a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [values_sent()] to [equal] [1]
+		actual value:			[3]
+		expected value:			[1]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:79: Failure: own_leaveall_suite -> a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [mrp_transmit(a, 0, buffer, sizeof(buffer), capture, ((void *)0))] to [equal] [0]
+		actual value:			[1]
+		expected value:			[0]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:80: Failure: own_leaveall_suite -> a_declaration_that_fits_the_leaveall_pdu_stays_quiet 
+	Expected [sends] to [equal] [0]
+		actual value:			[1]
+		expected value:			[0]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:265: Failure: own_leaveall_suite -> a_withdrawal_after_the_leaveall_pdu_sends_its_leave 
+	Expected [mrp_appl_state_name(s.appl)] to [equal string] [mrp_appl_state_name(appl)]
+		actual value:			["VO"]
+		expected to equal:		["LA"]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:375: Failure: own_leaveall_suite -> a_withdrawal_after_the_leaveall_pdu_sends_its_leave 
+	Expected [event_of(3u, stream, 8)] to [equal] [WIRE_LV]
+		actual value:			[99]
+		expected value:			[5]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:376: Failure: own_leaveall_suite -> a_withdrawal_after_the_leaveall_pdu_sends_its_leave 
+	Expected [four_packed_of(3u, stream, 8)] to [equal] [MSRP_LISTENER_DECL_READY]
+		actual value:			[99]
+		expected value:			[2]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:377: Failure: own_leaveall_suite -> a_withdrawal_after_the_leaveall_pdu_sends_its_leave 
+	Expected [event_of(4u, domain_wire, 4)] to [equal] [ABSENT]
+		actual value:			[3]
+		expected value:			[99]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:79: Failure: own_leaveall_suite -> a_withdrawal_after_the_leaveall_pdu_sends_its_leave 
+	Expected [mrp_transmit(a, 0, buffer, sizeof(buffer), capture, ((void *)0))] to [equal] [0]
+		actual value:			[1]
+		expected value:			[0]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:80: Failure: own_leaveall_suite -> a_withdrawal_after_the_leaveall_pdu_sends_its_leave 
+	Expected [sends] to [equal] [0]
+		actual value:			[1]
+		expected value:			[0]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:566: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txla)]
+		actual value:			["VP"]
+		expected to equal:		["AA"]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:566: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txla)]
+		actual value:			["VN"]
+		expected to equal:		["AN"]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:566: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txla)]
+		actual value:			["VP"]
+		expected to equal:		["QA"]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:566: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txla)]
+		actual value:			["VP"]
+		expected to equal:		["QA"]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:566: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txla)]
+		actual value:			["VP"]
+		expected to equal:		["QA"]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:566: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txla)]
+		actual value:			["VP"]
+		expected to equal:		["QA"]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:566: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [mrp_appl_state_name(of_vlan(a, rows[n].vid).appl)] to [equal string] [mrp_appl_state_name(rows[n].after_txla)]
+		actual value:			["VP"]
+		expected to equal:		["QA"]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:187: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [same && seen[m].appl_from != seen[m].appl_to] to [be false]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:187: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [same && seen[m].appl_from != seen[m].appl_to] to [be false]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:187: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [same && seen[m].appl_from != seen[m].appl_to] to [be false]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:187: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [same && seen[m].appl_from != seen[m].appl_to] to [be false]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:187: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [same && seen[m].appl_from != seen[m].appl_to] to [be false]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:187: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [same && seen[m].appl_from != seen[m].appl_to] to [be false]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:183: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:183: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:183: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:183: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:183: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:183: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+<packet>/scratch/first-OFF/tests/unit/own_leaveall_test.c:183: Failure: own_leaveall_suite -> a_leaveall_pdu_that_fits_gives_each_applicant_its_txla_cell 
+	Expected [seen[n].event == MRP_EVENT_TXLA || seen[n].event == MRP_EVENT_TXLAF] to [be true]
+
+  "own_leaveall_suite": 805 passes, 35 failures in 3330ms.
+Completed "main": 27468 passes, 38 failures in 83886ms.
+UNIT_RC=1

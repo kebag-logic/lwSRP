@@ -1,0 +1,30 @@
+Applicant handler            L506   static void appl_event(struct mrp_attr_inst *ai, enum mrp_event ev, bool p2p)
+Applicant table              L149   static const struct appl_entry appl_table[MRP_EVENT_COUNT][MRP_APPL_STATE_COUNT]
+assembler                    L1415  int mrp_transmit(struct mrp_app *app, uint8_t port_id,
+Assembler                    L1415  int mrp_transmit(struct mrp_app *app, uint8_t port_id,
+bounded assembler            L1415  int mrp_transmit(struct mrp_app *app, uint8_t port_id,
+declaration rows             L158       [MRP_EVENT_NEW] = {
+destructor                   L924   void mrp_app_destroy(struct mrp_app *app)
+event dispatcher             L755   static void deliver_event(struct mrp_app *app, struct mrp_port_state *ps,
+indication handler           L618   static int reg_event(struct mrp_app *app, struct mrp_attr_inst *ai,
+la_event                     L795   static void la_event(struct mrp_port_state *ps, enum mrp_event ev)
+Message writer               L1356  static uint8_t *tx_message(const struct mrp_app_ops *ops, struct mrp_port_state 
+mrp_reclaim                  L1108  unsigned mrp_reclaim(struct mrp_app *app, uint8_t port_id)
+mrp_set_periodic             L1148  void mrp_set_periodic(struct mrp_app *app, uint8_t port_id, bool enable)
+mrp_transmit                 L1415  int mrp_transmit(struct mrp_app *app, uint8_t port_id,
+PDU writer                   L1393  static int tx_assemble(const struct mrp_app_ops *ops, struct mrp_port_state *ps,
+periodic handler             L824   static void pt_event(struct mrp_app *app, struct mrp_port_state *ps,
+pt_event                     L824   static void pt_event(struct mrp_app *app, struct mrp_port_state *ps,
+receive-event rows           L207       [MRP_EVENT_RJOININ] = {
+receive handler              L1074  static void rx_on_leaveall(void *raw_ctx, uint8_t attr_type)
+Receive handler              L1074  static void rx_on_leaveall(void *raw_ctx, uint8_t attr_type)
+re-declaration row           L387       /* MRP_EVENT_REDECLARE — same as RLV for Registrar */
+Registrar handler            L618   static int reg_event(struct mrp_app *app, struct mrp_attr_inst *ai,
+Registrar Join rows          L353       /* MRP_EVENT_RJOININ || MRP_EVENT_RJOINMT — Table 10-4 rJoinIn!||rJoinMt! ro
+Registrar table              L325   static const struct reg_entry reg_table[MRP_EVENT_COUNT][MRP_REG_STATE_COUNT] = 
+sla_registrars               L774   static void sla_registrars(struct mrp_app *app, struct mrp_port_state *ps, uint8
+timer draw                   L788   static uint32_t leaveall_draw(struct mrp_port_state *ps)
+transactional assembler      L1415  int mrp_transmit(struct mrp_app *app, uint8_t port_id,
+transmit operation           L1415  int mrp_transmit(struct mrp_app *app, uint8_t port_id,
+transmit rows                L179       [MRP_EVENT_TX] = {
+withdrawal row               L172       [MRP_EVENT_LV] = {

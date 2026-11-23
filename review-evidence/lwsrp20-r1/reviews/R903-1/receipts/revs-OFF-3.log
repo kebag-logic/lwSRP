@@ -1,0 +1,67 @@
+324c324
+<         result = subprocess.run(command, cwd=source, env=env, capture_output=True, text=True, timeout=120)
+---
+>         result = subprocess.run(command, cwd=source, env=env, capture_output=True, text=True, timeout=3600)
+338c338
+<     check_command = ["ctest", "--test-dir", str(build), "--output-on-failure", "--timeout", "10"]
+---
+>     check_command = ["ctest", "--test-dir", str(build), "--output-on-failure", "--timeout", "1500"]
+342c342
+<     for label, name, old, new, check in CASES:
+---
+>     for label, name, old, new, check in [x for i, x in enumerate(CASES) if i % 6 == 3]:
+configure: rc=0
+baseline-build: rc=0
+baseline-check: rc=0
+mvrp-address-build: rc=0
+mvrp-address: rc=8
+KILLED mvrp-address
+leaveall-scope-build: rc=0
+leaveall-scope: rc=8
+KILLED leaveall-scope
+registrar-during-refusal-build: rc=0
+registrar-during-refusal: rc=8
+KILLED registrar-during-refusal
+received-withdrawal-value-build: rc=0
+received-withdrawal-value: rc=8
+KILLED received-withdrawal-value
+hosted-error-header: rc=1
+KILLED hosted-error-header
+leaveall-all-types-build: rc=0
+leaveall-all-types: rc=8
+KILLED leaveall-all-types
+milan-option-scope-build: rc=0
+milan-option-scope: rc=8
+KILLED milan-option-scope
+mac-increment-overflow-build: rc=0
+mac-increment-overflow: rc=8
+KILLED mac-increment-overflow
+committed-local-leaveall-build: rc=0
+committed-local-leaveall: rc=8
+KILLED committed-local-leaveall
+listener-subtype-build: rc=0
+listener-subtype: rc=8
+KILLED listener-subtype
+embedded-switch-source: rc=1
+KILLED embedded-switch-source
+leave-timer-retry-build: rc=0
+leave-timer-retry: rc=8
+KILLED leave-timer-retry
+zero-attribute-length-build: rc=0
+zero-attribute-length: rc=8
+KILLED zero-attribute-length
+receive-stop-build: rc=0
+receive-stop: rc=8
+KILLED receive-stop
+flush-observer-build: rc=0
+flush-observer: rc=8
+KILLED flush-observer
+flush-snapshot-replaced-build: rc=0
+flush-snapshot-replaced: rc=8
+KILLED flush-snapshot-replaced
+grouped-vector-order-build: rc=0
+grouped-vector-order: rc=8
+KILLED grouped-vector-order
+restored-build: rc=0
+restored-check: rc=0
+Reversals: 102; failures: 0

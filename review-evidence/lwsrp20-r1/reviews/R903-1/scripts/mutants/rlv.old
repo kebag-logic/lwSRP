@@ -1,0 +1,1 @@
+        (void)reg_event(app, a, MRP_EVENT_RLA, port_id, false);

@@ -1,0 +1,33 @@
+324c324
+<         result = subprocess.run(command, cwd=source, env=env, capture_output=True, text=True, timeout=120)
+---
+>         result = subprocess.run(command, cwd=source, env=env, capture_output=True, text=True, timeout=3600)
+338c338
+<     check_command = ["ctest", "--test-dir", str(build), "--output-on-failure", "--timeout", "10"]
+---
+>     check_command = ["ctest", "--test-dir", str(build), "--output-on-failure", "--timeout", "1500"]
+342c342
+<     for label, name, old, new, check in CASES:
+---
+>     for label, name, old, new, check in [x for x in CASES if x[0] in ['periodic-interval', 'shared-in-condition', 'propagation-retention', 'changed-value-rollback', 'pending-flush']]:
+configure: rc=0
+baseline-build: rc=0
+baseline-check: rc=0
+periodic-interval-build: rc=0
+periodic-interval: rc=8
+KILLED periodic-interval
+shared-in-condition-build: rc=0
+shared-in-condition: rc=8
+KILLED shared-in-condition
+propagation-retention-build: rc=0
+propagation-retention: rc=8
+KILLED propagation-retention
+changed-value-rollback-build: rc=0
+changed-value-rollback: rc=8
+KILLED changed-value-rollback
+pending-flush-build: rc=0
+pending-flush: rc=8
+KILLED pending-flush
+restored-build: rc=0
+restored-check: rc=0
+Reversals: 102; failures: 0

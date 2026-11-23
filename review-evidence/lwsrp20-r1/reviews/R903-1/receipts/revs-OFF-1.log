@@ -1,0 +1,69 @@
+324c324
+<         result = subprocess.run(command, cwd=source, env=env, capture_output=True, text=True, timeout=120)
+---
+>         result = subprocess.run(command, cwd=source, env=env, capture_output=True, text=True, timeout=3600)
+338c338
+<     check_command = ["ctest", "--test-dir", str(build), "--output-on-failure", "--timeout", "10"]
+---
+>     check_command = ["ctest", "--test-dir", str(build), "--output-on-failure", "--timeout", "1500"]
+342c342
+<     for label, name, old, new, check in CASES:
+---
+>     for label, name, old, new, check in [x for i, x in enumerate(CASES) if i % 6 == 1]:
+configure: rc=0
+baseline-build: rc=0
+baseline-check: rc=0
+msrp-address-build: rc=0
+msrp-address: rc=8
+KILLED msrp-address
+wire-prevalidation-build: rc=0
+wire-prevalidation: rc=8
+KILLED wire-prevalidation
+leaveall-randomization-build: rc=0
+leaveall-randomization: rc=8
+KILLED leaveall-randomization
+reclaim-build: rc=0
+reclaim: rc=8
+KILLED reclaim
+domain-member-order-build: rc=0
+domain-member-order: rc=8
+KILLED domain-member-order
+withdrawal-transition-build: rc=0
+withdrawal-transition: rc=8
+KILLED withdrawal-transition
+milan-restarted-lv-deadline-build: rc=0
+milan-restarted-lv-deadline: rc=8
+KILLED milan-restarted-lv-deadline
+domain-class-range-build: rc=0
+domain-class-range: rc=8
+KILLED domain-class-range
+propagation-order-build: rc=0
+propagation-order: rc=8
+KILLED propagation-order
+omitted-leaveall-event-build: rc=0
+omitted-leaveall-event: rc=8
+KILLED omitted-leaveall-event
+milan-transmitted-leaveall-scope-build: rc=0
+milan-transmitted-leaveall-scope: rc=8
+KILLED milan-transmitted-leaveall-scope
+registrar-rollback-build: rc=0
+registrar-rollback: rc=8
+KILLED registrar-rollback
+commit-replay-build: rc=0
+commit-replay: rc=8
+KILLED commit-replay
+flush-retry-build: rc=0
+flush-retry: rc=8
+KILLED flush-retry
+flush-before-refresh-build: rc=0
+flush-before-refresh: rc=8
+KILLED flush-before-refresh
+flush-completion-build: rc=0
+flush-completion: rc=8
+KILLED flush-completion
+grouped-message-split-build: rc=0
+grouped-message-split: rc=8
+KILLED grouped-message-split
+restored-build: rc=0
+restored-check: rc=0
+Reversals: 102; failures: 0

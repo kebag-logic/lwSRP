@@ -1,0 +1,19 @@
+324c324
+<         result = subprocess.run(command, cwd=source, env=env, capture_output=True, text=True, timeout=120)
+---
+>         result = subprocess.run(command, cwd=source, env=env, capture_output=True, text=True, timeout=3600)
+338c338
+<     check_command = ["ctest", "--test-dir", str(build), "--output-on-failure", "--timeout", "10"]
+---
+>     check_command = ["ctest", "--test-dir", str(build), "--output-on-failure", "--timeout", "1500"]
+342c342
+<     for label, name, old, new, check in CASES:
+---
+>     for label, name, old, new, check in [x for i, x in enumerate(CASES) if i % 6 == 0]:
+configure: rc=0
+baseline-build: rc=0
+baseline-check: rc=0
+timer-unlink-build: rc=0
+timer-unlink: rc=8
+KILLED timer-unlink
+listener-offset-build: rc=0

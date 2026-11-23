@@ -1,0 +1,3 @@
+configure: rc=0
+baseline-build: rc=0
+baseline-check: rc=8

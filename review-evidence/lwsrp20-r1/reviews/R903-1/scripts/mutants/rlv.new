@@ -1,0 +1,1 @@
+        (void)reg_event(app, a, MRP_EVENT_RLV, port_id, false); /* Probe: rLv! in place of rLA! */

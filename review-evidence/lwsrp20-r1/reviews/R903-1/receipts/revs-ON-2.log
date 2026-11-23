@@ -1,0 +1,68 @@
+324c324
+<         result = subprocess.run(command, cwd=source, env=env, capture_output=True, text=True, timeout=120)
+---
+>         result = subprocess.run(command, cwd=source, env=env, capture_output=True, text=True, timeout=3600)
+338c338
+<     check_command = ["ctest", "--test-dir", str(build), "--output-on-failure", "--timeout", "10"]
+---
+>     check_command = ["ctest", "--test-dir", str(build), "--output-on-failure", "--timeout", "1500"]
+342c342
+<     for label, name, old, new, check in CASES:
+---
+>     for label, name, old, new, check in [x for i, x in enumerate(CASES) if i % 6 == 2]:
+configure: rc=0
+baseline-build: rc=0
+baseline-check: rc=0
+mmrp-address-build: rc=0
+mmrp-address: rc=8
+KILLED mmrp-address
+pdu-endmark-build: rc=0
+pdu-endmark: rc=8
+KILLED pdu-endmark
+refused-storage-build: rc=0
+refused-storage: rc=8
+KILLED refused-storage
+split-fairness-build: rc=0
+split-fairness: rc=8
+KILLED split-fairness
+hosted-allocation-header: rc=1
+KILLED hosted-allocation-header
+periodic-passive-build: rc=0
+periodic-passive: rc=8
+KILLED periodic-passive
+milan-profile-selection-build: rc=0
+milan-profile-selection: rc=8
+KILLED milan-profile-selection
+vlan-range-build: rc=0
+vlan-range: rc=8
+KILLED vlan-range
+registrar-recovery-indication-build: rc=0
+registrar-recovery-indication: rc=8
+KILLED registrar-recovery-indication
+reserved-leaveall-event-build: rc=0
+reserved-leaveall-event: rc=8
+KILLED reserved-leaveall-event
+received-leaveall-restart-build: rc=0
+received-leaveall-restart: rc=8
+KILLED received-leaveall-restart
+applicant-rollback-build: rc=0
+applicant-rollback: rc=8
+KILLED applicant-rollback
+queue-teardown-build: rc=0
+queue-teardown: rc=8
+KILLED queue-teardown
+replacement-order-build: rc=0
+replacement-order: rc=8
+KILLED replacement-order
+flush-deadline-build: rc=0
+flush-deadline: rc=8
+KILLED flush-deadline
+flush-snapshot-bypass-build: rc=0
+flush-snapshot-bypass: rc=8
+KILLED flush-snapshot-bypass
+grouped-endmark-count-build: rc=0
+grouped-endmark-count: rc=8
+KILLED grouped-endmark-count
+restored-build: rc=0
+restored-check: rc=0
+Reversals: 102; failures: 0

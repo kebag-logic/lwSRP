@@ -1,0 +1,110 @@
+-- The C compiler identification is GNU 16.2.1
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Configuring done (1.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: <packet>/scratch/build-ON
+[  4%] Building C object CMakeFiles/shlan.dir/src/ports/alloc.c.o
+[ 12%] Building C object CMakeFiles/shlan.dir/src/ports/timer.c.o
+[ 16%] Building C object CMakeFiles/shlan.dir/src/core/mrp_pdu.c.o
+[ 20%] Building C object CMakeFiles/shlan.dir/src/core/switch.c.o
+[ 24%] Building C object CMakeFiles/shlan.dir/src/modules/mvrp.c.o
+[ 32%] Building C object CMakeFiles/shlan.dir/src/modules/mmrp.c.o
+[ 28%] Building C object CMakeFiles/shlan.dir/src/modules/sim_adapter.c.o
+[ 40%] Building C object CMakeFiles/shlan.dir/tests/features/switch_bindings.c.o
+[ 36%] Building C object CMakeFiles/shlan.dir/src/modules/msrp.c.o
+[  8%] Building C object CMakeFiles/shlan.dir/src/core/mrp_mad.c.o
+[ 44%] Linking C shared library libshlan.so
+[ 44%] Built target shlan
+[ 48%] Building C object CMakeFiles/unit_tests.dir/tests/unit/mrp_pdu_test.c.o
+[ 56%] Building C object CMakeFiles/unit_tests.dir/tests/unit/fault_alloc.c.o
+[ 52%] Building C object CMakeFiles/unit_tests.dir/tests/unit/main.c.o
+[ 60%] Building C object CMakeFiles/unit_tests.dir/tests/unit/timer_test.c.o
+[ 68%] Building C object CMakeFiles/unit_tests.dir/tests/unit/receive_test.c.o
+[ 64%] Building C object CMakeFiles/unit_tests.dir/tests/unit/msrp_values_test.c.o
+[ 72%] Building C object CMakeFiles/unit_tests.dir/tests/unit/transmit_test.c.o
+[ 80%] Building C object CMakeFiles/unit_tests.dir/tests/unit/milan_test.c.o
+[ 76%] Building C object CMakeFiles/unit_tests.dir/tests/unit/integration_test.c.o
+[ 96%] Building C object CMakeFiles/unit_tests.dir/tests/unit/mrpdu_decoder.c.o
+[ 88%] Building C object CMakeFiles/unit_tests.dir/tests/unit/grouping_test.c.o
+[ 92%] Building C object CMakeFiles/unit_tests.dir/tests/unit/own_leaveall_test.c.o
+[ 84%] Building C object CMakeFiles/unit_tests.dir/tests/unit/review_test.c.o
+[100%] Linking C executable unit_tests
+[100%] Built target unit_tests
+WARNINGS: 0
+Running "main" (108 tests)...
+  "mrp_pdu_suite": 1690 passes in 8747ms.
+  "timer_suite": 14 passes in 95ms.
+  "msrp_values_suite": 23 passes in 152ms.
+  "receive_suite": 83 passes in 594ms.
+  "transmit_suite": 106 passes in 533ms.
+  "integration_suite": 387 passes in 819ms.
+  "milan_suite": 430 passes in 2383ms.
+  "boundaries_suite": 17164 passes in 63100ms.
+  "grouping_suite": 6575 passes in 32624ms.
+  "own_leaveall_suite": 713 passes in 3714ms.
+Completed "main": 27185 passes in 112821ms.
+UNIT_RC=0
+Test project <packet>/scratch/build-ON
+    Start 1: unit
+1/1 Test #1: unit .............................   Passed  138.60 sec
+
+100% tests passed out of 1
+
+Total Test time (real) = 138.60 sec
+CTEST_RC=0
+USING RUNNER: behave.runner:Runner
+Feature: Switch port management # tests/features/switch.feature:2
+
+  Feature: Switch port management  # tests/features/switch.feature:2
+
+  Scenario: Enable a port         # tests/features/switch.feature:7
+    Given the switch is connected # tests/features/steps/switch_steps.py:6
+    When port 0 is enabled        # tests/features/steps/switch_steps.py:17
+    Then port 0 should be active  # tests/features/steps/switch_steps.py:27
+
+  Scenario: Disable a port         # tests/features/switch.feature:11
+    Given the switch is connected  # tests/features/steps/switch_steps.py:6
+    Given port 0 is enabled        # tests/features/steps/switch_steps.py:12
+    When port 0 is disabled        # tests/features/steps/switch_steps.py:22
+    Then port 0 should be inactive # tests/features/steps/switch_steps.py:34
+
+  Scenario: Reject an out-of-range port  # tests/features/switch.feature:16
+    Given the switch is connected        # tests/features/steps/switch_steps.py:6
+    When port 255 is enabled             # tests/features/steps/switch_steps.py:17
+    Then the operation should fail       # tests/features/steps/switch_steps.py:40
+
+1 feature passed, 0 failed, 0 skipped
+3 scenarios passed, 0 failed, 0 skipped
+10 steps passed, 0 failed, 0 skipped
+Took 0min 0.001s
+BEHAVE_RC=0
+USING RUNNER: behave.runner:Runner
+Feature: Switch port management # tests/features/switch.feature:2
+
+  Feature: Switch port management  # tests/features/switch.feature:2
+
+  Scenario: Enable a port         # tests/features/switch.feature:7
+    Given the switch is connected # tests/features/steps/switch_steps.py:6
+    When port 0 is enabled        # tests/features/steps/switch_steps.py:17
+    Then port 0 should be active  # tests/features/steps/switch_steps.py:27
+
+  Scenario: Disable a port         # tests/features/switch.feature:11
+    Given the switch is connected  # tests/features/steps/switch_steps.py:6
+    Given port 0 is enabled        # tests/features/steps/switch_steps.py:12
+    When port 0 is disabled        # tests/features/steps/switch_steps.py:22
+    Then port 0 should be inactive # tests/features/steps/switch_steps.py:34
+
+  Scenario: Reject an out-of-range port  # tests/features/switch.feature:16
+    Given the switch is connected        # tests/features/steps/switch_steps.py:6
+    When port 255 is enabled             # tests/features/steps/switch_steps.py:17
+    Then the operation should fail       # tests/features/steps/switch_steps.py:40
+
+0 features passed, 0 failed, 0 skipped, 1 untested
+0 scenarios passed, 0 failed, 0 skipped, 3 untested
+0 steps passed, 0 failed, 0 skipped, 10 untested
+Took 0min 0.000s
+DRY_RC=0

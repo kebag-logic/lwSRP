@@ -1,0 +1,33 @@
+324c324
+<         result = subprocess.run(command, cwd=source, env=env, capture_output=True, text=True, timeout=120)
+---
+>         result = subprocess.run(command, cwd=source, env=env, capture_output=True, text=True, timeout=3600)
+338c338
+<     check_command = ["ctest", "--test-dir", str(build), "--output-on-failure", "--timeout", "10"]
+---
+>     check_command = ["ctest", "--test-dir", str(build), "--output-on-failure", "--timeout", "1500"]
+342c342
+<     for label, name, old, new, check in CASES:
+---
+>     for label, name, old, new, check in [x for x in CASES if x[0] in ['receive-interest', 'milan-delayed-in-leave', 'own-leaveall-omitted-as-fitting', 'poll-replay', 'receive-instance-stop']]:
+configure: rc=0
+baseline-build: rc=0
+baseline-check: rc=0
+receive-interest-build: rc=0
+receive-interest: rc=8
+KILLED receive-interest
+milan-delayed-in-leave-build: rc=0
+milan-delayed-in-leave: rc=8
+KILLED milan-delayed-in-leave
+own-leaveall-omitted-as-fitting-build: rc=0
+own-leaveall-omitted-as-fitting: rc=8
+KILLED own-leaveall-omitted-as-fitting
+poll-replay-build: rc=0
+poll-replay: rc=8
+KILLED poll-replay
+receive-instance-stop-build: rc=0
+receive-instance-stop: rc=8
+KILLED receive-instance-stop
+restored-build: rc=0
+restored-check: rc=0
+Reversals: 102; failures: 0

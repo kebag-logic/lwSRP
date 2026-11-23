@@ -1,0 +1,6 @@
+779c779
+<         (void)reg_event(app, a, MRP_EVENT_RLA, port_id, false);
+---
+>         (void)reg_event(app, a, MRP_EVENT_RLV, port_id, false); /* Probe: rLv! in place of rLA! */
+UNIT_RC=1 Completed "main": 27182 passes, 2 failures in 142200ms.
+      2 Failure: own_leaveall_suite -> a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently

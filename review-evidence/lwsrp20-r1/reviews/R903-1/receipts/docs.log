@@ -1,0 +1,106 @@
+SYNTAX CONTRIBUTING.md:18: c fence: literal machine syntax; nearby reference links require review
+SYNTAX CONTRIBUTING.md:48: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX README.md:15: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX README.md:38: sh fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/architecture.md:10: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/architecture.md:35: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/architecture.md:71: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:29: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:81: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:114: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:137: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:166: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:193: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:228: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:256: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:279: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:302: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:349: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:395: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/integrator.md:44: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/integrator.md:81: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/integrator.md:121: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/integrator.md:178: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/integrator.md:241: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/integrator.md:271: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/integrator.md:305: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/integrator.md:335: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/integrator.md:366: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/manager.md:46: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/tester.md:17: sh fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/tester.md:62: sh fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/tester.md:122: sh fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/tester.md:141: sh fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/tester.md:159: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/tester.md:172: gherkin fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/tester.md:189: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/tester.md:230: sh fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/tools/README.md:13: sh fence: literal machine syntax; nearby reference links require review
+Sentences/fragments: 1056; over limit: 0; prose exceptions: 0
+SENTENCES_RC=0
+SYNTAX CONTRIBUTING.md:18: c fence: literal machine syntax; nearby reference links require review
+SYNTAX CONTRIBUTING.md:48: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX README.md:15: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX README.md:38: sh fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/architecture.md:10: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/architecture.md:35: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/architecture.md:71: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:29: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:81: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:114: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:137: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:166: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:193: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:228: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:256: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:279: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:302: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:349: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/developer.md:395: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/integrator.md:44: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/integrator.md:81: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/integrator.md:121: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/integrator.md:178: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/integrator.md:241: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/integrator.md:271: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/integrator.md:305: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/integrator.md:335: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/integrator.md:366: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/manager.md:46: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/tester.md:17: sh fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/tester.md:62: sh fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/tester.md:122: sh fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/tester.md:141: sh fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/tester.md:159: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/tester.md:172: gherkin fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/tester.md:189: mermaid fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/tester.md:230: sh fence: literal machine syntax; nearby reference links require review
+SYNTAX doc/tools/README.md:13: sh fence: literal machine syntax; nearby reference links require review
+Unlinked references: 0; prose exceptions: 0
+REFERENCES_RC=0
+Reference self-test: 79 cases; failures: 0
+REFSELF_RC=0
+PASS https://behave.readthedocs.io/en/stable/: anonymous; HTTP 200
+PASS https://cli.github.com/manual/: anonymous; HTTP 200
+PASS https://cmake.org/cmake/help/latest/: anonymous; HTTP 200
+PASS https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html: anonymous; HTTP 200
+PASS https://docs.python.org/3/: anonymous; HTTP 200
+PASS https://docs.zephyrproject.org/latest/develop/modules.html: anonymous; HTTP 200
+PASS https://gcc.gnu.org/onlinedocs/gcc/: anonymous; HTTP 200
+PASS https://github.com/cgreen-devs/cgreen: anonymous; HTTP 200
+PASS https://github.com/kebag-logic/lwSRP/issues: anonymous; HTTP 200
+PASS https://github.com/kebag-logic/lwSRP/issues/1: anonymous; HTTP 200
+PASS https://github.com/kebag-logic/lwSRP/issues/10: anonymous; HTTP 200
+PASS https://github.com/kebag-logic/lwSRP/issues/11: anonymous; HTTP 200
+PASS https://github.com/kebag-logic/lwSRP/issues/17: anonymous; HTTP 200
+PASS https://github.com/kebag-logic/lwSRP/issues/20: anonymous; HTTP 200
+PASS https://github.com/kebag-logic/lwSRP/issues/4: anonymous; HTTP 200
+PASS https://github.com/kebag-logic/lwSRP/issues/8: anonymous; HTTP 200
+PASS https://github.com/kebag-logic/lwSRP/pulls: anonymous; HTTP 200
+PASS https://github.com/mermaid-js/mermaid-cli: anonymous; HTTP 200
+PASS https://milanav.com/milan-faqs/: anonymous; HTTP 200
+PASS https://spdx.dev/: anonymous; HTTP 200
+PASS https://standards.ieee.org/ieee/802.1Q/6844/: anonymous; HTTP 200
+PASS https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf: anonymous; HTTP 200
+Local links: 373; external URLs: 22; failures: 0
+LINKS_RC=0

@@ -1,0 +1,8 @@
+# head c035764f, OFF+ON merged
+mrp_mad.c merged: lines 642/672 = 95.54 %; branches taken 407/469 = 86.78 %
+sla_registrars (lines 774-782): lines 6/6; branches taken 2/2
+# base 08ee86e8, OFF+ON merged
+mrp_mad.c merged: lines 627/672 = 93.30 %; branches taken 401/470 = 85.32 %
+la_event (lines 779-813): lines 16/24; branches taken 3/7
+# head la_event
+la_event (lines 795-818): lines 16/18; branches taken 3/4

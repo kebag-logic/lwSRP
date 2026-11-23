@@ -1,0 +1,50 @@
+-- The C compiler identification is Clang 23.1.5
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/clang - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Configuring done (3.7s)
+-- Generating done (0.0s)
+-- Build files have been written to: <packet>/scratch/build-asan-clang-ON
+[ 12%] Building C object CMakeFiles/shlan.dir/src/ports/timer.c.o
+[  8%] Building C object CMakeFiles/shlan.dir/src/ports/alloc.c.o
+[  4%] Building C object CMakeFiles/shlan.dir/src/core/mrp_pdu.c.o
+[ 20%] Building C object CMakeFiles/shlan.dir/src/core/switch.c.o
+[ 24%] Building C object CMakeFiles/shlan.dir/src/modules/sim_adapter.c.o
+[ 28%] Building C object CMakeFiles/shlan.dir/src/modules/mvrp.c.o
+[ 32%] Building C object CMakeFiles/shlan.dir/src/modules/mmrp.c.o
+[ 36%] Building C object CMakeFiles/shlan.dir/src/modules/msrp.c.o
+[ 40%] Building C object CMakeFiles/shlan.dir/tests/features/switch_bindings.c.o
+[ 16%] Building C object CMakeFiles/shlan.dir/src/core/mrp_mad.c.o
+[ 44%] Linking C shared library libshlan.so
+[ 44%] Built target shlan
+[ 56%] Building C object CMakeFiles/unit_tests.dir/tests/unit/fault_alloc.c.o
+[ 48%] Building C object CMakeFiles/unit_tests.dir/tests/unit/main.c.o
+[ 56%] Building C object CMakeFiles/unit_tests.dir/tests/unit/mrp_pdu_test.c.o
+[ 60%] Building C object CMakeFiles/unit_tests.dir/tests/unit/timer_test.c.o
+[ 64%] Building C object CMakeFiles/unit_tests.dir/tests/unit/msrp_values_test.c.o
+[ 68%] Building C object CMakeFiles/unit_tests.dir/tests/unit/receive_test.c.o
+[ 76%] Building C object CMakeFiles/unit_tests.dir/tests/unit/integration_test.c.o
+[ 72%] Building C object CMakeFiles/unit_tests.dir/tests/unit/transmit_test.c.o
+[ 80%] Building C object CMakeFiles/unit_tests.dir/tests/unit/milan_test.c.o
+[ 96%] Building C object CMakeFiles/unit_tests.dir/tests/unit/mrpdu_decoder.c.o
+[ 88%] Building C object CMakeFiles/unit_tests.dir/tests/unit/grouping_test.c.o
+[ 92%] Building C object CMakeFiles/unit_tests.dir/tests/unit/own_leaveall_test.c.o
+[ 84%] Building C object CMakeFiles/unit_tests.dir/tests/unit/review_test.c.o
+[100%] Linking C executable unit_tests
+[100%] Built target unit_tests
+WARNINGS: 0
+Running "main" (108 tests)...
+  "mrp_pdu_suite": 1690 passes in 12339ms.
+  "timer_suite": 14 passes in 103ms.
+  "msrp_values_suite": 23 passes in 127ms.
+  "receive_suite": 83 passes in 480ms.
+  "transmit_suite": 106 passes in 693ms.
+  "integration_suite": 387 passes in 2603ms.
+  "milan_suite": 430 passes in 1922ms.
+  "boundaries_suite": 17164 passes in 91982ms.
+  "grouping_suite": 6575 passes in 31924ms.
+  "own_leaveall_suite": 713 passes in 3259ms.
+Completed "main": 27185 passes in 145475ms.
+UNIT_RC=0

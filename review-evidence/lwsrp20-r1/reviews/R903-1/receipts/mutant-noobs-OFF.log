@@ -1,0 +1,7 @@
+780c780
+<         observe(app, a, MRP_EVENT_RLA, port_id, a->appl, reg_from);
+---
+>         (void)reg_from; /* Probe: no observer report */
+UNIT_RC=1 Completed "main": 27161 passes, 2 failures in 136633ms.
+      1 Failure: boundaries_suite -> full_leaveall_reports_each_required_transition
+      1 Failure: own_leaveall_suite -> a_declaration_omitted_from_a_full_leaveall_pdu_leaves_silently

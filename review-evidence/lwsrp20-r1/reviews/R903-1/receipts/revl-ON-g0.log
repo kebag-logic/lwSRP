@@ -1,0 +1,36 @@
+324c324
+<         result = subprocess.run(command, cwd=source, env=env, capture_output=True, text=True, timeout=120)
+---
+>         result = subprocess.run(command, cwd=source, env=env, capture_output=True, text=True, timeout=3600)
+338c338
+<     check_command = ["ctest", "--test-dir", str(build), "--output-on-failure", "--timeout", "10"]
+---
+>     check_command = ["ctest", "--test-dir", str(build), "--output-on-failure", "--timeout", "1500"]
+342c342
+<     for label, name, old, new, check in CASES:
+---
+>     for label, name, old, new, check in [x for x in CASES if x[0] in ['listener-offset', 'listener-redeclaration', 'domain-priority-range', 'milan-redeclare-scope', 'callback-order', 'flush-timer-completion']]:
+configure: rc=0
+baseline-build: rc=0
+baseline-check: rc=0
+listener-offset-build: rc=0
+listener-offset: rc=8
+KILLED listener-offset
+listener-redeclaration-build: rc=0
+listener-redeclaration: rc=8
+KILLED listener-redeclaration
+domain-priority-range-build: rc=0
+domain-priority-range: rc=8
+KILLED domain-priority-range
+milan-redeclare-scope-build: rc=0
+milan-redeclare-scope: rc=8
+KILLED milan-redeclare-scope
+callback-order-build: rc=0
+callback-order: rc=8
+KILLED callback-order
+flush-timer-completion-build: rc=0
+flush-timer-completion: rc=8
+KILLED flush-timer-completion
+restored-build: rc=0
+restored-check: rc=0
+Reversals: 102; failures: 0

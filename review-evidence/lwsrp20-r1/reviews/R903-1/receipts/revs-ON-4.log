@@ -1,0 +1,69 @@
+324c324
+<         result = subprocess.run(command, cwd=source, env=env, capture_output=True, text=True, timeout=120)
+---
+>         result = subprocess.run(command, cwd=source, env=env, capture_output=True, text=True, timeout=3600)
+338c338
+<     check_command = ["ctest", "--test-dir", str(build), "--output-on-failure", "--timeout", "10"]
+---
+>     check_command = ["ctest", "--test-dir", str(build), "--output-on-failure", "--timeout", "1500"]
+342c342
+<     for label, name, old, new, check in CASES:
+---
+>     for label, name, old, new, check in [x for i, x in enumerate(CASES) if i % 6 == 4]:
+configure: rc=0
+baseline-build: rc=0
+baseline-check: rc=0
+domain-offset-build: rc=0
+domain-offset: rc=8
+KILLED domain-offset
+local-registration-build: rc=0
+local-registration: rc=8
+KILLED local-registration
+changed-listener-indication-build: rc=0
+changed-listener-indication: rc=8
+KILLED changed-listener-indication
+local-withdrawal-value-build: rc=0
+local-withdrawal-value: rc=8
+KILLED local-withdrawal-value
+point-to-point-condition-build: rc=0
+point-to-point-condition: rc=8
+KILLED point-to-point-condition
+unknown-stream-message-build: rc=0
+unknown-stream-message: rc=8
+KILLED unknown-stream-message
+application-decode-error-build: rc=0
+application-decode-error: rc=8
+KILLED application-decode-error
+unknown-event-extension-build: rc=0
+unknown-event-extension: rc=8
+KILLED unknown-event-extension
+own-leaveall-applicant-rla-build: rc=0
+own-leaveall-applicant-rla: rc=8
+KILLED own-leaveall-applicant-rla
+leaveall-upper-bound-build: rc=0
+leaveall-upper-bound: rc=8
+KILLED leaveall-upper-bound
+changed-in-only-build: rc=0
+changed-in-only: rc=8
+KILLED changed-in-only
+receive-map-error-build: rc=0
+receive-map-error: rc=8
+KILLED receive-map-error
+changed-value-propagation-build: rc=0
+changed-value-propagation: rc=8
+KILLED changed-value-propagation
+policy-mask-build: rc=0
+policy-mask: rc=8
+KILLED policy-mask
+replacement-lv-build: rc=0
+replacement-lv: rc=8
+KILLED replacement-lv
+flush-snapshot-indication-build: rc=0
+flush-snapshot-indication: rc=8
+KILLED flush-snapshot-indication
+grouped-dropped-vector-build: rc=0
+grouped-dropped-vector: rc=8
+KILLED grouped-dropped-vector
+restored-build: rc=0
+restored-check: rc=0
+Reversals: 102; failures: 0

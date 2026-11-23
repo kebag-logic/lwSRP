@@ -1,0 +1,5 @@
+# added lines in src/ tests/ CMakeLists.txt and doc/ README.md, 08ee86e8..c035764f
+# pattern: \b[ABR][0-9]{1,4}\b|lane|round|reviewer|issuecomment|comment-[0-9]|\bS[0-9]\b|bench
+matches rc=1 (1 = none)
+c035764f2d6105fd9598b138112ba01eaa006958 subject="Document the own-LeaveAll events, the LeaveAll suite and the new counts" body_bytes=0
+7eed7e5b9ed2b405239fd6fb1ed2460c5f2960da subject="Give each Applicant one event at its own LeaveAll and send its rLA! to Registrars only" body_bytes=0
