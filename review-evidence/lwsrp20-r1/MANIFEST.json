@@ -1438,5 +1438,65 @@
     "original_sha256": "5b3249fe00f044506883d9b1eff5cb156b8084f07a90dce4d807d25b8f317a2e",
     "published_sha256": "5b3249fe00f044506883d9b1eff5cb156b8084f07a90dce4d807d25b8f317a2e",
     "path_redacted": false
+  },
+  {
+    "file": "author/receipts/parent/docs-gates/docs-gates-2__15.log.gz",
+    "original_sha256": "de68b6b72402d5df23d030e0939786bf5a2eb665fc629f6e0713687cbdfca1d9",
+    "published_sha256": "de68b6b72402d5df23d030e0939786bf5a2eb665fc629f6e0713687cbdfca1d9",
+    "path_redacted": false
+  },
+  {
+    "file": "author/receipts/parent/firmware/gate-2.log.gz",
+    "original_sha256": "c37c8cbc58d6451839d4805d4bfe8301e9168c70e6b7d43bfe8df00387646186",
+    "published_sha256": "c37c8cbc58d6451839d4805d4bfe8301e9168c70e6b7d43bfe8df00387646186",
+    "path_redacted": false
+  },
+  {
+    "file": "author/receipts/parent/harness/results-1x1.json.gz",
+    "original_sha256": "0467eda75eb4ae167d6554f8678b7d8fc471706d2aa23b4ac9941ac4ebe0a958",
+    "published_sha256": "0467eda75eb4ae167d6554f8678b7d8fc471706d2aa23b4ac9941ac4ebe0a958",
+    "path_redacted": false
+  },
+  {
+    "file": "author/receipts/parent/harness/results-8x8-1if.json.gz",
+    "original_sha256": "5d944f9b13c212b1f2aa050cc2a772bdc36b4798bb53c6a364b2db8881049b2f",
+    "published_sha256": "5d944f9b13c212b1f2aa050cc2a772bdc36b4798bb53c6a364b2db8881049b2f",
+    "path_redacted": false
+  },
+  {
+    "file": "author/receipts/parent/harness/selftest.log.gz",
+    "original_sha256": "537f5520b7db1247abf1b42af58f73b68d651b8cdb871bc4e30fc32604ffaf15",
+    "published_sha256": "537f5520b7db1247abf1b42af58f73b68d651b8cdb871bc4e30fc32604ffaf15",
+    "path_redacted": false
+  },
+  {
+    "file": "author/receipts/parent/own-leaveall/base-08ee86e8-8x8-1if.log.gz",
+    "original_sha256": "0149534774df1609908ea67d85bec804d0694e25e671a0257a6483a7e513a95f",
+    "published_sha256": "0149534774df1609908ea67d85bec804d0694e25e671a0257a6483a7e513a95f",
+    "path_redacted": false
+  },
+  {
+    "file": "author/receipts/parent/twin/srptx-plants.log.gz",
+    "original_sha256": "89d38cf6841ab328fead8121e0b3d4b55b8db276a166003ebed8b0072c166533",
+    "published_sha256": "89d38cf6841ab328fead8121e0b3d4b55b8db276a166003ebed8b0072c166533",
+    "path_redacted": false
+  },
+  {
+    "file": "author/receipts/parent/twin/srptx.log.gz",
+    "original_sha256": "496a2bd13da1913db04b862cf5b2f04a4ad05a948ee1c4d93dd29a1690617ea7",
+    "published_sha256": "496a2bd13da1913db04b862cf5b2f04a4ad05a948ee1c4d93dd29a1690617ea7",
+    "path_redacted": false
+  },
+  {
+    "file": "author/receipts/parent/twin/twin.log.gz",
+    "original_sha256": "9b5f7da944299ffe5178a026c952ef20e63bb74a4128595de3acb5575f49187e",
+    "published_sha256": "9b5f7da944299ffe5178a026c952ef20e63bb74a4128595de3acb5575f49187e",
+    "path_redacted": false
+  },
+  {
+    "file": "author/receipts/parent/twin-base/srptx.log.gz",
+    "original_sha256": "288f5e8b2c543851f3b04c14c2df893359e922563349c67a95014f13b6ea7390",
+    "published_sha256": "288f5e8b2c543851f3b04c14c2df893359e922563349c67a95014f13b6ea7390",
+    "path_redacted": false
   }
 ]
