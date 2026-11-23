@@ -1,0 +1,4 @@
+[ 44%] Built target shlan
+[ 48%] Building C object CMakeFiles/unit_tests.dir/tests/unit/own_leaveall_test.c.o
+[ 52%] Linking C executable unit_tests
+[100%] Built target unit_tests

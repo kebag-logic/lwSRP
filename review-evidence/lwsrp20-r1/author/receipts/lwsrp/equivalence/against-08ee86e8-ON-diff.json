@@ -1,0 +1,440 @@
+{
+ "tests": 33,
+ "opportunities": 639,
+ "identical_events": 619,
+ "differ": [
+  {
+   "test": "every_stream_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 74,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "1:020000000010000191e0f000fe01000200e0000160000007d0+0:3",
+      "1:020000000010000391e0f000fe03000200e0000160000007d0+0:3",
+      "2:020000000010000991e0f000fe09000200e0000160000007d0000000000000000102+0:3",
+      "3:0200000000200000+0:3:2",
+      "4:05020002+0:3"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 1,
+    "events": [
+     [
+      "1:020000000010000191e0f000fe01000200e0000160000007d0+0:3",
+      "1:020000000010000391e0f000fe03000200e0000160000007d0+0:3",
+      "3:0200000000200000+0:3:2",
+      "3:0200000000200002+0:4:2"
+     ]
+    ]
+   }
+  },
+  {
+   "test": "every_stream_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 75,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "1:020000000010000191e0f000fe01000200e0000160000007d0+0:3",
+      "1:020000000010000291e0f000fe02000200e0000160000007d0+0:3",
+      "3:0200000000200002+0:4:2",
+      "3:0200000000300007+0:3:2",
+      "4:05020002+0:3",
+      "4:06030002+0:3"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 1,
+    "events": [
+     [
+      "1:020000000010000291e0f000fe02000200e0000160000007d0+0:3",
+      "2:020000000010000991e0f000fe09000200e0000160000007d0000000000000000102+0:3",
+      "3:0200000000300007+0:3:2",
+      "4:05020002+0:3",
+      "4:06030002+0:3"
+     ]
+    ]
+   }
+  },
+  {
+   "test": "every_stream_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 76,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "1:020000000010000291e0f000fe02000200e0000160000007d0+0:3",
+      "1:020000000010000391e0f000fe03000200e0000160000007d0+0:3",
+      "2:020000000010000991e0f000fe09000200e0000160000007d0000000000000000102+0:3",
+      "3:0200000000200000+0:3:2",
+      "3:0200000000300007+0:3:2",
+      "4:06030002+0:3"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 1,
+    "events": [
+     [
+      "1:020000000010000191e0f000fe01000200e0000160000007d0+0:3",
+      "1:020000000010000391e0f000fe03000200e0000160000007d0+0:3",
+      "3:0200000000200000+0:3:2"
+     ]
+    ]
+   }
+  },
+  {
+   "test": "every_stream_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 141,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "1:020000000010000191e0f000fe01000200e0000160000007d0+0:4",
+      "1:020000000010000291e0f000fe02000200e0000160000007d0+0:3",
+      "1:020000000010000391e0f000fe03000200e0000160000007d0+0:3",
+      "2:020000000010000991e0f000fe09000200e0000160000007d0000000000000000102+0:3",
+      "3:0200000000200000+0:3:2",
+      "3:0200000000200002+0:4:2",
+      "3:0200000000300007+0:3:2",
+      "4:05020002+0:3",
+      "4:06030002+0:3"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 1,
+    "events": [
+     [
+      "1:020000000010000191e0f000fe01000200e0000160000007d0+0:4",
+      "3:0200000000200002+0:4:2"
+     ]
+    ]
+   }
+  },
+  {
+   "test": "every_stream_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 142,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "1:020000000010000291e0f000fe02000200e0000160000007d0+0:3",
+      "2:020000000010000991e0f000fe09000200e0000160000007d0000000000000000102+0:3",
+      "3:0200000000200000+0:3:2",
+      "3:0200000000300007+0:3:2",
+      "4:05020002+0:3",
+      "4:06030002+0:3"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 0,
+    "events": []
+   }
+  },
+  {
+   "test": "every_stream_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 143,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "1:020000000010000391e0f000fe03000200e0000160000007d0+0:3"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 0,
+    "events": []
+   }
+  },
+  {
+   "test": "every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 74,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "1:0004+0:3",
+      "1:0007+0:3"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 1,
+    "events": [
+     [
+      "1:0005+0:4",
+      "1:0007+0:3"
+     ]
+    ]
+   }
+  },
+  {
+   "test": "every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 75,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "1:0002+0:3"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 1,
+    "events": [
+     [
+      "1:0004+0:3"
+     ]
+    ]
+   }
+  },
+  {
+   "test": "every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 76,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "1:0002+0:3",
+      "1:0003+0:3",
+      "1:0004+0:3",
+      "1:0005+0:4",
+      "1:0007+0:3"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 1,
+    "events": [
+     [
+      "1:0002+0:3",
+      "1:0003+0:3",
+      "1:0007+0:3"
+     ]
+    ]
+   }
+  },
+  {
+   "test": "every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 77,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "1:0003+0:3"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 0,
+    "events": []
+   }
+  },
+  {
+   "test": "every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 141,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "1:0002+0:3",
+      "1:0004+0:3",
+      "1:0005+0:4"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 1,
+    "events": [
+     [
+      "1:0005+0:4"
+     ]
+    ]
+   }
+  },
+  {
+   "test": "every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 142,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "1:0003+0:3",
+      "1:0007+0:3"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 0,
+    "events": []
+   }
+  },
+  {
+   "test": "every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 143,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "1:0004+0:3"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 0,
+    "events": []
+   }
+  },
+  {
+   "test": "every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 144,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "1:0002+0:3",
+      "1:0003+0:3",
+      "1:0007+0:3"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 0,
+    "events": []
+   }
+  },
+  {
+   "test": "every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 234,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "1:01+0:3",
+      "2:91e0f0010006+0:3",
+      "2:91e0f0010009+0:3"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 1,
+    "events": [
+     [
+      "2:91e0f0010008+0:4",
+      "2:91e0f0010009+0:3"
+     ]
+    ]
+   }
+  },
+  {
+   "test": "every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 235,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "2:91e0f0010007+0:3",
+      "2:91e0f0010008+0:4"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 1,
+    "events": [
+     [
+      "1:01+0:3",
+      "2:91e0f0010006+0:3"
+     ]
+    ]
+   }
+  },
+  {
+   "test": "every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 236,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "1:01+0:3",
+      "2:91e0f0010006+0:3",
+      "2:91e0f0010007+0:3",
+      "2:91e0f0010009+0:3"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 1,
+    "events": [
+     [
+      "2:91e0f0010007+0:3",
+      "2:91e0f0010009+0:3"
+     ]
+    ]
+   }
+  },
+  {
+   "test": "every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 301,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "1:01+0:3",
+      "2:91e0f0010006+0:3",
+      "2:91e0f0010007+0:3",
+      "2:91e0f0010008+0:4"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 1,
+    "events": [
+     [
+      "2:91e0f0010008+0:4"
+     ]
+    ]
+   }
+  },
+  {
+   "test": "every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 302,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "1:01+0:3",
+      "2:91e0f0010006+0:3",
+      "2:91e0f0010009+0:3"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 0,
+    "events": []
+   }
+  },
+  {
+   "test": "every_vlan_and_mac_pdu_keeps_one_ordered_message_per_type",
+   "opportunity": 303,
+   "base": {
+    "result": 1,
+    "events": [
+     [
+      "2:91e0f0010007+0:3",
+      "2:91e0f0010009+0:3"
+     ]
+    ]
+   },
+   "candidate": {
+    "result": 0,
+    "events": []
+   }
+  }
+ ]
+}

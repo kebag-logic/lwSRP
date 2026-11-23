@@ -1,0 +1,6 @@
+RV32I -Os (the parent's RV32_FLAGS, its freestanding includes), -DLWSRP_MILAN=1: src/core/mrp_mad.c
+variant text data bss (riscv32-linux-size)
+base 13309 140 0
+head 13377 140 0
+alt 13381 140 0
+base = 08ee86e8; head = c035764f; alt = head with the Registrar rLA! inside the commit loop (not adopted: 4 octets larger)

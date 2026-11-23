@@ -1,0 +1,56 @@
+--- a/tb/verilator/milan_dp/twin_mrp.py
++++ b/tb/verilator/milan_dp/twin_mrp.py
+@@ -14,8 +14,9 @@
+ 
+ What the grade reads, per attribute (its type and FirstValue):
+   * each frame the half sent of the application. A frame carrying a LeaveAll is a txLA! for every
+-    attribute of the participant, and its sLA gives rise to rLA! against every one of them (10.7.6.6,
+-    10.7.9), before or after the txLA! (10.7.6.6 does not order them). An attribute such a frame does not
++    attribute of the participant and no rLA!: the Applicant takes its own LeaveAll as txLA! alone, and the
++    sLA's rLA! reaches the Registrar, whose Table 10-4 row txLA! shares (lwSRP #20's conformance ruling,
++    10.7.6.6). An attribute such a frame does not
+     carry sent nothing there, which only a state whose txLA! action is none or bracketed allows. Any other
+     frame is a tx! for each attribute it carries, sending the message the frame shows.
+   * each frame of the stimulus of the application, as received: its events (rNew! to rLv!), and rLA! for
+@@ -164,11 +165,10 @@
+ 
+ 
+ def opportunity(leave_all: bool, config: Config, part: Participant) -> list[tuple[str | None, Config]]:
+-    """A transmit opportunity's outcomes: tx!, or txLA! with its sLA's rLA! after it or before it."""
+-    if not leave_all:
+-        return transmit(False, config, part)
+-    return [(sent, step("rLA!", moved, part)) for sent, moved in transmit(True, config, part)] + \
+-        transmit(True, step("rLA!", config, part), part)
++    """A transmit opportunity's outcomes: tx!, or txLA! alone. The Applicant takes its own LeaveAll as txLA! and
++    no rLA! after it; the sLA's rLA! reaches the Registrar, whose Table 10-4 row txLA! shares (lwSRP #20's
++    conformance ruling: IEEE 802.1Q-2018 10.7.6.6 with Table 10-3)."""
++    return transmit(leave_all, config, part)
+ 
+ 
+ def settle(configs: set[Config], part: Participant) -> set[Config]:
+--- a/tb/verilator/milan_dp/twin_compare.py
++++ b/tb/verilator/milan_dp/twin_compare.py
+@@ -88,7 +88,7 @@
+                              "split's [{Talker Advertise stream_id 024b4c4b4c010000; Domain value 06030002} x1, "
+                              "{Domain value 06030002} x1, {none} x3]",
+     "leave-all-omission": "[MRP] split MSRP Domain value 06030002: nothing at ms 27510 (a LeaveAll) is not an "
+-                          "Applicant's message: from AA, QA, Table 10-3's txLA! sends JoinMt or Mt",
++                          "Applicant's message: from AA, QA, Table 10-3's txLA! sends JoinMt",
+     "talker-failed-back": "MSRP declarations at the LeaveAll boundaries differ: the fabric's [{Talker Advertise "
+                           "stream_id 024b4c4b4c010000; Domain value 06030002} x1, {Domain value 06030002} x5], the "
+                           "split's [{Talker Failed stream_id 024b4c4b4c010000; Domain value 06030002} x1",
+--- a/tb/verilator/milan_dp/README.md
++++ b/tb/verilator/milan_dp/README.md
+@@ -1390,9 +1390,9 @@
+ The grade reads, for each attribute:
+ 
+ - **Each frame the half sent of the application.** A frame that carries a
+-  LeaveAll is a txLA! for every attribute of the participant. Its sLA also
+-  gives rise to rLA! against every one of them (10.7.6.6, 10.7.9), before or
+-  after the txLA!. An attribute such a frame leaves out sent nothing there,
++  LeaveAll is a txLA! for every attribute of the participant, and no rLA!
++  follows it: the sLA's rLA! reaches only the Registrar, whose Table 10-4 row
++  txLA! shares (10.7.6.6; lwSRP #20's conformance ruling). An attribute such a frame leaves out sent nothing there,
+   which only a state whose txLA! action is none or bracketed allows; the
+   `leave-all-omission` plant holds it. Any other frame is a tx! for each
+   attribute it carries.

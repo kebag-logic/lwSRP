@@ -1,0 +1,6 @@
+== srp-long-1x1.log: 1691 passes to 16.393 s; longest 53,204 cycles (within THE SHARE 200,000)
+  MSRP if0 leavealltimer at 14.053 s; its LeaveAll MRPDU on the wire 160.469 ms later; 104 passes in the next 1 s, longest 40,043 cycles
+  MVRP if0 leavealltimer at 14.883 s; its LeaveAll MRPDU on the wire 0.404 ms later; 103 passes in the next 1 s, longest 32,721 cycles
+== srp-long-8x8-1if.log: 1661 passes to 16.112 s; longest 44,575 cycles (within THE SHARE 200,000)
+  MSRP if0 leavealltimer at 14.092 s; its LeaveAll MRPDU on the wire 160.328 ms later; 103 passes in the next 1 s, longest 31,349 cycles
+  MVRP if0 leavealltimer at 14.922 s; its LeaveAll MRPDU on the wire 0.413 ms later; 102 passes in the next 1 s, longest 29,515 cycles

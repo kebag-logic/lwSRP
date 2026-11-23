@@ -1,0 +1,16 @@
+Running "main" (102 tests)...
+  "mrp_pdu_suite": 1690 passes in 11ms.
+  "timer_suite": 14 passes in 1ms.
+  "msrp_values_suite": 23 passes in 1ms.
+  "receive_suite": 83 passes in 2ms.
+  "transmit_suite": 106 passes in 4ms.
+  "integration_suite": 387 passes in 8ms.
+  "milan_suite": 442 passes in 7ms.
+<scratch>/equiv/b08-OFF/candidate/tests/unit/review_test.c:347: Failure: boundaries_suite -> full_leaveall_reports_each_required_transition 
+	Expected [local_rla] to [equal] [1]
+		actual value:			[0]
+		expected value:			[1]
+
+  "boundaries_suite": 17155 passes, 1 failure in 81ms.
+  "grouping_suite": 6575 passes in 51ms.
+Completed "main": 26475 passes, 1 failure in 166ms.

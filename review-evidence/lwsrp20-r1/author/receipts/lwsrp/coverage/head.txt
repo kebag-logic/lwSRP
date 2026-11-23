@@ -1,0 +1,15 @@
+file                                            lines     branches
+src/core/mrp_mad.c                         642/672      407/469    lines  95.54 %  branches  86.78 %
+src/core/mrp_pdu.c                         110/113       98/112    lines  97.35 %  branches  87.50 %
+src/core/switch.c                            0/9          0/0      lines   0.00 %  branches   0.00 %
+src/include/shish_lan/mrp_pdu.h             20/20         0/0      lines 100.00 %  branches   0.00 %
+src/modules/mmrp.c                          64/82        22/35     lines  78.05 %  branches  62.86 %
+src/modules/msrp.c                         188/201       77/91     lines  93.53 %  branches  84.62 %
+src/modules/mvrp.c                          48/52        16/24     lines  92.31 %  branches  66.67 %
+src/modules/sim_adapter.c                    0/25         0/10     lines   0.00 %  branches   0.00 %
+src/ports/alloc.c                            0/12         0/0      lines   0.00 %  branches   0.00 %
+src/ports/timer.c                           29/29        10/10     lines 100.00 %  branches 100.00 %
+total                                     1101/1215     630/751    lines  90.62 %  branches  83.89 %
+function mrp_transmit (src/core/mrp_mad.c:1415-1547): lines 89/97, branches 73/86, lines with an uncovered item: [1418, 1419, 1422, 1423, 1443, 1444, 1474, 1484, 1485, 1486, 1488, 1489, 1493, 1494]
+function la_event (src/core/mrp_mad.c:795-818): lines 16/18, branches 3/4, lines with an uncovered item: [797, 815, 816]
+function sla_registrars (src/core/mrp_mad.c:774-782): lines 6/6, branches 2/2, lines with an uncovered item: []
