@@ -305,47 +305,83 @@ Ensure(Boundaries, registrar_recovery_stops_aging_without_duplicate_join_or_map)
         mrp_app_destroy(a);
     }
 }
-Ensure(Boundaries, committed_leaveall_delivers_local_receive_and_omitted_events)
+struct vid_status {
+    uint8_t value[2];
+    enum mrp_appl_state appl;
+    enum mrp_reg_state reg;
+};
+static void vid_snapshot(void *ctx, const struct mrp_attr_status *s)
+{
+    struct vid_status *st = ctx;
+    if (memcmp(s->attr_val, st->value, sizeof(st->value)) == 0) {
+        st->appl = s->appl; st->reg = s->reg;
+    }
+}
+static struct vid_status vid_state(struct mrp_app *a, uint16_t vid)
+{
+    struct vid_status st = {{(uint8_t)(vid >> 8), (uint8_t)vid},
+                            MRP_APPL_STATE_COUNT, MRP_REG_STATE_COUNT};
+    mrp_attr_visit(a, 0, vid_snapshot, &st);
+    return st;
+}
+/* Both VIDs reach QA, registered by a peer, before a LeaveAll that fits just one. */
+static struct mrp_app *two_quiet_vlans(void)
 {
     struct mrp_app *a = application(0, 1, false);
-    uint8_t tx[20];
+    uint8_t large[128];
     mrp_set_periodic(a, 0, false);
     for (uint16_t vid = 2; vid < 4; ++vid) {
         assert_that(mvrp_declare(a, 0, vid), is_equal_to(0));
     }
-    /* Both applicants reach QA before a LeaveAll that fits just one value. */
-    uint8_t large[128];
     assert_that(mrp_transmit(a, 0, large, sizeof(large), accept, NULL), is_equal_to(1));
     tick(20);
     assert_that(mrp_transmit(a, 0, large, sizeof(large), accept, NULL), is_equal_to(1));
+    uint8_t joined_in[] = {0,1,2,0,1,0,2,36,0,1,0,3,36,0,0,0,0};
+    assert_that(mrp_rx(a, 0, joined_in, sizeof(joined_in)), is_equal_to(0));
     tick(1500);
+    return a;
+}
+/* Issue #20: each Applicant takes one of txLA! or txLAF!, and no local rLA!. */
+Ensure(Boundaries, committed_leaveall_gives_each_applicant_one_leaveall_event)
+{
+    struct mrp_app *a = two_quiet_vlans();
+    uint8_t tx[20];
     assert_that(mrp_transmit(a, 0, tx, sizeof(tx), accept, NULL), is_equal_to(1));
-    /* Selected QA -> QA -> VP by local rLA; omitted QA -> VP by txLAF. */
-    assert_that(state(a, 0).appl, is_equal_to(MRP_APPL_STATE_VP));
+    /* LeaveAll, then the fitting VID 3's JoinIn (IEEE 802.1Q-2018 10.8.1.2). */
+    const uint8_t sent[] = {0, 1, 2, 0x20, 0, 0, 0, 0, 1, 0, 3, 36, 0, 0, 0, 0};
+    assert_that(memcmp(tx, sent, sizeof(sent)), is_equal_to(0));
+    /* Fitting QA -txLA!/sJ-> QA; omitted QA -txLAF!-> VP (Table 10-3). */
+    assert_that(vid_state(a, 3).appl, is_equal_to(MRP_APPL_STATE_QA));
+    assert_that(vid_state(a, 2).appl, is_equal_to(MRP_APPL_STATE_VP));
+    /* Both Registrars take the LeaveAll: txLA! for VID 3, the sLA's rLA! for VID 2. */
+    assert_that(vid_state(a, 3).reg, is_equal_to(MRP_REG_STATE_LV));
+    assert_that(vid_state(a, 2).reg, is_equal_to(MRP_REG_STATE_LV));
     mrp_app_destroy(a);
 }
-static unsigned local_rla, omitted_txlaf;
+static unsigned local_rla, applicant_rla, omitted_txlaf, fitted_txla;
 static void events(void *ctx, const struct mrp_transition *t)
 {
     (void)ctx;
-    if (t->event == MRP_EVENT_RLA) { ++local_rla; }
+    if (t->event == MRP_EVENT_RLA) {
+        ++local_rla;
+        applicant_rla += t->appl_from != t->appl_to;
+    }
     if (t->event == MRP_EVENT_TXLAF) { ++omitted_txlaf; }
+    if (t->event == MRP_EVENT_TXLA) { ++fitted_txla; }
 }
 Ensure(Boundaries, full_leaveall_reports_each_required_transition)
 {
-    struct mrp_app *a = application(0, 1, false);
-    uint8_t tx[20], large[128];
-    mrp_set_periodic(a, 0, false);
-    assert_that(mvrp_declare(a, 0, 2), is_equal_to(0));
-    assert_that(mvrp_declare(a, 0, 3), is_equal_to(0));
-    assert_that(mrp_transmit(a, 0, large, sizeof(large), accept, NULL), is_equal_to(1));
-    tick(20);
-    assert_that(mrp_transmit(a, 0, large, sizeof(large), accept, NULL), is_equal_to(1));
-    tick(1500);
-    local_rla = omitted_txlaf = 0; mrp_set_observer(a, events, NULL);
+    struct mrp_app *a = two_quiet_vlans();
+    uint8_t tx[20];
+    local_rla = applicant_rla = omitted_txlaf = fitted_txla = 0;
+    mrp_set_observer(a, events, NULL);
     assert_that(mrp_transmit(a, 0, tx, sizeof(tx), accept, NULL), is_equal_to(1));
-    assert_that(local_rla, is_equal_to(1));
+    /* VID 3: txLA! (IN -> LV). VID 2: txLAF! (QA -> VP), then the sLA's rLA!
+     * for its Registrar alone (IN -> LV, 10.7.6.6). */
+    assert_that(fitted_txla, is_equal_to(1));
     assert_that(omitted_txlaf, is_equal_to(1));
+    assert_that(local_rla, is_equal_to(1));
+    assert_that(applicant_rla, is_equal_to(0));
     mrp_app_destroy(a);
 }
 Ensure(Boundaries, leaving_observer_is_retained_until_its_pending_transmission)
@@ -1256,7 +1292,7 @@ TestSuite *boundaries_suite(void)
     add_test_with_context(s, Boundaries, retained_ports_replay_propagated_join_and_timer_leave_in_order);
     add_test_with_context(s, Boundaries, queued_propagation_owns_values_and_survives_source_reclamation);
     add_test_with_context(s, Boundaries, registrar_recovery_stops_aging_without_duplicate_join_or_map);
-    add_test_with_context(s, Boundaries, committed_leaveall_delivers_local_receive_and_omitted_events);
+    add_test_with_context(s, Boundaries, committed_leaveall_gives_each_applicant_one_leaveall_event);
     add_test_with_context(s, Boundaries, full_leaveall_reports_each_required_transition);
     add_test_with_context(s, Boundaries, leaving_observer_is_retained_until_its_pending_transmission);
     add_test_with_context(s, Boundaries, received_leaveall_restarts_the_participant_deadline);

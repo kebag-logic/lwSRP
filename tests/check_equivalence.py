@@ -7,6 +7,8 @@ Both runs preload tests/unit/transmit_trace.c, which decodes every offered
 MRPDU with the test-side decoder (IEEE 802.1Q-2018 10.8.1.2 and 10.8.2).
 Each transmit opportunity must return the same result and offer PDUs whose
 decoded events are equal. The checkout's PDUs must also have the grouped form.
+The candidate run may fail only the base tests listed in REVISED, whose
+expectations a later issue corrected; every opportunity is still compared.
 """
 
 import argparse
@@ -14,12 +16,19 @@ from collections import OrderedDict
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "9197193e47a6bb1c45a56d90a18c1784123aba44"
+# Base tests that pinned behaviour a later issue corrected, with that issue.
+REVISED = {
+    "full_leaveall_reports_each_required_transition":
+        "issue #20: no Applicant takes the local rLA! of its own LeaveAll (IEEE 802.1Q-2018 10.7.6.6)",
+}
+FAILURE = re.compile(r"(Failure|Exception): \S+ -> (\S+)")
 
 
 def run(label, command, work, env=None, cwd=None):
@@ -142,9 +151,17 @@ def main():
         # Compare even after a failing suite: the trace locates the first difference.
         suites[name] = run(f"unit-{name}", [str(build / "unit_tests")], work, env, cwd=build)
     rows, problems = compare(read_trace(traces["base"]), read_trace(traces["candidate"]))
-    problems += [f"{name} unit suite: rc={rc}" for name, rc in suites.items() if rc]
-    (work / "equivalence.json").write_text(json.dumps({"base": args.base, "milan": args.milan,
-                                                       "rows": rows, "problems": problems}, indent=2) + "\n")
+    revised = []
+    for name, rc in suites.items():
+        if not rc:
+            continue
+        failed = FAILURE.findall((work / f"unit-{name}.log").read_text())
+        if name == "candidate" and failed and all(kind == "Failure" and test in REVISED for kind, test in failed):
+            revised = sorted({test for _, test in failed})
+        else:
+            problems.append(f"{name} unit suite: rc={rc}")
+    (work / "equivalence.json").write_text(json.dumps({"base": args.base, "milan": args.milan, "rows": rows,
+                                                       "revised": revised, "problems": problems}, indent=2) + "\n")
     print("| Scenario | Opportunities | PDUs | Byte-identical | Layout-only | Different |")
     print("| --- | --- | --- | --- | --- | --- |")
     for row in rows:
@@ -155,6 +172,8 @@ def main():
     print(f"Scenarios: {len(rows)}; opportunities: {totals['opportunities']}; PDUs: {totals['sends']}; "
           f"byte-identical: {totals['identical']}; layout-only: {totals['layout_only']}; "
           f"different: {totals['different']}; problems: {len(problems)}")
+    for test in revised:
+        print(f"REVISED {test}: {REVISED[test]}")
     for problem in problems:
         print(f"FAIL {problem}")
     return int(bool(problems) or totals["sends"] == 0)
