@@ -147,8 +147,8 @@ Register [mrp_set_observer](../src/include/shish_lan/mrp.h) before events when t
 Use [mrp_attr_visit](../src/include/shish_lan/mrp.h) for current attribute state.
 Use [mrp_port_status](../src/include/shish_lan/mrp.h) for LeaveAll and periodic state.
 The observer reports changed Applicant or Registrar states only.
-An accepted LeaveAll reports each Applicant change as txLA! or txLAF!.
-Its local rLA! then reports Registrar changes only, with the Applicant state unchanged.
+An accepted LeaveAll reports each Applicant change as txLA! or txLAF!, and a fitted value's Registrar change as txLA!.
+Its local rLA! then reports the remaining Registrar changes, with the Applicant state unchanged.
 This follows [issue #20](https://github.com/kebag-logic/lwSRP/issues/20).
 Callbacks run synchronously.
 Copy values that must survive the callback.
