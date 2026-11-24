@@ -165,7 +165,8 @@ Both run the same seeds, and every pair of traces must be byte-identical.
 The checkout is built with its defaults, and with the three scale options of the [integrator guide](integrator.md#port-platform-services).
 With those options it is also built with a four-slot timer wheel started just short of the tick counter's wrap.
 It is built with one lookup bucket, as the plain list was, and with 256 buckets.
-It is built with the lean validation pass, with the one-port MAP switch, and with both on the scale options.
+It is built with each end-station switch alone: the lean validation pass, the one-port MAP work and the rapid replacement.
+It is also built with all three on the scale options.
 A one-port build's trace at one port is compared without its policy calls that name no port and without its allocation counts.
 Its seeds that refuse allocations at one port are counted and not compared: there the base refuses receives that build applies, the [one-port difference](integrator.md#one-port-propagation).
 Then each planted defect in the check's list is applied to a copy of the sources, built with the scale options or its own.

@@ -59,6 +59,19 @@ _Static_assert((LWSRP_ATTR_BUCKETS & (LWSRP_ATTR_BUCKETS - 1u)) == 0u && LWSRP_A
 #define LWSRP_ONE_PORT_MAP 0
 #endif
 
+/*
+ * A replaced registration (35.2.6, attr_replaces) takes rLv! and then the
+ * leave timer's event. Where rLv! left its Registrar MT, as the Milan rapid
+ * leave does from IN (milan_rapid_leave), the leave timer's row leaves MT
+ * and both machines unchanged and indicates nothing (Tables 10-3 and 10-4),
+ * so 1 delivers it only where rLv! left the Registrar elsewhere: every
+ * output, indication, observation and their order are the same. 0 delivers
+ * it always.
+ */
+#ifndef LWSRP_RAPID_REPLACE
+#define LWSRP_RAPID_REPLACE 0
+#endif
+
 /* ------------------------------------------------------------------ */
 /* Internal types                                                       */
 /* ------------------------------------------------------------------ */
@@ -1184,7 +1197,11 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
                 rc->app->ops->attr_replaces(old->attr_type,old->attr_val,attr_type,attr_val)) {
                 int r = deliver_event_changed(rc->app, rc->ps, old,
                                                MRP_EVENT_RLV, rc->port_id, false);
+#if LWSRP_RAPID_REPLACE
+                if (r >= 0 && old->reg != MRP_REG_STATE_MT) {
+#else
                 if (r >= 0) {
+#endif
                     r = deliver_event_changed(rc->app, rc->ps, old,
                                               MRP_EVENT_LEAVETIMER, rc->port_id, false);
                 }
@@ -1636,6 +1653,28 @@ static void tx_order(const struct mrp_app_ops *ops, enum mrp_event event, uint8_
 }
 
 /*
+ * The vectors of size octets in [first, end), encoded in strictly descending
+ * FirstValue order, placed in ascending order by swapping them end for end:
+ * the order tx_order gives such a list, one descending run reversed, each
+ * vector's octets as its encoding there, which depends only on its attribute
+ * and its event. False, with nothing moved, where a vector is longer than the
+ * swap's buffer, which holds the longest one a stored value encodes.
+ */
+static bool tx_reverse(uint8_t *first, uint8_t *end, size_t size)
+{
+    uint8_t held[4u + sizeof(((struct mrp_attr_inst *)0)->attr_val)];
+    if (size > sizeof(held)) {
+        return false;
+    }
+    for (uint8_t *lo = first, *hi = end - size; lo < hi; lo += size, hi -= size) {
+        memcpy(held, lo, size);
+        memcpy(lo, hi, size);
+        memcpy(hi, held, size);
+    }
+    return true;
+}
+
+/*
  * One Message for every selected value of a type: an optional LeaveAll vector
  * first, then one single-value vector per value in ascending FirstValue order
  * (10.8.2.7). Returns the end of the Message, or NULL if encoding fails; the
@@ -1655,8 +1694,9 @@ static uint8_t *tx_message(const struct mrp_app_ops *ops, struct mrp_port_state 
     }
     uint8_t *first = v;
     struct mrp_attr_inst *chosen = NULL, **tail = &chosen;
-    /* Vectors encoded in ascending order already stand where the sort would put them. */
-    bool ordered = true;
+    /* Vectors encoded in ascending order already stand where the sort would put them; ones encoded in strictly
+     * descending order, as the list holds the values one vector declared, stand there reversed, no two equal. */
+    bool ordered = true, descending = true;
     for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
         const struct appl_entry *e = &appl_table[event][a->appl];
         if (!a->tx_selected || a->attr_type != type || e->tx == TX_MSG_NONE) {
@@ -1668,8 +1708,10 @@ static uint8_t *tx_message(const struct mrp_app_ops *ops, struct mrp_port_state 
             }
             return NULL;
         }
-        if (ordered && v != first && memcmp(v - size + 2, v + 2, len) > 0) {
-            ordered = false;
+        if ((ordered || descending) && v != first) {
+            int c = memcmp(v - size + 2, v + 2, len);
+            ordered = ordered && c <= 0;
+            descending = descending && c > 0;
         }
         a->tx_key = v + 2;
         a->tx_next = NULL;
@@ -1677,7 +1719,7 @@ static uint8_t *tx_message(const struct mrp_app_ops *ops, struct mrp_port_state 
         tail = &a->tx_next;
         v += size;
     }
-    if (!ordered) {
+    if (!ordered && !(descending && tx_reverse(first, v, size))) {
         tx_order(ops, event, type, chosen, first, size);
     }
     return tx_close(ops, buf, v);

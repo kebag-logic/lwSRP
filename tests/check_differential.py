@@ -48,10 +48,12 @@ def scale(*overrides):
     return [d for d in SCALE if d.split("=")[0] not in names] + list(overrides)
 
 
-#: The end-station switches: no MAP work at one port, and no zeroing in the parser's validation pass.
+#: The end-station switches: no MAP work at one port, no zeroing in the parser's validation pass, and no leave timer
+#: event for a replaced registration the rapid leave took to MT.
 ONE_PORT = ["-DLWSRP_ONE_PORT_MAP=1"]
 LEAN = ["-DLWSRP_LEAN_VALIDATE=1"]
-END_STATION = SCALE + ONE_PORT + LEAN
+RAPID = ["-DLWSRP_RAPID_REPLACE=1"]
+END_STATION = SCALE + ONE_PORT + LEAN + RAPID
 
 
 CONFIGS = {
@@ -62,6 +64,7 @@ CONFIGS = {
     "scale-buckets256": scale("-DLWSRP_ATTR_BUCKETS=256u"),
     "lean": LEAN,
     "one-port": ONE_PORT,
+    "rapid": RAPID,
     "end-station": END_STATION,
 }
 
@@ -155,8 +158,16 @@ MUTANTS = [
      "        if (!tx_vector(ops, a, e->tx, type, len, subtype, v)) {\n            if (!ordered) {\n"
      "                tx_order(ops, event, type, chosen, first, size);\n            }",
      "        if (!tx_vector(ops, a, e->tx, type, len, subtype, v)) {"),
-    ("sort-ordered-check", "mad", MAD, "if (ordered && v != first && memcmp(v - size + 2, v + 2, len) > 0) {",
-     "if (ordered && v != first && memcmp(first + 2, v + 2, len) > 0) {"),
+    ("sort-ordered-check", "mad", MAD, "int c = memcmp(v - size + 2, v + 2, len);",
+     "int c = memcmp(first + 2, v + 2, len);"),
+    # A Message encoded strictly descending is reversed in place: only such a one, and every pair of it.
+    ("reverse-any-order", "mad", MAD, "if (!ordered && !(descending && tx_reverse(first, v, size))) {",
+     "if (!ordered && !tx_reverse(first, v, size)) {"),
+    ("reverse-ties", "mad", MAD, "descending = descending && c > 0;", "descending = descending && c >= 0;"),
+    ("reverse-innermost-pair", "mad", MAD, "lo < hi; lo += size, hi -= size) {",
+     "lo + size < hi; lo += size, hi -= size) {"),
+    ("reverse-half-swap", "mad", MAD, "        memcpy(lo, hi, size);\n        memcpy(hi, held, size);",
+     "        memcpy(lo, hi, size);"),
     ("sort-direction", "mad", MAD, "return memcmp(a->tx_key, b->tx_key, len) > 0;", "return memcmp(a->tx_key, b->tx_key, len) < 0;"),
     # The end-station switches, each built with them: MAP work skipped only at one port, and the value zeroed
     # where the parser delivers it.
@@ -164,6 +175,8 @@ MUTANTS = [
      "    if (priv_of(app)->n_ports <= 2u) {\n        return 0; /* No other port", END_STATION),
     ("one-port-publish", "mad", MAD, "indicated = indicated && priv_of(app)->n_ports > 1u;",
      "indicated = indicated && priv_of(app)->n_ports > 2u;", END_STATION),
+    ("rapid-replace-lv", "mad", MAD, "if (r >= 0 && old->reg != MRP_REG_STATE_MT) {",
+     "if (r >= 0 && old->reg != MRP_REG_STATE_MT && old->reg != MRP_REG_STATE_LV) {", END_STATION),
 ]
 
 #: The lean validation pass under MemorySanitizer (--sanitize-memory): no decoder may read the value it fills, and
