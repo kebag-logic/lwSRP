@@ -88,7 +88,7 @@ The lookup buckets set the attribute key.
 
 Each option changes no output, callback, or callback order.
 
-Four more options suit an end station, whose participants each have one port.
+Five more options suit an end station, whose participants each have one port.
 Define them directly for every source; LWSRP_SCALE does not select them.
 
 | Option | Default | Set | Difference when set |
@@ -97,6 +97,7 @@ Define them directly for every source; LWSRP_SCALE does not select them.
 | [LWSRP_LEAN_VALIDATE](../src/core/mrp_pdu.c) | 0: both parser passes zero each decoded value | Only the delivering pass zeroes it. | None: the validation pass reads only the decoder's result. |
 | [LWSRP_RAPID_REPLACE](../src/core/mrp_mad.c) | 0: a replaced registration takes rLv! and then the leave timer's event | One that rLv! left MT, as the Milan rapid leave does, takes no leave timer event. | None: in MT that event changes neither state machine and indicates nothing. |
 | [LWSRP_LEAN_COPY](../src/core/mrp_mad.c) | 0: each delivery copies its Registrar row, a receive keeps a whole value for its restore, and MSRP's fixed-size fields are copied by memcpy | A row is copied only where its indication is rewritten; a restore keeps the stored length; a field is stored an octet at a time. | None: the same states, values and octets. |
+| [LWSRP_LEAN_TX](../src/core/mrp_mad.c) | 0: after a send every selected attribute takes tx! | An Applicant that tx! leaves as it is, with nothing to send, takes none. | None: the Registrar ignores tx!, and such an Applicant's row changes nothing. |
 
 ### One-port propagation
 
@@ -287,7 +288,7 @@ sequenceDiagram
     Target->>Target: Schedule next output
 ~~~
 
-The [assembler](../src/core/mrp_mad.c#L1776) splits populations across Join-spaced opportunities.
+The [assembler](../src/core/mrp_mad.c#L1787) splits populations across Join-spaced opportunities.
 Previously omitted attributes precede repeated declarations.
 Each PDU holds one Message per attribute type, with values in ascending FirstValue order.
 Size the buffer for the largest single-value Message and the application's LeaveAll preamble.
@@ -326,7 +327,7 @@ Deliver every elapsed centisecond, including ticks coalesced by the platform.
 The [timer defaults](../src/include/shish_lan/mrp.h) are Join 20, Leave 60, and LeaveAll 1000 centiseconds.
 The Mark II profile uses Leave 500 centiseconds through [mrp_port_configure](../src/include/shish_lan/mrp.h).
 Combine this interval with the [Milan received-Leave option](#milan-received-leave) for immediate explicit withdrawals.
-The [periodic handler](../src/core/mrp_mad.c#L992) uses 100 centiseconds independently of Join spacing.
+The [periodic handler](../src/core/mrp_mad.c#L1003) uses 100 centiseconds independently of Join spacing.
 LeaveAll draws lie strictly between its configured interval and 1.5 times that interval.
 The rules are in [IEEE 802.1Q-2018, clauses 10.7.4.3 and 10.7.4.4](https://standards.ieee.org/ieee/802.1Q/6844/).
 Supply different seeds where independent participants need different timing.
@@ -352,7 +353,7 @@ sequenceDiagram
 ~~~
 
 Call the matching [application destroy operation](../src/include/shish_lan/mrp.h) only after all callbacks and accesses have stopped.
-The [destructor](../src/core/mrp_mad.c#L1092) unlinks all owned timers before releasing storage.
+The [destructor](../src/core/mrp_mad.c#L1103) unlinks all owned timers before releasing storage.
 Other applications may continue ticking afterward.
 Destruction itself does not transmit withdrawals.
 Complete any required network withdrawal before teardown.

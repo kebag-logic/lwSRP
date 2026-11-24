@@ -84,6 +84,17 @@ _Static_assert((LWSRP_ATTR_BUCKETS & (LWSRP_ATTR_BUCKETS - 1u)) == 0u && LWSRP_A
 #define LWSRP_LEAN_COPY 0
 #endif
 
+/*
+ * After a send, every selected attribute takes tx!. The Registrar ignores
+ * tx! (Table 10-4) and the Applicant's row leaves VO, QA, AO, QO and QP as
+ * they are with nothing to send (Table 10-3), so 1 delivers it only to an
+ * Applicant the row moves: the same states, outputs and observations, an
+ * observer seeing no change in either case. 0 delivers it to every one.
+ */
+#ifndef LWSRP_LEAN_TX
+#define LWSRP_LEAN_TX 0
+#endif
+
 /* ------------------------------------------------------------------ */
 /* Internal types                                                       */
 /* ------------------------------------------------------------------ */
@@ -1870,7 +1881,14 @@ int mrp_transmit(struct mrp_app *app, uint8_t port_id,
     for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
         if (a->tx_selected) {
             a->tx_deferred = false;
+#if LWSRP_LEAN_TX
+            const struct appl_entry *row = &appl_table[event][a->appl];
+            if (event != MRP_EVENT_TX || row->ns != MRP_APPL_STATE_COUNT || row->tx != TX_MSG_NONE) {
+                deliver_event(app, ps, a, event, port_id);
+            }
+#else
             deliver_event(app, ps, a, event, port_id);
+#endif
         } else if (la) {
             deliver_event(app, ps, a, MRP_EVENT_TXLAF, port_id);
         }

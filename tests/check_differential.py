@@ -49,12 +49,13 @@ def scale(*overrides):
 
 
 #: The end-station switches: no MAP work at one port, no zeroing in the parser's validation pass, no leave timer event
-#: for a replaced registration the rapid leave took to MT, and no copy past what is used.
+#: for a replaced registration the rapid leave took to MT, no copy past what is used, and no tx! an Applicant keeps.
 ONE_PORT = ["-DLWSRP_ONE_PORT_MAP=1"]
 LEAN = ["-DLWSRP_LEAN_VALIDATE=1"]
 RAPID = ["-DLWSRP_RAPID_REPLACE=1"]
 COPY = ["-DLWSRP_LEAN_COPY=1"]
-END_STATION = SCALE + ONE_PORT + LEAN + RAPID + COPY
+LEAN_TX = ["-DLWSRP_LEAN_TX=1"]
+END_STATION = SCALE + ONE_PORT + LEAN + RAPID + COPY + LEAN_TX
 
 
 CONFIGS = {
@@ -67,6 +68,7 @@ CONFIGS = {
     "one-port": ONE_PORT,
     "rapid": RAPID,
     "lean-copy": COPY,
+    "lean-tx": LEAN_TX,
     "end-station": END_STATION,
 }
 
@@ -188,6 +190,11 @@ MUTANTS = [
      END_STATION),
     ("lean-copy-failure", "mad", MSRP, "COPY8(f_, u_); f_[8] = u_[8]; } while (0)", "COPY8(f_, u_); } while (0)",
      END_STATION),
+    ("lean-tx-moved-skipped", "mad", MAD,
+     "if (event != MRP_EVENT_TX || row->ns != MRP_APPL_STATE_COUNT || row->tx != TX_MSG_NONE) {",
+     "if (event != MRP_EVENT_TX || (row->ns != MRP_APPL_STATE_COUNT && false)) {", END_STATION),
+    ("lean-tx-la-skipped", "mad", MAD, "if (event != MRP_EVENT_TX || row->ns != MRP_APPL_STATE_COUNT || row->tx",
+     "if (row->ns != MRP_APPL_STATE_COUNT || row->tx", END_STATION),
 ]
 
 #: The lean validation pass under MemorySanitizer (--sanitize-memory): no decoder may read the value it fills, and
