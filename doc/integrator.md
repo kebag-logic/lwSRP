@@ -285,7 +285,7 @@ sequenceDiagram
     Target->>Target: Schedule next output
 ~~~
 
-The [assembler](../src/core/mrp_mad.c#L1415) splits populations across Join-spaced opportunities.
+The [assembler](../src/core/mrp_mad.c#L1710) splits populations across Join-spaced opportunities.
 Previously omitted attributes precede repeated declarations.
 Each PDU holds one Message per attribute type, with values in ascending FirstValue order.
 Size the buffer for the largest single-value Message and the application's LeaveAll preamble.
@@ -324,7 +324,7 @@ Deliver every elapsed centisecond, including ticks coalesced by the platform.
 The [timer defaults](../src/include/shish_lan/mrp.h) are Join 20, Leave 60, and LeaveAll 1000 centiseconds.
 The Mark II profile uses Leave 500 centiseconds through [mrp_port_configure](../src/include/shish_lan/mrp.h).
 Combine this interval with the [Milan received-Leave option](#milan-received-leave) for immediate explicit withdrawals.
-The [periodic handler](../src/core/mrp_mad.c#L824) uses 100 centiseconds independently of Join spacing.
+The [periodic handler](../src/core/mrp_mad.c#L961) uses 100 centiseconds independently of Join spacing.
 LeaveAll draws lie strictly between its configured interval and 1.5 times that interval.
 The rules are in [IEEE 802.1Q-2018, clauses 10.7.4.3 and 10.7.4.4](https://standards.ieee.org/ieee/802.1Q/6844/).
 Supply different seeds where independent participants need different timing.
@@ -350,7 +350,7 @@ sequenceDiagram
 ~~~
 
 Call the matching [application destroy operation](../src/include/shish_lan/mrp.h) only after all callbacks and accesses have stopped.
-The [destructor](../src/core/mrp_mad.c#L924) unlinks all owned timers before releasing storage.
+The [destructor](../src/core/mrp_mad.c#L1061) unlinks all owned timers before releasing storage.
 Other applications may continue ticking afterward.
 Destruction itself does not transmit withdrawals.
 Complete any required network withdrawal before teardown.

@@ -26,7 +26,7 @@ behave --dry-run
 | Check | Current result | Meaning |
 | --- | --- | --- |
 | Configure and build | Exit 0. | The host library and required unit target compile. |
-| Default unit target | Exit 0; 110 tests and 27227 assertions. | The [runner](../tests/unit/main.c) executes eleven suites. |
+| Default unit target | Exit 0; 108 tests and 27199 assertions. | The [runner](../tests/unit/main.c) executes ten suites. |
 | Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c) and reads the simulated port flags. |
 | Scenario dry run | Validates step matching only. | It does not execute setup or verify behavior. |
 
@@ -72,7 +72,7 @@ ctest --test-dir "$LWSRP_MILAN_BUILD" --output-on-failure
 SHLAN_LIBRARY="$LWSRP_MILAN_BUILD/libshlan.so" behave
 ~~~
 
-The enabled build passes 110 tests with 27215 assertions.
+The enabled build passes 108 tests with 27187 assertions.
 It also passes three scenarios and ten steps.
 The [profile suite](../tests/unit/milan_test.c) checks both application options in each build.
 It checks the actual constructor against the build selection.
@@ -195,6 +195,8 @@ cmake -S . -B "$SCALE_BUILD" -DCMAKE_BUILD_TYPE=Debug -DLWSRP_SCALE=ON
 cmake --build "$SCALE_BUILD" --parallel 2
 ctest --test-dir "$SCALE_BUILD" --output-on-failure
 ~~~
+
+That build also registers the key suite: 110 tests with 27227 assertions, and 27215 with the Milan setting.
 
 The [timer driver](../tests/differential/timer_trace.c) registers, arms, disarms, removes, and ticks 48 timers at random.
 Its callbacks arm, disarm, and register other timers and themselves, as the MRP callbacks do.
@@ -336,7 +338,7 @@ Seven scenario reversals miswire the [test bindings](../tests/features/switch_bi
 They swap enable and disable, disable the next port, skip connection, and swap connection with disconnection.
 Each must fail exactly its named [scenarios](../tests/features/switch.feature) with the expected assertion words.
 The runner's interpreter must import [behave](https://behave.readthedocs.io/en/stable/), because it also runs the scenarios before and after the plants.
-Both profiles run all 114 reversals.
+Both profiles run all 110 reversals, and with --scale ON the attribute key's four.
 They also pin propagation order, recovery indications, extension handling, range errors, and all reported LeaveAll boundaries.
 Each added behavioral reversal must fail its named regression after successful compilation.
 The [embedded check](../tests/check_embedded.py) exercises the actual module source list with a host compiler in both profiles.

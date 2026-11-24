@@ -26,8 +26,8 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-#: The revision whose behaviour the lookup, sort and timer changes keep.
-BASE = "08ee86e812a0eb5e1dc6cd61b494d8baf3491348"
+#: The revision whose behaviour the lookup, sort, timer and end-station changes keep: main with the own LeaveAll (#20).
+BASE = "d1bb4f4e5954af6dabe7f210a6bf7adbb76bdd6b"
 FLAGS = ["-O2", "-std=c11", "-Wall", "-Wextra", "-Werror"]
 
 #: Each driver, the library sources it links under src/, and its steps a seed.
