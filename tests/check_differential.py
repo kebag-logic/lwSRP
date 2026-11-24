@@ -48,12 +48,13 @@ def scale(*overrides):
     return [d for d in SCALE if d.split("=")[0] not in names] + list(overrides)
 
 
-#: The end-station switches: no MAP work at one port, no zeroing in the parser's validation pass, and no leave timer
-#: event for a replaced registration the rapid leave took to MT.
+#: The end-station switches: no MAP work at one port, no zeroing in the parser's validation pass, no leave timer event
+#: for a replaced registration the rapid leave took to MT, and no copy past what is used.
 ONE_PORT = ["-DLWSRP_ONE_PORT_MAP=1"]
 LEAN = ["-DLWSRP_LEAN_VALIDATE=1"]
 RAPID = ["-DLWSRP_RAPID_REPLACE=1"]
-END_STATION = SCALE + ONE_PORT + LEAN + RAPID
+COPY = ["-DLWSRP_LEAN_COPY=1"]
+END_STATION = SCALE + ONE_PORT + LEAN + RAPID + COPY
 
 
 CONFIGS = {
@@ -65,6 +66,7 @@ CONFIGS = {
     "lean": LEAN,
     "one-port": ONE_PORT,
     "rapid": RAPID,
+    "lean-copy": COPY,
     "end-station": END_STATION,
 }
 
@@ -109,6 +111,7 @@ def compared(program, extra, out):
 TIMER = "ports/timer.c"
 MAD = "core/mrp_mad.c"
 PDU = "core/mrp_pdu.c"
+MSRP = "modules/msrp.c"
 
 #: Each defect reverses one rule the traces must keep: (name, program, file
 #: under src/, original text, planted text).
@@ -177,6 +180,14 @@ MUTANTS = [
      "indicated = indicated && priv_of(app)->n_ports > 2u;", END_STATION),
     ("rapid-replace-lv", "mad", MAD, "if (r >= 0 && old->reg != MRP_REG_STATE_MT) {",
      "if (r >= 0 && old->reg != MRP_REG_STATE_MT && old->reg != MRP_REG_STATE_LV) {", END_STATION),
+    ("lean-copy-row", "mad", MAD, "        update = *e;\n#else",
+     "        update = *e;\n        update.ns = MRP_REG_STATE_LV;\n#else", END_STATION),
+    ("lean-copy-restore", "mad", MAD, "const size_t kept = previous ? attr_store_len(rc->app->ops, attr_type) : 0u;",
+     "const size_t kept = previous ? attr_store_len(rc->app->ops, attr_type) / 2u : 0u;", END_STATION),
+    ("lean-copy-mac", "mad", MSRP, "d_[4] = s_[4]; d_[5] = s_[5]; } while (0)", "d_[4] = s_[4]; } while (0)",
+     END_STATION),
+    ("lean-copy-failure", "mad", MSRP, "COPY8(f_, u_); f_[8] = u_[8]; } while (0)", "COPY8(f_, u_); } while (0)",
+     END_STATION),
 ]
 
 #: The lean validation pass under MemorySanitizer (--sanitize-memory): no decoder may read the value it fills, and

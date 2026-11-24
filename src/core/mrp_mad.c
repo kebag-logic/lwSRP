@@ -72,6 +72,18 @@ _Static_assert((LWSRP_ATTR_BUCKETS & (LWSRP_ATTR_BUCKETS - 1u)) == 0u && LWSRP_A
 #define LWSRP_RAPID_REPLACE 0
 #endif
 
+/*
+ * 1 copies no more than it uses: a Registrar row is copied only where a
+ * changed value's rJoinIn! or rJoinMt! rewrites its indication, and a
+ * receive keeps for its restore only the stored length of the value it may
+ * rewrite, the only octets a refresh writes (get_or_create_attr); with
+ * msrp.c's fixed-size fields copied with no call of memcpy. The same
+ * states, values and outputs; 0 copies the row and the whole value always.
+ */
+#ifndef LWSRP_LEAN_COPY
+#define LWSRP_LEAN_COPY 0
+#endif
+
 /* ------------------------------------------------------------------ */
 /* Internal types                                                       */
 /* ------------------------------------------------------------------ */
@@ -774,8 +786,14 @@ static int reg_event(struct mrp_app *app, struct mrp_attr_inst *ai,
         e = &milan_leave;
     }
 
+#if LWSRP_LEAN_COPY
+    struct reg_entry update;
+    if (changed && (ev == MRP_EVENT_RJOININ || ev == MRP_EVENT_RJOINMT)) {
+        update = *e;
+#else
     struct reg_entry update = *e;
     if (changed && (ev == MRP_EVENT_RJOININ || ev == MRP_EVENT_RJOINMT)) {
+#endif
         update.ind = REG_IND_JOIN;
         e = &update;
     }
@@ -1166,8 +1184,14 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
     bool changed_in = previous && previous->reg != MRP_REG_STATE_MT &&
         memcmp(previous->attr_val, attr_val, attr_store_len(rc->app->ops, attr_type)) != 0;
     uint8_t previous_value[sizeof(((struct mrp_attr_inst *)0)->attr_val)];
+#if LWSRP_LEAN_COPY
+    /* A restore rewrites only what the refresh may have written: the value's stored length. */
+    const size_t kept = previous ? attr_store_len(rc->app->ops, attr_type) : 0u;
+#else
+    const size_t kept = sizeof(previous_value);
+#endif
     if (previous) {
-        memcpy(previous_value, previous->attr_val, sizeof(previous_value));
+        memcpy(previous_value, previous->attr_val, kept);
     }
     bool declares = attr_event == MRP_ATTR_EVENT_NEW || attr_event == MRP_ATTR_EVENT_JOININ ||
                     attr_event == MRP_ATTR_EVENT_JOINMT;
@@ -1207,7 +1231,7 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
                 }
                 if (r < 0) {
                     if (previous) {
-                        memcpy(ai->attr_val, previous_value, sizeof(previous_value));
+                        memcpy(ai->attr_val, previous_value, kept);
                     }
                     rc->error = r;
                     return;
@@ -1229,7 +1253,7 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
     }
     int r = deliver_event_changed(rc->app, rc->ps, ai, ev, rc->port_id, changed_in);
     if (r < 0 && previous) {
-        memcpy(ai->attr_val, previous_value, sizeof(previous_value));
+        memcpy(ai->attr_val, previous_value, kept);
     }
 }
 

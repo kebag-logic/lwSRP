@@ -37,6 +37,28 @@
 #define MSRP_ATTR_LEN_DOMAIN         4u
 #define MSRP_ATTR_LEN_LISTENER       8u  /* stream ID only; decl in FourPacked */
 
+/*
+ * LWSRP_LEAN_COPY 1 copies a value's fixed-size fields, a StreamID, a MAC
+ * address and a FailureInformation, with one store an octet where 0 calls
+ * memcpy: the same octets, with no call, which on a fetch-bound core costs
+ * more than the copy (mrp_mad.c copies no more than it uses under it too).
+ */
+#ifndef LWSRP_LEAN_COPY
+#define LWSRP_LEAN_COPY 0
+#endif
+#if LWSRP_LEAN_COPY
+#define COPY6(d, s) do { uint8_t *d_ = (uint8_t *)(d); const uint8_t *s_ = (const uint8_t *)(s); \
+    d_[0] = s_[0]; d_[1] = s_[1]; d_[2] = s_[2]; d_[3] = s_[3]; d_[4] = s_[4]; d_[5] = s_[5]; } while (0)
+#define COPY8(d, s) do { uint8_t *e_ = (uint8_t *)(d); const uint8_t *t_ = (const uint8_t *)(s); \
+    COPY6(e_, t_); e_[6] = t_[6]; e_[7] = t_[7]; } while (0)
+#define COPY9(d, s) do { uint8_t *f_ = (uint8_t *)(d); const uint8_t *u_ = (const uint8_t *)(s); \
+    COPY8(f_, u_); f_[8] = u_[8]; } while (0)
+#else
+#define COPY6(d, s) memcpy((d), (s), 6)
+#define COPY8(d, s) memcpy((d), (s), 8)
+#define COPY9(d, s) memcpy((d), (s), 9)
+#endif
+
 /* ------------------------------------------------------------------ */
 /* struct mrp_app_ops callbacks                                             */
 /* ------------------------------------------------------------------ */
@@ -225,8 +247,8 @@ static uint32_t be32_get(const uint8_t *b)
  */
 static void talker_to_wire(const struct msrp_talker_adv *t, uint8_t *b)
 {
-    memcpy(&b[0], t->stream_id.bytes, 8);
-    memcpy(&b[8], t->dest_mac, 6);
+    COPY8(&b[0], t->stream_id.bytes);
+    COPY6(&b[8], t->dest_mac);
     be16_put(&b[14], t->vlan_id);
     be16_put(&b[16], t->max_frame_size);
     be16_put(&b[18], t->max_interval_frames);
@@ -236,8 +258,8 @@ static void talker_to_wire(const struct msrp_talker_adv *t, uint8_t *b)
 
 static void talker_from_wire(const uint8_t *b, struct msrp_talker_adv *t)
 {
-    memcpy(t->stream_id.bytes, &b[0], 8);
-    memcpy(t->dest_mac, &b[8], 6);
+    COPY8(t->stream_id.bytes, &b[0]);
+    COPY6(t->dest_mac, &b[8]);
     t->vlan_id             = be16_get(&b[14]);
     t->max_frame_size      = be16_get(&b[16]);
     t->max_interval_frames = be16_get(&b[18]);
@@ -272,7 +294,7 @@ static int msrp_encode_attr(uint8_t attr_type, const void *attr_val,
             return -SHLAN_ERROR_NO_BUFFER;
         }
         talker_to_wire(&tf->talker, buf);
-        memcpy(buf + MSRP_ATTR_LEN_TALKER_ADV, tf->failure_info, 9);
+        COPY9(buf + MSRP_ATTR_LEN_TALKER_ADV, tf->failure_info);
         return MSRP_ATTR_LEN_TALKER_FAILED;
     }
 
@@ -280,7 +302,7 @@ static int msrp_encode_attr(uint8_t attr_type, const void *attr_val,
         if (buf_len < MSRP_ATTR_LEN_LISTENER) {
             return -SHLAN_ERROR_NO_BUFFER;
         }
-        memcpy(buf, attr_val, MSRP_ATTR_LEN_LISTENER);
+        COPY8(buf, attr_val);
         return MSRP_ATTR_LEN_LISTENER;
 
     default:
@@ -330,7 +352,7 @@ static int msrp_decode_attr(uint8_t attr_type, uint32_t offset,
         }
         if (attr_type == MSRP_ATTR_TYPE_TALKER_FAILED) {
             struct msrp_talker_failed *tf = attr_val_out;
-            memcpy(tf->failure_info, buf + MSRP_ATTR_LEN_TALKER_ADV, 9);
+            COPY9(tf->failure_info, buf + MSRP_ATTR_LEN_TALKER_ADV);
         }
         return (int)len;
     }
@@ -338,7 +360,7 @@ static int msrp_decode_attr(uint8_t attr_type, uint32_t offset,
         if (buf_len != MSRP_ATTR_LEN_LISTENER) {
             return -SHLAN_ERROR_INVALID;
         }
-        memcpy(attr_val_out, buf, MSRP_ATTR_LEN_LISTENER);
+        COPY8(attr_val_out, buf);
         if (increment_stream((uint8_t *)attr_val_out + 6, 2, offset) < 0) {
             return -SHLAN_ERROR_RANGE;
         }
