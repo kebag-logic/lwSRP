@@ -209,7 +209,8 @@ Its key collides across values, and each received value can replace up to three 
 After each step the trace records a digest of every attribute's states and value, and of the transmit buffer.
 Each driver runs 200 seeds, 20000 steps each for timers and 3000 for MRP.
 Every build gives identical traces in both profiles, the one-port builds as compared above: 177 of 200 seeds identical and 23 refusal seeds counted.
-All 24 planted defects are detected: ten in the timers, five in the buckets, seven in the vector order, two in the one-port switch.
+All 36 planted defects are detected: ten in the timers, five in the buckets, eleven in the vector order, and twelve in the end-station switches.
+The end-station ones are two in the one-port switch, one in the rapid replacement, four in the lean copies and three in the lean tx!.
 The sanitized run reports no seed, and its planted decoder is reported.
 
 ## Run the existing codec tests
