@@ -89,7 +89,10 @@ _Static_assert((LWSRP_ATTR_BUCKETS & (LWSRP_ATTR_BUCKETS - 1u)) == 0u && LWSRP_A
  * tx! (Table 10-4) and the Applicant's row leaves VO, QA, AO, QO and QP as
  * they are with nothing to send (Table 10-3), so 1 delivers it only to an
  * Applicant the row moves: the same states, outputs and observations, an
- * observer seeing no change in either case. 0 delivers it to every one.
+ * observer seeing no change in either case. And the assembler passes over
+ * the AttributeTypes of an open set's word that holds none from there on,
+ * where 0 tests each of the 256: the same Messages in the same order. 0
+ * delivers tx! to every one.
  */
 #ifndef LWSRP_LEAN_TX
 #define LWSRP_LEAN_TX 0
@@ -1769,6 +1772,13 @@ static int tx_assemble(const struct mrp_app_ops *ops, struct mrp_port_state *ps,
     size_t off = 1;
     pdu[0] = ops->proto_version;
     for (unsigned type = 0; type < 256u; ++type) {
+#if LWSRP_LEAN_TX
+        /* A word of the open set with no type left from this one on holds no Message: on to the next word. */
+        if ((types->open[type / 32u] >> (type % 32u)) == 0u) {
+            type |= 31u;
+            continue;
+        }
+#endif
         if (!tx_type_in(types->open, type)) {
             continue;
         }

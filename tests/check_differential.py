@@ -195,6 +195,8 @@ MUTANTS = [
      "if (event != MRP_EVENT_TX || (row->ns != MRP_APPL_STATE_COUNT && false)) {", END_STATION),
     ("lean-tx-la-skipped", "mad", MAD, "if (event != MRP_EVENT_TX || row->ns != MRP_APPL_STATE_COUNT || row->tx",
      "if (row->ns != MRP_APPL_STATE_COUNT || row->tx", END_STATION),
+    ("lean-tx-word-skipped", "mad", MAD, ">> (type % 32u)) == 0u) {\n            type |= 31u;",
+     ">> (type % 32u)) != 0u) {\n            type |= 31u;", END_STATION),
 ]
 
 #: The lean validation pass under MemorySanitizer (--sanitize-memory): no decoder may read the value it fills, and
