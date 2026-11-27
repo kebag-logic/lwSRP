@@ -86,7 +86,8 @@ The lookup buckets set the attribute key.
 | [LWSRP_ATTR_BUCKETS](../src/core/mrp_mad.c) | 0: each lookup scans the participant | A lookup scans one bucket by attr_key. | One pointer a bucket a participant; one more an attribute. |
 | [LWSRP_TX_MERGE](../src/core/mrp_mad.c) | 0: each vector is swapped into place | Runs of encoded vectors are merged; vectors encoded in strictly descending order are reversed in place. | Two more pointers an attribute. |
 
-Each option changes no output, callback, or callback order.
+Each option changes no output, indication, observation, or receive-filter call, nor their order.
+Some change how often the MAD calls an application's lookup or encoding callbacks; see the [callback contract](#application-callback-contract).
 
 Five more options suit an end station, whose participants each have one port.
 Define them directly for every source; LWSRP_SCALE does not select them.
@@ -94,7 +95,7 @@ Define them directly for every source; LWSRP_SCALE does not select them.
 | Option | Default | Set | Difference when set |
 | --- | --- | --- | --- |
 | [LWSRP_ONE_PORT_MAP](../src/core/mrp_mad.c) | 0: every indication reserves a propagation target a port and calls the policy | A one-port participant reserves none and calls no map_join or map_leave. | See [one-port propagation](#one-port-propagation). |
-| [LWSRP_LEAN_VALIDATE](../src/core/mrp_pdu.c) | 0: both parser passes zero each decoded value | Only the delivering pass zeroes it. | None: the validation pass reads only the decoder's result. |
+| [LWSRP_LEAN_VALIDATE](../src/core/mrp_pdu.c) | 0: both parser passes zero each decoded value | Only the delivering pass zeroes it. | The validation pass reads only the decoder's result, which must not depend on the buffer's prior content; see the [callback contract](#application-callback-contract). |
 | [LWSRP_RAPID_REPLACE](../src/core/mrp_mad.c) | 0: a replaced registration takes rLv! and then the leave timer's event | One that rLv! left MT, as the Milan rapid leave does, takes no leave timer event. | None: in MT that event changes neither state machine and indicates nothing. |
 | [LWSRP_LEAN_COPY](../src/core/mrp_mad.c) | 0: each delivery copies its Registrar row, a receive keeps a whole value for its restore, and MSRP's fixed-size fields are copied by memcpy | A row is copied only where its indication is rewritten; a restore keeps the stored length; a field is stored an octet at a time. | None: the same states, values and octets. |
 | [LWSRP_LEAN_TX](../src/core/mrp_mad.c) | 0: after a send every selected attribute takes tx!, and the assembler tests each AttributeType | An Applicant that tx! leaves as it is, with nothing to send, takes none; a type word with no open type left is passed over. | None: the Registrar ignores tx!, such an Applicant's row changes nothing, and the Messages keep their order. |
@@ -112,6 +113,18 @@ A participant of two or more ports behaves as in the default build.
 A fixed pool can replace the default heap.
 Allocation failure returns a negative result.
 Earlier received attributes may remain applied when a later allocation fails.
+
+### Application callback contract
+
+Three options narrow what the MAD may assume of an application's [operations](../src/include/shish_lan/mrp.h).
+In-tree applications already meet each rule.
+Under [LWSRP_LEAN_VALIDATE](../src/core/mrp_pdu.c), decode_attr's result must depend on the wire octets, offset and type alone.
+It must never depend on what its output buffer held before the call.
+The validation pass passes an unzeroed buffer; the delivering pass still zeroes it.
+Under [LWSRP_TX_MERGE](../src/core/mrp_mad.c), encode_attr may be called again for each vector the sort moves.
+Its output must depend on the type and value alone.
+Under [LWSRP_ATTR_KEY](../src/include/shish_lan/mrp.h), attr_cmp and attr_replaces are called only for values sharing a key.
+With these options set, the host must not rely on a side effect of those callbacks or on their call counts.
 
 ## Create and declare
 
