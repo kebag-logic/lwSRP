@@ -1,0 +1,3 @@
+# Python bytecode the test tools leave when they run.
+__pycache__/
+*.pyc
