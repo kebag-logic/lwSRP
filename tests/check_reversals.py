@@ -228,6 +228,18 @@ CASES = [
      "    shlan_disconnect(sw);\n    return 0;", "scenario"),
     ("scenario-disconnect-dispatch", BINDINGS, "    shlan_disconnect(sw);",
      "    (void)shlan_connect(sw);", "scenario"),
+    # kebag-logic/milan-fpga#977: the end-station switches' documented rules, built only with END_STATION_DEFINES.
+    ("one-port-refusal-kept", MAD, "        return 0; /* No other port to propagate to (LWSRP_ONE_PORT_MAP). */",
+     "        struct mrp_map_work *probe = shlan_calloc(1, sizeof(*probe));\n"
+     "        if (!probe) {\n            priv_of(app)->map_error = -SHLAN_ERROR_NO_MEMORY;\n"
+     "            return -SHLAN_ERROR_NO_MEMORY;\n        }\n        shlan_free(probe);\n"
+     "        return 0; /* Plant: the default build's refusal kept at one port. */", "unit"),
+    ("one-port-inert", MAD, "#ifndef LWSRP_ONE_PORT_MAP\n#define LWSRP_ONE_PORT_MAP 0\n#endif",
+     "#undef LWSRP_ONE_PORT_MAP\n#define LWSRP_ONE_PORT_MAP 0", "unit"),
+    ("one-port-policy-called", MAD, "indicated = indicated && priv_of(app)->n_ports > 1u;",
+     "indicated = indicated && priv_of(app)->n_ports > 0u;", "unit"),
+    ("lean-tx-word-ends-scan", MAD, "            type |= 31u;\n            continue;",
+     "            type = 255u;\n            continue;", "unit"),
 ]
 
 # Each scenario plant must fail exactly these scenarios with these assertion words.
@@ -335,6 +347,13 @@ REQUIRED_FAILURES = {
     "milan-profile-selection": ["msrp_constructor_selects_the_build_profile"],
     "milan-option-scope": ["mvrp_keeps_ieee_leave_timing", "mmrp_keeps_ieee_leave_timing",
                            "disabled_application_option_preserves_ieee_timing"],
+    "one-port-refusal-kept": ["one_port_refused_reservation_refuses_the_receive_only_in_the_default_build"],
+    "one-port-inert": ["one_port_refused_reservation_refuses_the_receive_only_in_the_default_build",
+                       "one_port_calls_the_policy_only_in_the_default_build",
+                       "registrar_recovery_stops_aging_without_duplicate_join_or_map"],
+    "one-port-policy-called": ["one_port_calls_the_policy_only_in_the_default_build",
+                               "registrar_recovery_stops_aging_without_duplicate_join_or_map"],
+    "lean-tx-word-ends-scan": ["sparse_attribute_types_each_send_one_message_in_type_order"],
 }
 
 
@@ -354,6 +373,25 @@ def failed_scenarios(output):
 #: The reversals of the attribute key, which only a build with LWSRP_ATTR_KEY (LWSRP_SCALE) compiles.
 NEEDS_KEY = {"attr-key-unset", "attr-key-lookup-inverted", "attr-key-replacement-inverted",
              "msrp-key-outside-compare"}
+#: The end-station switches, defined directly for every source (doc/integrator.md); --end-station ON builds them.
+END_STATION_DEFINES = ["-DLWSRP_ONE_PORT_MAP=1", "-DLWSRP_LEAN_VALIDATE=1", "-DLWSRP_RAPID_REPLACE=1",
+                       "-DLWSRP_LEAN_COPY=1", "-DLWSRP_LEAN_TX=1"]
+#: The reversals of the end-station switches, which only a build with END_STATION_DEFINES compiles.
+NEEDS_END_STATION = {"one-port-refusal-kept", "one-port-inert", "one-port-policy-called", "lean-tx-word-ends-scan"}
+
+
+def selection(label, scale, end_station):
+    """Why a case does not run in this build, or None where it runs. The default build runs every case but the
+    key's and the end-station switches'; --scale ON runs the key's, --end-station ON the switches', and both
+    together run both sets. The other cases stay in the default build's run, as some target code those builds
+    replace."""
+    if label in NEEDS_KEY:
+        return None if scale == "ON" else "the attribute key is built only with LWSRP_ATTR_KEY (--scale ON)"
+    if label in NEEDS_END_STATION:
+        return None if end_station == "ON" else "the end-station switches are built only with --end-station ON"
+    if scale == "ON" or end_station == "ON":
+        return "the default build's run holds it (--scale OFF --end-station OFF)"
+    return None
 
 
 def main():
@@ -362,6 +400,8 @@ def main():
     parser.add_argument("--prefix", type=Path, required=True)
     parser.add_argument("--milan", choices=["OFF", "ON"], default="OFF")
     parser.add_argument("--scale", choices=["OFF", "ON"], default="OFF")
+    parser.add_argument("--end-station", choices=["OFF", "ON"], default="OFF",
+                        help="define the five end-station switches for every source")
     args = parser.parse_args()
     work = args.work_dir.resolve()
     if work.is_relative_to(ROOT) or work.exists():
@@ -392,7 +432,8 @@ def main():
 
     rc, _ = run("configure", ["cmake", "-S", str(source), "-B", str(build),
                               "-DCMAKE_BUILD_TYPE=Release", f"-DCMAKE_PREFIX_PATH={args.prefix.resolve()}",
-                              f"-DLWSRP_MILAN={args.milan}", f"-DLWSRP_SCALE={args.scale}"])
+                              f"-DLWSRP_MILAN={args.milan}", f"-DLWSRP_SCALE={args.scale}",
+                              "-DCMAKE_C_FLAGS=" + (" ".join(END_STATION_DEFINES) if args.end_station == "ON" else "")])
     if rc:
         return 1
     build_command = ["cmake", "--build", str(build), "--parallel", "2"]
@@ -402,16 +443,18 @@ def main():
             or run("baseline-scenarios", scenario_command)[0]):
         return 1
     failures = 0
-    for label, name, old, new, check in CASES:
-        if label in NEEDS_KEY and args.scale == "OFF":
-            print(f"SKIP {label}: the attribute key is built only with LWSRP_ATTR_KEY (run with --scale ON)")
-            continue
-        if label not in NEEDS_KEY and args.scale == "ON":
-            continue  # the default build's run holds every other reversal; some target code the scale build replaces
+    selected, skipped, results = [], [], {}
+    for case in CASES:
+        reason = selection(case[0], args.scale, args.end_station)
+        (skipped if reason else selected).append(case)
+        if reason:
+            print(f"SKIP {case[0]}: {reason}")
+    for label, name, old, new, check in selected:
         path = source / name
         original = path.read_text()
         if old not in original:
             print(f"FAIL {label}: mutation target missing")
+            results[label] = "missing"
             failures += 1
             continue
         path.write_text(original.replace(old, new))
@@ -419,6 +462,7 @@ def main():
             if check == "unit":
                 if run(label + "-build", build_command)[0]:
                     print(f"FAIL {label}: build failure is not a killed behavioral reversal")
+                    results[label] = "build"
                     failures += 1
                     continue
                 rc, output = run(label, check_command)
@@ -431,6 +475,7 @@ def main():
             elif check == "scenario":
                 if run(label + "-build", build_command)[0]:
                     print(f"FAIL {label}: build failure is not a killed behavioral reversal")
+                    results[label] = "build"
                     failures += 1
                     continue
                 rc, output = run(label, scenario_command)
@@ -448,13 +493,26 @@ def main():
                 rc, output = run(label, [sys.executable, "tests/check_freestanding.py"])
                 killed = rc != 0 and "hosted headers" in output
             print(f"{'KILLED' if killed else 'SURVIVED'} {label}", flush=True)
+            results[label] = "killed" if killed else "survived"
             failures += not killed
         finally:
             path.write_text(original)
     if (run("restored-build", build_command)[0] or run("restored-check", check_command)[0]
             or run("restored-scenarios", scenario_command)[0]):
         failures += 1
-    print(f"Reversals: {len(CASES)}; failures: {failures}")
+    # Every selected case reports once, so a case that runs nothing cannot pass for coverage.
+    unreported = [case[0] for case in selected if case[0] not in results]
+    for label in unreported:
+        print(f"FAIL {label}: selected but reported no result")
+    failures += len(unreported)
+    counts = {kind: sum(1 for r in results.values() if r == kind) for kind in ("killed", "survived", "build", "missing")}
+    print(f"Reversals listed: {len(CASES)}; selected: {len(selected)}; run: {len(results)}; "
+          f"killed: {counts['killed']}; survived: {counts['survived']}; build failures: {counts['build']}; "
+          f"targets missing: {counts['missing']}; skipped: {len(skipped)}; failures: {failures}")
+    (work / "summary.json").write_text(json.dumps({
+        "milan": args.milan, "scale": args.scale, "end_station": args.end_station, "listed": len(CASES),
+        "selected": [c[0] for c in selected], "skipped": [c[0] for c in skipped], "results": results,
+        "failures": failures}, indent=2) + "\n")
     return int(failures != 0)
 
 
