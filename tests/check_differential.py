@@ -197,6 +197,11 @@ MUTANTS = [
      "if (row->ns != MRP_APPL_STATE_COUNT || row->tx", END_STATION),
     ("lean-tx-word-skipped", "mad", MAD, ">> (type % 32u)) == 0u) {\n            type |= 31u;",
      ">> (type % 32u)) != 0u) {\n            type |= 31u;", END_STATION),
+    # The first word with no open type left must not end the scan: the test application's types span four words.
+    ("lean-tx-word-ends-scan", "mad", MAD, "            type |= 31u;\n            continue;",
+     "            type = 255u;\n            continue;", END_STATION),
+    ("lean-tx-word-ends-scan-alone", "mad", MAD, "            type |= 31u;\n            continue;",
+     "            type = 255u;\n            continue;", LEAN_TX),
 ]
 
 #: The lean validation pass under MemorySanitizer (--sanitize-memory): no decoder may read the value it fills, and

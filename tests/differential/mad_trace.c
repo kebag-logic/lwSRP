@@ -14,7 +14,9 @@
  * is one octet of a two-octet value, so different instances encode the same
  * FirstValue and a Message's order of equal values shows, whose key
  * collides across values, and whose encoder refuses one value, so a build
- * fails partway; the transmit buffer's digest follows every opportunity. Values come from small sets, so lookups,
+ * fails partway; the transmit buffer's digest follows every opportunity. Its
+ * AttributeTypes are spread over the 256: a word boundary of the assembler's
+ * type set (31, 32), empty words between, and 255. Values come from small sets, so lookups,
  * replacements and keys meet often. Allocation and send refusals are
  * planted by the seed.
  *
@@ -178,14 +180,27 @@ static int tie_decode(uint8_t type, uint32_t offset, const uint8_t *buf, size_t 
     return 1;
 }
 
+/* The test application's AttributeTypes: 2 and 129 carry a subtype. */
+static const uint8_t tie_types[] = {1u, 2u, 31u, 32u, 129u, 255u};
+
+static bool tie_type(uint8_t type)
+{
+    for (size_t k = 0; k < sizeof(tie_types); ++k) {
+        if (tie_types[k] == type) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static uint8_t tie_len(uint8_t type)
 {
-    return type == 1u || type == 2u ? 1u : 0u;
+    return tie_type(type) ? 1u : 0u;
 }
 
 static uint8_t tie_mem_len(uint8_t type)
 {
-    return type == 1u || type == 2u ? 2u : 0u;
+    return tie_type(type) ? 2u : 0u;
 }
 
 static int tie_cmp(uint8_t type, const void *a, const void *b)
@@ -196,7 +211,7 @@ static int tie_cmp(uint8_t type, const void *a, const void *b)
 
 static bool tie_subtype(uint8_t type)
 {
-    return type == 2u;
+    return type == 2u || type == 129u;
 }
 
 static bool tie_replaces(uint8_t old_type, const void *old_value, uint8_t new_type, const void *new_value)
@@ -427,7 +442,7 @@ static size_t plain_message(uint8_t *out)
             value[0] = 0x01u; value[1] = 0x00u; value[2] = 0x5eu; value[5] = (uint8_t)draw(12);
         }
     } else {
-        type = (uint8_t)(1u + draw(2));
+        type = tie_types[draw(sizeof(tie_types))];
         value[0] = (uint8_t)draw(24);
     }
     const uint8_t alen = app->ops->attr_len(type);
@@ -507,7 +522,7 @@ static void local_value(uint8_t *type, uint8_t *value)
         }
         break;
     default:
-        *type = (uint8_t)(1u + draw(2));
+        *type = tie_types[draw(sizeof(tie_types))];
         value[0] = (uint8_t)draw(24);
         value[1] = (uint8_t)draw(3);
         break;
