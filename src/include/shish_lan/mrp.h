@@ -29,6 +29,10 @@
  * tested before attr_cmp and attr_replaces; 0 compares every instance. The
  * lookup buckets (LWSRP_ATTR_BUCKETS) hash the key, so they set it, and so
  * does LWSRP_SCALE. Build every translation unit with the same value.
+ * Reason: a lookup skips the callbacks of values with another key, with the
+ * same instance found (IEEE 802.1Q-2018, clause 10.7: one state machine pair
+ * per attribute value). Issues: kebag-logic/milan-fpga#872 and #977, part of
+ * #665.
  */
 #ifndef LWSRP_ATTR_KEY
 #if defined(LWSRP_ATTR_BUCKETS) && (LWSRP_ATTR_BUCKETS + 0)

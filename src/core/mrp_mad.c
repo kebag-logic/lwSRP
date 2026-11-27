@@ -24,6 +24,9 @@
  * 256, or 0 for a scan of the participant's list. A bucket holds its
  * instances in the list's order, so every lookup finds the list's first
  * match either way. Build every translation unit with the same value.
+ * Reason: a lookup's work does not grow with the participant's attributes.
+ * Requirement: one state machine pair per attribute value (IEEE 802.1Q-2018,
+ * clause 10.7). Issues: kebag-logic/milan-fpga#872 and #977, part of #665.
  */
 #ifndef LWSRP_ATTR_BUCKETS
 #define LWSRP_ATTR_BUCKETS 0u
@@ -39,6 +42,9 @@ _Static_assert((LWSRP_ATTR_BUCKETS & (LWSRP_ATTR_BUCKETS - 1u)) == 0u && LWSRP_A
  * 1 builds each Message by merging runs of its encoded vectors in FirstValue
  * order, 0 by swapping each vector backwards past every greater one. Both
  * place equal FirstValues in the list's order.
+ * Reason: a Message's build does not grow with the square of its vectors.
+ * Requirement: Message and vector encoding (IEEE 802.1Q-2018, clause 10.8.2).
+ * Issues: kebag-logic/milan-fpga#872 and #977, part of #665.
  */
 #ifndef LWSRP_TX_MERGE
 #define LWSRP_TX_MERGE 0
@@ -54,6 +60,9 @@ _Static_assert((LWSRP_ATTR_BUCKETS & (LWSRP_ATTR_BUCKETS - 1u)) == 0u && LWSRP_A
  * where the reservation's allocation would have been refused the event is
  * applied instead of refusing the receive (doc/integrator.md). 0 reserves and
  * calls the policy at every port count.
+ * Reason: an end station's indication allocates and frees nothing.
+ * Requirement: MAP propagation (IEEE 802.1Q-2018, clause 10.3).
+ * Issue: kebag-logic/milan-fpga#977, part of #665.
  */
 #ifndef LWSRP_ONE_PORT_MAP
 #define LWSRP_ONE_PORT_MAP 0
@@ -67,6 +76,9 @@ _Static_assert((LWSRP_ATTR_BUCKETS & (LWSRP_ATTR_BUCKETS - 1u)) == 0u && LWSRP_A
  * so 1 delivers it only where rLv! left the Registrar elsewhere: every
  * output, indication, observation and their order are the same. 0 delivers
  * it always.
+ * Reason: a peer may replace every Talker at each transmit opportunity.
+ * Requirements: IEEE 802.1Q-2018, clause 35.2.6 and Tables 10-3 and 10-4;
+ * Milan v1.2, clause 4.2.7.2.2. Issue: kebag-logic/milan-fpga#977, part of #665.
  */
 #ifndef LWSRP_RAPID_REPLACE
 #define LWSRP_RAPID_REPLACE 0
@@ -79,6 +91,10 @@ _Static_assert((LWSRP_ATTR_BUCKETS & (LWSRP_ATTR_BUCKETS - 1u)) == 0u && LWSRP_A
  * rewrite, the only octets a refresh writes (get_or_create_attr); with
  * msrp.c's fixed-size fields copied with no call of memcpy. The same
  * states, values and outputs; 0 copies the row and the whole value always.
+ * Reason: a copy costs a cacheless core about one fetch an octet.
+ * Requirements: the Registrar (IEEE 802.1Q-2018, clause 10.7.8) and MSRP's
+ * attribute encodings (clause 35.2.2). Issue: kebag-logic/milan-fpga#977,
+ * part of #665.
  */
 #ifndef LWSRP_LEAN_COPY
 #define LWSRP_LEAN_COPY 0
@@ -93,6 +109,9 @@ _Static_assert((LWSRP_ATTR_BUCKETS & (LWSRP_ATTR_BUCKETS - 1u)) == 0u && LWSRP_A
  * the AttributeTypes of an open set's word that holds none from there on,
  * where 0 tests each of the 256: the same Messages in the same order. 0
  * delivers tx! to every one.
+ * Reason: a send's work does not grow with the attributes it leaves as they are.
+ * Requirements: IEEE 802.1Q-2018, Tables 10-3 and 10-4 and clause 10.8.2.
+ * Issue: kebag-logic/milan-fpga#977, part of #665.
  */
 #ifndef LWSRP_LEAN_TX
 #define LWSRP_LEAN_TX 0

@@ -23,7 +23,11 @@
  * on_attr and so delivers no value: decode_attr's result, the only thing
  * that pass reads, depends on the wire octets alone. The delivering pass
  * still zeroes it, as a value's padding reaches attr_cmp. Every output,
- * callback and callback order is the same. 0 zeroes it in both passes.
+ * indication and their order are the same, as decode_attr's result may not
+ * depend on the value's prior content (mrp.h). 0 zeroes it in both passes.
+ * Reason: validation clears no buffer it does not deliver.
+ * Requirement: whole-PDU validation (IEEE 802.1Q-2018, clause 10.8.3).
+ * Issue: kebag-logic/milan-fpga#977, part of #665.
  */
 #ifndef LWSRP_LEAN_VALIDATE
 #define LWSRP_LEAN_VALIDATE 0

@@ -42,6 +42,8 @@
  * address and a FailureInformation, with one store an octet where 0 calls
  * memcpy: the same octets, with no call, which on a fetch-bound core costs
  * more than the copy (mrp_mad.c copies no more than it uses under it too).
+ * Requirement: MSRP's attribute encodings (IEEE 802.1Q-2018, clause 35.2.2).
+ * Issue: kebag-logic/milan-fpga#977, part of #665.
  */
 #ifndef LWSRP_LEAN_COPY
 #define LWSRP_LEAN_COPY 0
