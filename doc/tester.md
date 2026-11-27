@@ -26,7 +26,7 @@ behave --dry-run
 | Check | Current result | Meaning |
 | --- | --- | --- |
 | Configure and build | Exit 0. | The host library and required unit target compile. |
-| Default unit target | Exit 0; 108 tests and 27199 assertions. | The [runner](../tests/unit/main.c) executes ten suites. |
+| Default unit target | Exit 0; 112 tests and 27348 assertions. | The [runner](../tests/unit/main.c) executes eleven suites. |
 | Scenario execution | Exit 0; three scenarios and ten steps pass. | The [setup hook](../tests/features/environment.py) loads the [test bindings](../tests/features/switch_bindings.c) and reads the simulated port flags. |
 | Scenario dry run | Validates step matching only. | It does not execute setup or verify behavior. |
 
@@ -51,6 +51,14 @@ It runs in a build with LWSRP_ATTR_KEY, such as LWSRP_SCALE's, and is not regist
 Both take 4000 random steps of reception, declarations, withdrawals, ticks, and transmissions.
 Their indications, attribute states, and transmitted PDUs must match after every step.
 Its values often share a key octet across different identities.
+The [end-station suite](../tests/unit/end_station_test.c) pins the end-station switches' rules for [milan-fpga issue 977](https://github.com/kebag-logic/milan-fpga/issues/977).
+Every build registers it, and each expectation follows the build's switches.
+At one port, a refused reservation refuses the receive in the default build, with no indication.
+With LWSRP_ONE_PORT_MAP the same receive applies its event, and no policy is called.
+At two ports every build refuses, retries, and calls the policy for Join and Leave alike.
+A test application declares AttributeTypes 1, 31, 32, 64, 129, 224 and 255 in five combinations.
+Each must send one Message per type, in type order, across word boundaries, empty words and type 255.
+The boundary suite's recovery test runs at one and two ports, and its policy count follows the one-port switch.
 
 The [build definition](../CMakeLists.txt) requires the unit framework's headers and library for host configuration.
 It rejects an empty suite through an output-based failure rule.
@@ -72,7 +80,7 @@ ctest --test-dir "$LWSRP_MILAN_BUILD" --output-on-failure
 SHLAN_LIBRARY="$LWSRP_MILAN_BUILD/libshlan.so" behave
 ~~~
 
-The enabled build passes 108 tests with 27187 assertions.
+The enabled build passes 112 tests with 27336 assertions.
 It also passes three scenarios and ten steps.
 The [profile suite](../tests/unit/milan_test.c) checks both application options in each build.
 It checks the actual constructor against the build selection.
@@ -169,6 +177,7 @@ It is built with each end-station switch alone: lean validation, one-port MAP wo
 It is also built with all five on the scale options.
 A one-port build's trace at one port is compared without its policy calls that name no port and without its allocation counts.
 Its seeds that refuse allocations at one port are counted and not compared: there the base refuses receives that build applies, the [one-port difference](integrator.md#one-port-propagation).
+The [end-station suite](../tests/unit/end_station_test.c) tests that difference directly, in both directions.
 Then each planted defect in the check's list is applied to a copy of the sources, built with the scale options or its own.
 Some seed's trace must then differ from the base's, or the defect counts as surviving.
 A run that does not end counts as differing.
@@ -197,7 +206,7 @@ cmake --build "$SCALE_BUILD" --parallel 2
 ctest --test-dir "$SCALE_BUILD" --output-on-failure
 ~~~
 
-That build also registers the key suite: 110 tests with 27227 assertions, and 27215 with the Milan setting.
+That build also registers the key suite: 114 tests with 27376 assertions, and 27364 with the Milan setting.
 
 The [timer driver](../tests/differential/timer_trace.c) registers, arms, disarms, removes, and ticks 48 timers at random.
 Its callbacks arm, disarm, and register other timers and themselves, as the MRP callbacks do.
@@ -205,13 +214,32 @@ The [MRP driver](../tests/differential/mad_trace.c) runs the stream, VLAN, or MA
 It receives random PDUs, declares and withdraws, transmits at seven capacities, ticks, reclaims, and changes roles.
 Its seeds refuse some allocations and sends, and its test application refuses to encode one value.
 The test application encodes one octet of a two-octet value, so equal FirstValues share a Message.
+Its AttributeTypes are 1, 2, 31, 32, 129 and 255: a word boundary of the assembler's type set, empty words between, and the last type.
 Its key collides across values, and each received value can replace up to three registrations.
 After each step the trace records a digest of every attribute's states and value, and of the transmit buffer.
 Each driver runs 200 seeds, 20000 steps each for timers and 3000 for MRP.
 Every build gives identical traces in both profiles, the one-port builds as compared above: 177 of 200 seeds identical and 23 refusal seeds counted.
-All 36 planted defects are detected: ten in the timers, five in the buckets, eleven in the vector order, and twelve in the end-station switches.
-The end-station ones are two in the one-port switch, one in the rapid replacement, four in the lean copies and three in the lean tx!.
-The sanitized run reports no seed, and its planted decoder is reported.
+All 38 planted defects are detected: ten in the timers, five in the buckets, eleven in the vector order, and twelve in the end-station switches.
+The end-station ones are two in the one-port switch, one in the rapid replacement, four in the lean copies and five in the lean tx!.
+Two lean tx! defects end the type scan at the first empty word: one with LWSRP_LEAN_TX alone, one with the whole set.
+The sanitized run reports no seed, and its planted decoder, counted apart from the 38, is reported.
+
+## Test the end-station switches
+
+The end-station switches are defined directly, so this build passes them as compiler flags.
+It matches the differential's end-station build: the scale options and all five switches.
+Set END_STATION_BUILD to a new directory outside the checkout.
+
+~~~sh
+cmake -S . -B "$END_STATION_BUILD" -DCMAKE_BUILD_TYPE=Debug -DLWSRP_SCALE=ON -DCMAKE_C_FLAGS="-DLWSRP_ONE_PORT_MAP=1 -DLWSRP_LEAN_VALIDATE=1 -DLWSRP_RAPID_REPLACE=1 -DLWSRP_LEAN_COPY=1 -DLWSRP_LEAN_TX=1"
+cmake --build "$END_STATION_BUILD" --parallel 2
+ctest --test-dir "$END_STATION_BUILD" --output-on-failure
+~~~
+
+It passes 114 tests with 27376 assertions, and 27364 with the Milan setting.
+Without the scale options, and with each switch alone, it passes 112 tests with 27348 assertions, and 27336 with the Milan setting.
+The [end-station suite](../tests/unit/end_station_test.c) there holds the one-port difference that the differential excuses.
+The [planted reversals](#planted-reversals) run with --end-station ON against this build.
 
 ## Run the existing codec tests
 
@@ -312,7 +340,10 @@ It restores each source before continuing and finishes with a passing build and 
 A behavioral mutation that only breaks compilation does not count as detected.
 Every command's return code and output are saved in scratch.
 Set REVERSAL_SCRATCH, MILAN_REVERSAL_SCRATCH, KEY_REVERSAL_SCRATCH, MILAN_KEY_REVERSAL_SCRATCH, and EMBEDDED_SCRATCH to separate new directories outside the checkout.
-The attribute key's reversals run only with --scale ON, which builds LWSRP_SCALE; that run holds no other case.
+Also set END_STATION_REVERSAL_SCRATCH and MILAN_END_STATION_REVERSAL_SCRATCH that way.
+The attribute key's reversals run only with --scale ON, which builds LWSRP_SCALE.
+The end-station switches' reversals run only with --end-station ON, which defines all five switches.
+Those runs hold no other case; the default run holds the rest.
 
 ~~~sh
 python3 tests/check_embedded.py --work-dir "$EMBEDDED_SCRATCH"
@@ -322,6 +353,8 @@ python3 tests/check_reversals.py --work-dir "$REVERSAL_SCRATCH" --prefix "$CGREE
 python3 tests/check_reversals.py --work-dir "$MILAN_REVERSAL_SCRATCH" --prefix "$CGREEN_PREFIX" --milan ON
 python3 tests/check_reversals.py --work-dir "$KEY_REVERSAL_SCRATCH" --prefix "$CGREEN_PREFIX" --scale ON
 python3 tests/check_reversals.py --work-dir "$MILAN_KEY_REVERSAL_SCRATCH" --prefix "$CGREEN_PREFIX" --milan ON --scale ON
+python3 tests/check_reversals.py --work-dir "$END_STATION_REVERSAL_SCRATCH" --prefix "$CGREEN_PREFIX" --scale ON --end-station ON
+python3 tests/check_reversals.py --work-dir "$MILAN_END_STATION_REVERSAL_SCRATCH" --prefix "$CGREEN_PREFIX" --milan ON --scale ON --end-station ON
 ~~~
 
 The [freestanding check](../tests/check_freestanding.py) uses the configured C compiler and rejects hosted allocation, error, and print headers.
@@ -340,7 +373,15 @@ Seven scenario reversals miswire the [test bindings](../tests/features/switch_bi
 They swap enable and disable, disable the next port, skip connection, and swap connection with disconnection.
 Each must fail exactly its named [scenarios](../tests/features/switch.feature) with the expected assertion words.
 The runner's interpreter must import [behave](https://behave.readthedocs.io/en/stable/), because it also runs the scenarios before and after the plants.
-Both profiles run all 110 reversals, and with --scale ON the attribute key's four.
+The runner lists 118 reversals.
+The default run of each profile selects 110 and skips eight: the attribute key's four and the end-station switches' four.
+A --scale ON run selects the key's four, and --end-station ON adds the switches' four.
+Each run prints a SKIP line, with its reason, for every case it does not select.
+Its summary counts listed, selected, run, killed, survived and skipped cases.
+A selected case that reports no result fails the run.
+The end-station reversals keep the default build's one-port refusal, turn the one-port switch off, and call the policy at one port.
+The fourth ends the type scan at the first empty word.
+Each must fail its named [end-station tests](../tests/unit/end_station_test.c).
 They also pin propagation order, recovery indications, extension handling, range errors, and all reported LeaveAll boundaries.
 Each added behavioral reversal must fail its named regression after successful compilation.
 The [embedded check](../tests/check_embedded.py) exercises the actual module source list with a host compiler in both profiles.

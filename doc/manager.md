@@ -53,8 +53,8 @@ flowchart TD
 ~~~
 
 The [host build](../CMakeLists.txt) succeeds.
-Its default [unit runner](../tests/unit/main.c) passes 108 tests with 27199 assertions.
-The enabled [Milan build](tester.md#test-both-registrar-profiles) passes 108 tests with 27187 assertions.
+Its default [unit runner](../tests/unit/main.c) passes 112 tests with 27348 assertions.
+The enabled [Milan build](tester.md#test-both-registrar-profiles) passes 112 tests with 27336 assertions.
 The [scenario harness](../tests/features/environment.py) passes three scenarios and ten steps through [test bindings](../tests/features/switch_bindings.c).
 Each [scenario step](../tests/features/steps/switch_steps.py) checks the simulated port flags instead of repeating an operation.
 Seven [planted binding faults](tester.md#planted-reversals) from [issue #4](https://github.com/kebag-logic/lwSRP/issues/4) each fail named scenarios.
