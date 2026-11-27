@@ -169,7 +169,7 @@ CASES = [
     ("embedded-switch-source", "CMakeLists.txt", "      src/core/switch.c\n", "", "embedded"),
     ('changed-in-only', 'src/core/mrp_mad.c', 'previous->reg != MRP_REG_STATE_MT &&', 'previous->reg == MRP_REG_STATE_IN &&', 'unit'),
     ('stream-list-boundary', 'src/core/mrp_pdu.c', 'if (unknown && msrp) {', 'if (false && unknown && msrp) {', 'unit'),
-    ('changed-value-rollback', 'src/core/mrp_mad.c', 'memcpy(ai->attr_val, previous_value, kept);', '/* Plant: retain changed source value after failed reservation. */', 'unit'),
+    ('changed-value-rollback', 'src/core/mrp_mad.c', 'memcpy(ai->attr_val, previous_value, RX_KEPT);', '/* Plant: retain changed source value after failed reservation. */', 'unit'),
     ('registrar-rollback', 'src/core/mrp_mad.c', '        ai->reg = previous;', '        (void)previous;', 'unit'),
     ('applicant-rollback', 'src/core/mrp_mad.c', '        ai->appl = appl_from;', '        (void)appl_from;', 'unit'),
     ('leave-timer-retry', 'src/core/mrp_mad.c', '            shlan_timer_arm(&ai->leave_timer, 1u);', '            /* Plant: no timer retry. */', 'unit'),

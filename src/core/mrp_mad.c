@@ -1201,11 +1201,13 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
 #if LWSRP_LEAN_COPY
     /* A restore rewrites only what the refresh may have written: the value's stored length. */
     const size_t kept = previous ? attr_store_len(rc->app->ops, attr_type) : 0u;
+#define RX_KEPT kept
 #else
-    const size_t kept = sizeof(previous_value);
+    /* The whole value, with no local, so the default object is main's at every optimisation level. */
+#define RX_KEPT sizeof(previous_value)
 #endif
     if (previous) {
-        memcpy(previous_value, previous->attr_val, kept);
+        memcpy(previous_value, previous->attr_val, RX_KEPT);
     }
     bool declares = attr_event == MRP_ATTR_EVENT_NEW || attr_event == MRP_ATTR_EVENT_JOININ ||
                     attr_event == MRP_ATTR_EVENT_JOINMT;
@@ -1245,7 +1247,7 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
                 }
                 if (r < 0) {
                     if (previous) {
-                        memcpy(ai->attr_val, previous_value, kept);
+                        memcpy(ai->attr_val, previous_value, RX_KEPT);
                     }
                     rc->error = r;
                     return;
@@ -1267,8 +1269,9 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
     }
     int r = deliver_event_changed(rc->app, rc->ps, ai, ev, rc->port_id, changed_in);
     if (r < 0 && previous) {
-        memcpy(ai->attr_val, previous_value, kept);
+        memcpy(ai->attr_val, previous_value, RX_KEPT);
     }
+#undef RX_KEPT
 }
 
 static void rx_on_leaveall(void *raw_ctx, uint8_t attr_type)
