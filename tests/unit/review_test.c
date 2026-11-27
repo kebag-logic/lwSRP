@@ -285,10 +285,16 @@ Ensure(Boundaries, queued_propagation_owns_values_and_survives_source_reclamatio
     assert_that(state(a, 1).appl, is_equal_to(MRP_APPL_STATE_VO));
     mrp_app_destroy(a);
 }
+/* LWSRP_ONE_PORT_MAP calls no policy at one port (doc/integrator.md, one-port propagation). */
+#ifndef LWSRP_ONE_PORT_MAP
+#define LWSRP_ONE_PORT_MAP 0
+#endif
 Ensure(Boundaries, registrar_recovery_stops_aging_without_duplicate_join_or_map)
 {
-    for (unsigned join = 1; join <= 3; join += 2) {
-        struct mrp_app *a = application(0, 1, false);
+    for (unsigned run = 0; run < 4; ++run) {
+        const unsigned join = run % 2u ? 3u : 1u, ports = run < 2u ? 1u : 2u;
+        const unsigned policy_calls = ports == 1u && LWSRP_ONE_PORT_MAP ? 0u : 1u;
+        struct mrp_app *a = application(0, ports, false);
         uint8_t pdu[] = {0,1,2,0,1,0,2,0,0,0,0,0};
         joins = maps = leaves = 0;
         assert_that(mrp_rx(a, 0, pdu, sizeof(pdu)), is_equal_to(0));
@@ -300,7 +306,7 @@ Ensure(Boundaries, registrar_recovery_stops_aging_without_duplicate_join_or_map)
         assert_that(state(a, 0).reg, is_equal_to(MRP_REG_STATE_IN));
         tick(60);
         assert_that(state(a, 0).reg, is_equal_to(MRP_REG_STATE_IN));
-        assert_that(joins, is_equal_to(1)); assert_that(maps, is_equal_to(1));
+        assert_that(joins, is_equal_to(1)); assert_that(maps, is_equal_to(policy_calls));
         assert_that(leaves, is_equal_to(0));
         mrp_app_destroy(a);
     }

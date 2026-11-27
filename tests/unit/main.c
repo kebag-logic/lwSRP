@@ -13,6 +13,7 @@ TestSuite *milan_suite(void);
 TestSuite *boundaries_suite(void);
 TestSuite *grouping_suite(void);
 TestSuite *own_leaveall_suite(void);
+TestSuite *end_station_suite(void);
 #if LWSRP_ATTR_KEY
 TestSuite *key_suite(void);
 #endif
@@ -30,6 +31,7 @@ int main(void)
     add_suite(suite, boundaries_suite());
     add_suite(suite, grouping_suite());
     add_suite(suite, own_leaveall_suite());
+    add_suite(suite, end_station_suite());
 #if LWSRP_ATTR_KEY
     add_suite(suite, key_suite());
 #endif
