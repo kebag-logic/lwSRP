@@ -199,8 +199,8 @@ struct mrp_app_ops {
     /*
      * Encode FirstValue into buf — §10.8.2.7.
      * Returns bytes written, or negative errno.
-     * The result and the octets written must depend on attr_type and
-     * attr_val alone: under LWSRP_TX_MERGE the MAD encodes a vector again
+     * The result and the octets written must depend on attr_type,
+     * attr_val and buf_len alone: under LWSRP_TX_MERGE the MAD encodes a vector again
      * at each place its sort moves it to, so one value may be encoded more
      * than once for a PDU (doc/integrator.md, application callback contract).
      */
@@ -210,7 +210,7 @@ struct mrp_app_ops {
     /*
      * Decode attribute value from buf given FirstValue + vector offset — §10.8.2.7.
      * Returns bytes consumed, or negative errno.
-     * The result must depend on attr_type, offset and the buf octets alone,
+     * The result must depend on attr_type, offset, buf_len and the buf octets alone,
      * never on attr_val_out's prior content: under LWSRP_LEAN_VALIDATE the
      * parser's validation pass passes an unzeroed attr_val_out and reads only
      * the result; the delivering pass zeroes it first in every build

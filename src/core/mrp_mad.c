@@ -24,7 +24,7 @@
  * 256, or 0 for a scan of the participant's list. A bucket holds its
  * instances in the list's order, so every lookup finds the list's first
  * match either way. Build every translation unit with the same value.
- * Reason: a lookup's work does not grow with the participant's attributes.
+ * Reason: a lookup visits its key bucket instead of the participant's whole list.
  * Requirement: one state machine pair per attribute value (IEEE 802.1Q-2018,
  * clause 10.7). Issues: kebag-logic/milan-fpga#872 and #977, part of #665.
  */
@@ -109,7 +109,7 @@ _Static_assert((LWSRP_ATTR_BUCKETS & (LWSRP_ATTR_BUCKETS - 1u)) == 0u && LWSRP_A
  * the AttributeTypes of an open set's word that holds none from there on,
  * where 0 tests each of the 256: the same Messages in the same order. 0
  * delivers tx! to every one.
- * Reason: a send's work does not grow with the attributes it leaves as they are.
+ * Reason: a send skips event delivery for Applicants whose tx! row changes nothing.
  * Requirements: IEEE 802.1Q-2018, Tables 10-3 and 10-4 and clause 10.8.2.
  * Issue: kebag-logic/milan-fpga#977, part of #665.
  */
@@ -1222,7 +1222,7 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
     const size_t kept = previous ? attr_store_len(rc->app->ops, attr_type) : 0u;
 #define RX_KEPT kept
 #else
-    /* The whole value, with no local, so the default object is main's at every optimisation level. */
+    /* The whole value, with no local: with LWSRP_LEAN_COPY at 0 the restore compiles as it did before the option (kebag-logic/milan-fpga#977). */
 #define RX_KEPT sizeof(previous_value)
 #endif
     if (previous) {

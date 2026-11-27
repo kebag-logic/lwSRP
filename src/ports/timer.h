@@ -32,7 +32,7 @@
  * A timer due further ahead waits whole turns of the wheel in its slot; the
  * tick that reaches the slot skips it. Both fire the same callbacks in the
  * same ticks and order. Build every translation unit with the same value.
- * Reason: a tick's work does not grow with the registered timers.
+ * Reason: a tick visits its wheel slot instead of every registered timer.
  * Requirements: the MRP timers and their values (IEEE 802.1Q-2018, clauses
  * 10.7.4 and 10.7.11). Issues: kebag-logic/milan-fpga#872 and #977, part of
  * #665.

@@ -118,11 +118,11 @@ Earlier received attributes may remain applied when a later allocation fails.
 
 Three options narrow what the MAD may assume of an application's [operations](../src/include/shish_lan/mrp.h).
 In-tree applications already meet each rule.
-Under [LWSRP_LEAN_VALIDATE](../src/core/mrp_pdu.c), decode_attr's result must depend on the wire octets, offset and type alone.
+Under [LWSRP_LEAN_VALIDATE](../src/core/mrp_pdu.c), decode_attr's result must depend on the wire octets, their length, offset and type alone.
 It must never depend on what its output buffer held before the call.
 The validation pass passes an unzeroed buffer; the delivering pass still zeroes it.
 Under [LWSRP_TX_MERGE](../src/core/mrp_mad.c), encode_attr may be called again for each vector the sort moves.
-Its output must depend on the type and value alone.
+Its output must depend on the type, value and buffer length alone.
 Under [LWSRP_ATTR_KEY](../src/include/shish_lan/mrp.h), attr_cmp and attr_replaces are called only for values sharing a key.
 With these options set, the host must not rely on a side effect of those callbacks or on their call counts.
 
