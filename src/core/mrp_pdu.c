@@ -18,6 +18,21 @@
 #include "shish_lan/mrp.h"
 #include "shish_lan/mrp_pdu.h"
 
+/*
+ * 1 leaves the decoded value unzeroed in the validation pass, which passes no
+ * on_attr and so delivers no value: decode_attr's result, the only thing
+ * that pass reads, depends on the wire octets alone. The delivering pass
+ * still zeroes it, as a value's padding reaches attr_cmp. Every output,
+ * indication and their order are the same, as decode_attr's result may not
+ * depend on the value's prior content (mrp.h). 0 zeroes it in both passes.
+ * Reason: validation clears no buffer it does not deliver.
+ * Requirement: whole-PDU validation (IEEE 802.1Q-2018, clause 10.8.3).
+ * Issue: kebag-logic/milan-fpga#977, part of #665.
+ */
+#ifndef LWSRP_LEAN_VALIDATE
+#define LWSRP_LEAN_VALIDATE 0
+#endif
+
 /* ------------------------------------------------------------------ */
 /* Helpers                                                              */
 /* ------------------------------------------------------------------ */
@@ -190,7 +205,15 @@ static int parse_pass(const uint8_t *pdu, size_t len,
             }
             for (unsigned k = 0; k < count; ++k) {
                 uint8_t e[3];
+#if LWSRP_LEAN_VALIDATE
+                /* The validation pass reads nothing decode_attr writes but its result. */
+                _Alignas(max_align_t) uint8_t value[64];
+                if (on_attr) {
+                    memset(value, 0, sizeof(value));
+                }
+#else
                 _Alignas(max_align_t) uint8_t value[64] = {0};
+#endif
                 mrp_three_unpack(ev[k / 3u], &e[0], &e[1], &e[2]);
                 int r = ops->decode_attr(type, k, fv, alen, value);
                 if (r < 0) {

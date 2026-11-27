@@ -24,6 +24,24 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/*
+ * 1 gives struct mrp_app_ops its attr_key and the MAD each instance's key,
+ * tested before attr_cmp and attr_replaces; 0 compares every instance. The
+ * lookup buckets (LWSRP_ATTR_BUCKETS) hash the key, so they set it, and so
+ * does LWSRP_SCALE. Build every translation unit with the same value.
+ * Reason: a lookup skips the callbacks of values with another key, with the
+ * same instance found (IEEE 802.1Q-2018, clause 10.7: one state machine pair
+ * per attribute value). Issues: kebag-logic/milan-fpga#872 and #977, part of
+ * #665.
+ */
+#ifndef LWSRP_ATTR_KEY
+#if defined(LWSRP_ATTR_BUCKETS) && (LWSRP_ATTR_BUCKETS + 0)
+#define LWSRP_ATTR_KEY 1
+#else
+#define LWSRP_ATTR_KEY 0
+#endif
+#endif
+
 /* ------------------------------------------------------------------ */
 /* §10.7.7 Applicant state machine states — Table 10-3                 */
 /* ------------------------------------------------------------------ */
@@ -181,6 +199,10 @@ struct mrp_app_ops {
     /*
      * Encode FirstValue into buf — §10.8.2.7.
      * Returns bytes written, or negative errno.
+     * The result and the octets written must depend on attr_type,
+     * attr_val and buf_len alone: under LWSRP_TX_MERGE the MAD encodes a vector again
+     * at each place its sort moves it to, so one value may be encoded more
+     * than once for a PDU (doc/integrator.md, application callback contract).
      */
     int     (*encode_attr)(uint8_t attr_type, const void *attr_val,
                            uint8_t *buf, size_t buf_len);
@@ -188,6 +210,11 @@ struct mrp_app_ops {
     /*
      * Decode attribute value from buf given FirstValue + vector offset — §10.8.2.7.
      * Returns bytes consumed, or negative errno.
+     * The result must depend on attr_type, offset, buf_len and the buf octets alone,
+     * never on attr_val_out's prior content: under LWSRP_LEAN_VALIDATE the
+     * parser's validation pass passes an unzeroed attr_val_out and reads only
+     * the result; the delivering pass zeroes it first in every build
+     * (doc/integrator.md, application callback contract).
      */
     int     (*decode_attr)(uint8_t attr_type, uint32_t offset,
                            const uint8_t *buf, size_t buf_len,
@@ -239,6 +266,15 @@ struct mrp_app_ops {
      * Other events and the existing LV deadline are unchanged.
      */
     bool milan_rapid_leave;
+#if LWSRP_ATTR_KEY
+    /* Optional (may be NULL): one octet of the value octets attr_cmp
+     * compares. Values attr_cmp holds equal, and pairs attr_replaces
+     * accepts, must share it. The MAD compares it before calling attr_cmp
+     * or attr_replaces, so a lookup passes other values without a call.
+     * NULL gives every value the same key.
+     */
+    uint8_t (*attr_key)(uint8_t attr_type, const void *value);
+#endif
 };
 
 /* Opaque MRP application handle */

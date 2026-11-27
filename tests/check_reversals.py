@@ -64,6 +64,14 @@ CASES = [
      "*ai   = get_or_create_attr(app, ps, port_id, attr_type, attr_val);", "unit"),
     ("talker-replacement", MAD, "rc->app->ops->attr_replaces) {",
      "rc->app->ops->attr_replaces && false) {", "unit"),
+    ("attr-key-unset", MAD, "    a->key       = key_of(ops, type, val);\n",
+     "    a->key       = 0u;\n", "unit"),
+    ("attr-key-lookup-inverted", MAD, "if (a->key == key && a->attr_type == type",
+     "if (a->key != key && a->attr_type == type", "unit"),
+    ("attr-key-replacement-inverted", MAD, "old->key == ai->key &&",
+     "old->key != ai->key &&", "unit"),
+    ("msrp-key-outside-compare", MSRP, "return v[sizeof(struct msrp_stream_id) - 1u];",
+     "return v[sizeof(struct msrp_stream_id)];", "unit"),
     ("listener-redeclaration", MSRP, "MSRP_ATTR_TYPE_LISTENER, val, true);",
      "MSRP_ATTR_TYPE_LISTENER, val, false);", "unit"),
     ("domain-member-order", "src/include/shish_lan/msrp.h", "struct msrp_ctx {",
@@ -161,7 +169,7 @@ CASES = [
     ("embedded-switch-source", "CMakeLists.txt", "      src/core/switch.c\n", "", "embedded"),
     ('changed-in-only', 'src/core/mrp_mad.c', 'previous->reg != MRP_REG_STATE_MT &&', 'previous->reg == MRP_REG_STATE_IN &&', 'unit'),
     ('stream-list-boundary', 'src/core/mrp_pdu.c', 'if (unknown && msrp) {', 'if (false && unknown && msrp) {', 'unit'),
-    ('changed-value-rollback', 'src/core/mrp_mad.c', 'memcpy(ai->attr_val, previous_value, sizeof(previous_value));', '/* Plant: retain changed source value after failed reservation. */', 'unit'),
+    ('changed-value-rollback', 'src/core/mrp_mad.c', 'memcpy(ai->attr_val, previous_value, RX_KEPT);', '/* Plant: retain changed source value after failed reservation. */', 'unit'),
     ('registrar-rollback', 'src/core/mrp_mad.c', '        ai->reg = previous;', '        (void)previous;', 'unit'),
     ('applicant-rollback', 'src/core/mrp_mad.c', '        ai->appl = appl_from;', '        (void)appl_from;', 'unit'),
     ('leave-timer-retry', 'src/core/mrp_mad.c', '            shlan_timer_arm(&ai->leave_timer, 1u);', '            /* Plant: no timer retry. */', 'unit'),
@@ -173,7 +181,7 @@ CASES = [
     ('zero-attribute-length', 'src/core/mrp_pdu.c', '|| !alen ||', '||', 'unit'),
     ('changed-value-propagation', 'src/core/mrp_mad.c', '    if (indicated) {\n        map_publish', '    if (indicated && !changed) {\n        map_publish', 'unit'),
     ('replay-error-retention', 'src/core/mrp_mad.c', 'return; /* Retain work if destination allocation is exhausted. */', '/* Plant: discard failed destination work. */', 'unit'),
-    ('callback-order', 'src/core/mrp_mad.c', '    switch (e->ind) {\n    case REG_IND_NEW:\n        app->ops->join_ind(app, port_id, ai->attr_type, ai->attr_val, true);\n        break;\n    case REG_IND_JOIN:\n        app->ops->join_ind(app, port_id, ai->attr_type, ai->attr_val, false);\n        break;\n    case REG_IND_LV:\n        app->ops->leave_ind(app, port_id, ai->attr_type, ind_value);\n        break;\n    default:\n        break;\n    }\n    if (indicated) {\n        map_publish(app, port_id, ai->attr_type, ind_value, join, reserved);\n        map_replay_all(app);\n    }\n', '    if (indicated) {\n        map_publish(app, port_id, ai->attr_type, ind_value, join, reserved);\n    }\n    switch (e->ind) {\n    case REG_IND_NEW:\n        app->ops->join_ind(app, port_id, ai->attr_type, ai->attr_val, true);\n        break;\n    case REG_IND_JOIN:\n        app->ops->join_ind(app, port_id, ai->attr_type, ai->attr_val, false);\n        break;\n    case REG_IND_LV:\n        app->ops->leave_ind(app, port_id, ai->attr_type, ind_value);\n        break;\n    default:\n        break;\n    }\n    if (indicated) {\n        map_replay_all(app);\n    }\n', 'unit'),
+    ('callback-order', 'src/core/mrp_mad.c', '    switch (e->ind) {\n    case REG_IND_NEW:\n        app->ops->join_ind(app, port_id, ai->attr_type, ai->attr_val, true);\n        break;\n    case REG_IND_JOIN:\n        app->ops->join_ind(app, port_id, ai->attr_type, ai->attr_val, false);\n        break;\n    case REG_IND_LV:\n        app->ops->leave_ind(app, port_id, ai->attr_type, ind_value);\n        break;\n    default:\n        break;\n    }\n#if LWSRP_ONE_PORT_MAP\n    /* One port: nothing was reserved, nothing is queued, the policy names no port. */\n    indicated = indicated && priv_of(app)->n_ports > 1u;\n#endif\n    if (indicated) {\n        map_publish(app, port_id, ai->attr_type, ind_value, join, reserved);\n        map_replay_all(app);\n    }\n', '#if LWSRP_ONE_PORT_MAP\n    /* One port: nothing was reserved, nothing is queued, the policy names no port. */\n    indicated = indicated && priv_of(app)->n_ports > 1u;\n#endif\n    if (indicated) {\n        map_publish(app, port_id, ai->attr_type, ind_value, join, reserved);\n    }\n    switch (e->ind) {\n    case REG_IND_NEW:\n        app->ops->join_ind(app, port_id, ai->attr_type, ai->attr_val, true);\n        break;\n    case REG_IND_JOIN:\n        app->ops->join_ind(app, port_id, ai->attr_type, ai->attr_val, false);\n        break;\n    case REG_IND_LV:\n        app->ops->leave_ind(app, port_id, ai->attr_type, ind_value);\n        break;\n    default:\n        break;\n    }\n    if (indicated) {\n        map_replay_all(app);\n    }\n', 'unit'),
     ('flush-retry', 'src/core/mrp_mad.c', '        if (ev == MRP_EVENT_FLUSH) {\n            /* The topology API cannot report refusal. Retain its withdrawal. */\n            if (!ai->flush_pending) {\n                memcpy(ai->flush_value, ai->attr_val, attr_store_len(app->ops, ai->attr_type));\n            }\n            ai->flush_pending = true;\n            ai->reg = MRP_REG_STATE_LV;\n            shlan_timer_arm(&ai->leave_timer, 1u);\n        }\n', '', 'unit'),
     ('replacement-order', 'src/core/mrp_mad.c', '                if (r < 0) {\n                    if (previous) {', '                if (false && r < 0) {\n                    if (previous) {', 'unit'),
     ('receive-stop', 'src/core/mrp_mad.c', 'if (rc->error || priv->map_error) {', 'if (rc->error) {', 'unit'),
@@ -184,7 +192,7 @@ CASES = [
     ('flush-deadline', 'src/core/mrp_mad.c', 'ai->reg = MRP_REG_STATE_LV;\n            shlan_timer_arm(&ai->leave_timer, 1u);', 'ai->reg = MRP_REG_STATE_LV;\n            shlan_timer_arm(&ai->leave_timer, 2u);', 'unit'),
     ('flush-observer', 'src/core/mrp_mad.c', '        observe(app, ai, ev, port_id, appl_from, reg_from);\n        return r;', '        return r;', 'unit'),
     ('replacement-lv', 'src/core/mrp_mad.c', 'if (old != ai && old->reg != MRP_REG_STATE_MT &&', 'if (old != ai && old->reg == MRP_REG_STATE_IN &&', 'unit'),
-    ('replacement-leave-timer', 'src/core/mrp_mad.c', '                if (r >= 0) {\n                    r = deliver_event_changed(rc->app, rc->ps, old,\n                                              MRP_EVENT_LEAVETIMER, rc->port_id, false);\n                }\n', '', 'unit'),
+    ('replacement-leave-timer', 'src/core/mrp_mad.c', '#if LWSRP_RAPID_REPLACE\n                if (r >= 0 && old->reg != MRP_REG_STATE_MT) {\n#else\n                if (r >= 0) {\n#endif\n                    r = deliver_event_changed(rc->app, rc->ps, old,\n                                              MRP_EVENT_LEAVETIMER, rc->port_id, false);\n                }\n', '', 'unit'),
     ('receive-instance-stop', 'src/core/mrp_mad.c', 'if (rc->error || priv->map_error) {', 'if (priv->map_error) {', 'unit'),
     ('flush-completion', MAD, '        ai->flush_pending = false;', '        /* Plant: retain completed withdrawal. */', 'unit'),
     ('flush-snapshot-bypass', 'src/core/mrp_mad.c', 'ai->flush_value : ai->attr_val;', 'ai->attr_val : ai->attr_val;', 'unit'),
@@ -220,6 +228,18 @@ CASES = [
      "    shlan_disconnect(sw);\n    return 0;", "scenario"),
     ("scenario-disconnect-dispatch", BINDINGS, "    shlan_disconnect(sw);",
      "    (void)shlan_connect(sw);", "scenario"),
+    # kebag-logic/milan-fpga#977: the end-station switches' documented rules, built only with END_STATION_DEFINES.
+    ("one-port-refusal-kept", MAD, "        return 0; /* No other port to propagate to (LWSRP_ONE_PORT_MAP). */",
+     "        struct mrp_map_work *probe = shlan_calloc(1, sizeof(*probe));\n"
+     "        if (!probe) {\n            priv_of(app)->map_error = -SHLAN_ERROR_NO_MEMORY;\n"
+     "            return -SHLAN_ERROR_NO_MEMORY;\n        }\n        shlan_free(probe);\n"
+     "        return 0; /* Plant: the default build's refusal kept at one port. */", "unit"),
+    ("one-port-inert", MAD, "#ifndef LWSRP_ONE_PORT_MAP\n#define LWSRP_ONE_PORT_MAP 0\n#endif",
+     "#undef LWSRP_ONE_PORT_MAP\n#define LWSRP_ONE_PORT_MAP 0", "unit"),
+    ("one-port-policy-called", MAD, "indicated = indicated && priv_of(app)->n_ports > 1u;",
+     "indicated = indicated && priv_of(app)->n_ports > 0u;", "unit"),
+    ("lean-tx-word-ends-scan", MAD, "            type |= 31u;\n            continue;",
+     "            type = 255u;\n            continue;", "unit"),
 ]
 
 # Each scenario plant must fail exactly these scenarios with these assertion words.
@@ -327,6 +347,13 @@ REQUIRED_FAILURES = {
     "milan-profile-selection": ["msrp_constructor_selects_the_build_profile"],
     "milan-option-scope": ["mvrp_keeps_ieee_leave_timing", "mmrp_keeps_ieee_leave_timing",
                            "disabled_application_option_preserves_ieee_timing"],
+    "one-port-refusal-kept": ["one_port_refused_reservation_refuses_the_receive_only_in_the_default_build"],
+    "one-port-inert": ["one_port_refused_reservation_refuses_the_receive_only_in_the_default_build",
+                       "one_port_calls_the_policy_only_in_the_default_build",
+                       "registrar_recovery_stops_aging_without_duplicate_join_or_map"],
+    "one-port-policy-called": ["one_port_calls_the_policy_only_in_the_default_build",
+                               "registrar_recovery_stops_aging_without_duplicate_join_or_map"],
+    "lean-tx-word-ends-scan": ["sparse_attribute_types_each_send_one_message_in_type_order"],
 }
 
 
@@ -343,11 +370,38 @@ def failed_scenarios(output):
     return names
 
 
+#: The reversals of the attribute key, which only a build with LWSRP_ATTR_KEY (LWSRP_SCALE) compiles.
+NEEDS_KEY = {"attr-key-unset", "attr-key-lookup-inverted", "attr-key-replacement-inverted",
+             "msrp-key-outside-compare"}
+#: The end-station switches, defined directly for every source (doc/integrator.md); --end-station ON builds them.
+END_STATION_DEFINES = ["-DLWSRP_ONE_PORT_MAP=1", "-DLWSRP_LEAN_VALIDATE=1", "-DLWSRP_RAPID_REPLACE=1",
+                       "-DLWSRP_LEAN_COPY=1", "-DLWSRP_LEAN_TX=1"]
+#: The reversals of the end-station switches, which only a build with END_STATION_DEFINES compiles.
+NEEDS_END_STATION = {"one-port-refusal-kept", "one-port-inert", "one-port-policy-called", "lean-tx-word-ends-scan"}
+
+
+def selection(label, scale, end_station):
+    """Why a case does not run in this build, or None where it runs. The default build runs every case but the
+    key's and the end-station switches'; --scale ON runs the key's, --end-station ON the switches', and both
+    together run both sets. The other cases stay in the default build's run, as some target code those builds
+    replace."""
+    if label in NEEDS_KEY:
+        return None if scale == "ON" else "the attribute key is built only with LWSRP_ATTR_KEY (--scale ON)"
+    if label in NEEDS_END_STATION:
+        return None if end_station == "ON" else "the end-station switches are built only with --end-station ON"
+    if scale == "ON" or end_station == "ON":
+        return "the default build's run holds it (--scale OFF --end-station OFF)"
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--work-dir", type=Path, required=True)
     parser.add_argument("--prefix", type=Path, required=True)
     parser.add_argument("--milan", choices=["OFF", "ON"], default="OFF")
+    parser.add_argument("--scale", choices=["OFF", "ON"], default="OFF")
+    parser.add_argument("--end-station", choices=["OFF", "ON"], default="OFF",
+                        help="define the five end-station switches for every source")
     args = parser.parse_args()
     work = args.work_dir.resolve()
     if work.is_relative_to(ROOT) or work.exists():
@@ -378,7 +432,8 @@ def main():
 
     rc, _ = run("configure", ["cmake", "-S", str(source), "-B", str(build),
                               "-DCMAKE_BUILD_TYPE=Release", f"-DCMAKE_PREFIX_PATH={args.prefix.resolve()}",
-                              f"-DLWSRP_MILAN={args.milan}"])
+                              f"-DLWSRP_MILAN={args.milan}", f"-DLWSRP_SCALE={args.scale}",
+                              "-DCMAKE_C_FLAGS=" + (" ".join(END_STATION_DEFINES) if args.end_station == "ON" else "")])
     if rc:
         return 1
     build_command = ["cmake", "--build", str(build), "--parallel", "2"]
@@ -388,11 +443,18 @@ def main():
             or run("baseline-scenarios", scenario_command)[0]):
         return 1
     failures = 0
-    for label, name, old, new, check in CASES:
+    selected, skipped, results = [], [], {}
+    for case in CASES:
+        reason = selection(case[0], args.scale, args.end_station)
+        (skipped if reason else selected).append(case)
+        if reason:
+            print(f"SKIP {case[0]}: {reason}")
+    for label, name, old, new, check in selected:
         path = source / name
         original = path.read_text()
         if old not in original:
             print(f"FAIL {label}: mutation target missing")
+            results[label] = "missing"
             failures += 1
             continue
         path.write_text(original.replace(old, new))
@@ -400,6 +462,7 @@ def main():
             if check == "unit":
                 if run(label + "-build", build_command)[0]:
                     print(f"FAIL {label}: build failure is not a killed behavioral reversal")
+                    results[label] = "build"
                     failures += 1
                     continue
                 rc, output = run(label, check_command)
@@ -412,6 +475,7 @@ def main():
             elif check == "scenario":
                 if run(label + "-build", build_command)[0]:
                     print(f"FAIL {label}: build failure is not a killed behavioral reversal")
+                    results[label] = "build"
                     failures += 1
                     continue
                 rc, output = run(label, scenario_command)
@@ -429,13 +493,26 @@ def main():
                 rc, output = run(label, [sys.executable, "tests/check_freestanding.py"])
                 killed = rc != 0 and "hosted headers" in output
             print(f"{'KILLED' if killed else 'SURVIVED'} {label}", flush=True)
+            results[label] = "killed" if killed else "survived"
             failures += not killed
         finally:
             path.write_text(original)
     if (run("restored-build", build_command)[0] or run("restored-check", check_command)[0]
             or run("restored-scenarios", scenario_command)[0]):
         failures += 1
-    print(f"Reversals: {len(CASES)}; failures: {failures}")
+    # Every selected case reports once, so a case that runs nothing cannot pass for coverage.
+    unreported = [case[0] for case in selected if case[0] not in results]
+    for label in unreported:
+        print(f"FAIL {label}: selected but reported no result")
+    failures += len(unreported)
+    counts = {kind: sum(1 for r in results.values() if r == kind) for kind in ("killed", "survived", "build", "missing")}
+    print(f"Reversals listed: {len(CASES)}; selected: {len(selected)}; run: {len(results)}; "
+          f"killed: {counts['killed']}; survived: {counts['survived']}; build failures: {counts['build']}; "
+          f"targets missing: {counts['missing']}; skipped: {len(skipped)}; failures: {failures}")
+    (work / "summary.json").write_text(json.dumps({
+        "milan": args.milan, "scale": args.scale, "end_station": args.end_station, "listed": len(CASES),
+        "selected": [c[0] for c in selected], "skipped": [c[0] for c in skipped], "results": results,
+        "failures": failures}, indent=2) + "\n")
     return int(failures != 0)
 
 

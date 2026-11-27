@@ -51,12 +51,22 @@ The [attr_len](../src/include/shish_lan/mrp.h) callback gives the wire length.
 The optional [attr_mem_len](../src/include/shish_lan/mrp.h) callback gives the stored length.
 The [stream adapter](../src/modules/msrp.c) uses host-endian Talker structures and nine stored bytes for Listeners.
 The [attr_cmp](../src/include/shish_lan/mrp.h) callback defines identity.
+The optional [attr_key](../src/include/shish_lan/mrp.h) callback returns one octet of the octets attr_cmp compares.
+It exists only in a build with [LWSRP_ATTR_KEY](../src/include/shish_lan/mrp.h) set, which the lookup buckets need and set.
+Equal identities and replacement pairs must share that octet.
+The [MAD](../src/core/mrp_mad.c) stores it at creation and compares it before calling attr_cmp or attr_replaces.
+With [LWSRP_ATTR_BUCKETS](../src/core/mrp_mad.c) set, each participant also keeps its attributes in lookup buckets by that octet.
+A bucket holds its attributes in the list's order, so a lookup visits only one bucket and still finds the list's first match.
+The same holds for the replacement loop and for [mrp_attr_registered_ports](../src/include/shish_lan/mrp.h).
+Without attr_key, every attribute shares one bucket, which is the list itself.
+The default, zero, scans the list.
+The [stream](../src/modules/msrp.c) and [VLAN](../src/modules/mvrp.c) adapters key on the StreamID's last octet, a Domain VID octet, and a VID octet.
 Received declarations refresh matching identities.
 Withdrawal and aging retain the last registered value.
 
 The [host context](../src/include/shish_lan/mrp.h) remains caller-owned.
 Keep it valid for the application lifetime.
-Use [mrp_reclaim](../src/core/mrp_mad.c#L1108) to release undeclared, unregistered, quiescent attributes.
+Use [mrp_reclaim](../src/core/mrp_mad.c#L1330) to release undeclared, unregistered, quiescent attributes.
 It unlinks their timers and refuses reclamation during a prepared transmission.
 Read the [lifetime contract](integrator.md#lifetime-and-concurrency) before destroying an application.
 
@@ -76,7 +86,7 @@ They are not a complete conformance model or evidence of tested behavior.
 ### Applicant declarations
 
 Reference: [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [declaration rows](../src/core/mrp_mad.c#L158) and [Applicant handler](../src/core/mrp_mad.c#L506).
+Evidence: [declaration rows](../src/core/mrp_mad.c#L273) and [Applicant handler](../src/core/mrp_mad.c#L692).
 
 ~~~mermaid
 stateDiagram-v2
@@ -96,20 +106,20 @@ VO means Very anxious Observer; VP means Very anxious Passive.
 VN means Very anxious New; AN means Anxious New.
 AA means Anxious Active; QA means Quiet Active.
 Transmit labels describe required protocol actions.
-The [transmit operation](../src/core/mrp_mad.c#L1415) applies these transitions after the host accepts the payload.
+The [transmit operation](../src/core/mrp_mad.c#L1819) applies these transitions after the host accepts the payload.
 
 Comparison: matches the table for the displayed transitions, including the Registrar condition.
 Transmission assumes sufficient frame space, as required by [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3, note 7](https://standards.ieee.org/ieee/802.1Q/6844/).
 
-The [Applicant handler](../src/core/mrp_mad.c#L506) implements the Registrar condition and corrected declaration transitions.
-The [event dispatcher](../src/core/mrp_mad.c#L755) requests transmission for anxious and leaving states.
-The [transactional assembler](../src/core/mrp_mad.c#L1415) preserves state when a required value cannot fit.
+The [Applicant handler](../src/core/mrp_mad.c#L692) implements the Registrar condition and corrected declaration transitions.
+The [event dispatcher](../src/core/mrp_mad.c#L956) requests transmission for anxious and leaving states.
+The [transactional assembler](../src/core/mrp_mad.c#L1819) preserves state when a required value cannot fit.
 Optional packing actions are omitted; each encoded vector carries one value.
 
 ### MRPDU layout
 
 Reference: [IEEE 802.1Q-2018, clauses 10.8.1.2 and 10.8.2](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [Message writer](../src/core/mrp_mad.c#L1356) and [PDU writer](../src/core/mrp_mad.c#L1393).
+Evidence: [Message writer](../src/core/mrp_mad.c#L1586) and [PDU writer](../src/core/mrp_mad.c#L1790).
 
 ~~~mermaid
 flowchart LR
@@ -122,6 +132,11 @@ flowchart LR
 Each PDU carries one Message per attribute type, in ascending type order.
 A due LeaveAll comes first in its type's Message, with no values.
 Each declaration follows as a single-value vector, in ascending FirstValue order.
+Equal FirstValues keep the attribute list's order.
+By default the encoder swaps each new vector backwards past every greater one.
+With [LWSRP_TX_MERGE](../src/core/mrp_mad.c) set, it writes each vector once, in the list's order, then merges runs of the list by FirstValue.
+Vectors already written in ascending order are left in place, with no merge.
+Only vectors whose place changed are then encoded again in their new place.
 One EndMark closes each Message, and one more closes the PDU.
 Selection keeps the earlier order: omitted values first, then repeats.
 The first vector of a type also pays for its Message header and EndMark.
@@ -132,7 +147,7 @@ The [grouping tests](../tests/unit/grouping_test.c) pin the bytes with an [indep
 ### Applicant observation
 
 Reference: [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [receive-event rows](../src/core/mrp_mad.c#L207).
+Evidence: [receive-event rows](../src/core/mrp_mad.c#L322).
 
 ~~~mermaid
 stateDiagram-v2
@@ -151,9 +166,9 @@ These names come from the [state enum](../src/include/shish_lan/mrp.h).
 The prefix r marks a received event.
 Shared means the point-to-point subset is disabled and the operational MAC is not point-to-point.
 Comparison: matches the table for the displayed transitions with that condition.
-Local Join moves AO to AP and QO to QP in the [Applicant table](../src/core/mrp_mad.c#L149).
+Local Join moves AO to AP and QO to QP in the [Applicant table](../src/core/mrp_mad.c#L264).
 
-The [Applicant handler](../src/core/mrp_mad.c#L506) checks the configured point-to-point condition.
+The [Applicant handler](../src/core/mrp_mad.c#L692) checks the configured point-to-point condition.
 Received JoinIn leaves LA unchanged.
 Received In quiets AA only on point-to-point links.
 The conditions follow [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3, notes 3–5](https://standards.ieee.org/ieee/802.1Q/6844/).
@@ -161,7 +176,7 @@ The conditions follow [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3, notes 3–5]
 ### Applicant withdrawal
 
 Reference: [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [withdrawal row](../src/core/mrp_mad.c#L172) and [transmit rows](../src/core/mrp_mad.c#L179).
+Evidence: [withdrawal row](../src/core/mrp_mad.c#L287) and [transmit rows](../src/core/mrp_mad.c#L294).
 
 ~~~mermaid
 stateDiagram-v2
@@ -176,7 +191,7 @@ stateDiagram-v2
 LA means Leaving Active; LO means Leaving Observer.
 See the [state enum](../src/include/shish_lan/mrp.h) for all twelve states.
 Comparison: matches the table for the displayed transitions when the frame has space.
-The [transmit rows](../src/core/mrp_mad.c#L179) now match those displayed transitions.
+The [transmit rows](../src/core/mrp_mad.c#L294) now match those displayed transitions.
 Full payloads defer omitted values and request another Join-spaced opportunity.
 A LeaveAll transmission uses the separate full-payload event for omitted values.
 The [transmit tests](../tests/unit/transmit_test.c) check fairness across a split population.
@@ -188,7 +203,7 @@ Reference: [IEEE 802.1Q-2018, clause 10.7.7, Table 10-3, notes 1–4 and 12](htt
 ### Registrar
 
 Reference: [IEEE 802.1Q-2018, clause 10.7.8, Table 10-4](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [Registrar table](../src/core/mrp_mad.c#L325) and [indication handler](../src/core/mrp_mad.c#L618).
+Evidence: [Registrar table](../src/core/mrp_mad.c#L440) and [indication handler](../src/core/mrp_mad.c#L809).
 
 ~~~mermaid
 stateDiagram-v2
@@ -206,9 +221,9 @@ IN means registered; LV means leaving; MT means empty.
 The prefix r marks reception; Join includes JoinIn and JoinMt.
 With allocation available, this matches the default table for the displayed state transitions.
 The graph omits indication and timer actions.
-The [Registrar table](../src/core/mrp_mad.c#L325) also enters LV on transmit-with-LeaveAll.
-A value omitted from that PDU enters LV through the local rLA! of [sla_registrars](../src/core/mrp_mad.c#L774).
-Its [re-declaration row](../src/core/mrp_mad.c#L387) does the same.
+The [Registrar table](../src/core/mrp_mad.c#L440) also enters LV on transmit-with-LeaveAll.
+A value omitted from that PDU enters LV through the local rLA! of [sla_registrars](../src/core/mrp_mad.c#L975).
+Its [re-declaration row](../src/core/mrp_mad.c#L502) does the same.
 Local Join and Leave events do not change Registrar state.
 
 Local New, Join, and Leave do not register a peer.
@@ -217,10 +232,10 @@ Unchanged values issue no additional Join indication or propagation callback, ma
 Changed Listener or Talker values in IN or LV indicate and propagate the update.
 This also applies after received or transmitted LeaveAll.
 The [recovery regression](../tests/unit/review_test.c) checks both events and cancellation beyond the original deadline.
-Evidence: [Registrar Join rows](../src/core/mrp_mad.c#L353).
+Evidence: [Registrar Join rows](../src/core/mrp_mad.c#L468).
 
 The optional [milan_rapid_leave](../src/include/shish_lan/mrp.h) changes only received Leave in IN.
-The [Registrar handler](../src/core/mrp_mad.c#L618) selects this transition before applying the normal indication and propagation actions.
+The [Registrar handler](../src/core/mrp_mad.c#L809) selects this transition before applying the normal indication and propagation actions.
 The option is copied at application creation; its default is false.
 The [MSRP build setting](integrator.md#milan-received-leave) enables it for stream applications.
 VLAN and MAC applications retain the default table.
@@ -245,13 +260,13 @@ The [profile tests](../tests/unit/milan_test.c) check Talker Advertise, Talker F
 
 Received LeaveAll affects only the message's type on its ingress port.
 This matches [IEEE 802.1Q-2018, clause 10.7.5.20](https://standards.ieee.org/ieee/802.1Q/6844/).
-The [receive handler](../src/core/mrp_mad.c#L1074) also restarts the shared participant LeaveAll timer.
+The [receive handler](../src/core/mrp_mad.c#L1296) also restarts the shared participant LeaveAll timer.
 The [integration tests](../tests/unit/integration_test.c) check both state machines across every supported multi-type application.
 
 ### LeaveAll
 
 Reference: [IEEE 802.1Q-2018, clause 10.7.9, Table 10-5](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [la_event](../src/core/mrp_mad.c#L795).
+Evidence: [la_event](../src/core/mrp_mad.c#L996).
 
 ~~~mermaid
 stateDiagram-v2
@@ -268,11 +283,11 @@ Begin resets either state to Passive.
 Begin, reception, and expiry restart the timer; expiry requests transmission.
 Active transmission requires a LeaveAll message and local LeaveAll processing.
 
-The [transmit operation](../src/core/mrp_mad.c#L1415) emits one LeaveAll vector for each supported attribute type.
+The [transmit operation](../src/core/mrp_mad.c#L1819) emits one LeaveAll vector for each supported attribute type.
 Acceptance makes the participant Passive.
 The leavealltimer keeps the draw it started at expiry.
 Each Applicant takes exactly one LeaveAll event: txLA! when its message fits, and txLAF! when it is omitted.
-The local rLA! then reaches every Registrar and no Applicant, through [sla_registrars](../src/core/mrp_mad.c#L774).
+The local rLA! then reaches every Registrar and no Applicant, through [sla_registrars](../src/core/mrp_mad.c#L975).
 This follows [IEEE 802.1Q-2018, clause 10.7.6.6 and Tables 10-3 and 10-4](https://standards.ieee.org/ieee/802.1Q/6844/), as ruled in [issue #20](https://github.com/kebag-logic/lwSRP/issues/20).
 A second Applicant event would take QA to VP, and a later Leave would then go unsent.
 
@@ -290,14 +305,14 @@ Each row starts at the participant's own LeaveAll opportunity.
 A value left out sent no Join after the LeaveAll, so the peer's Leave timer runs and no Lv is needed.
 The [LeaveAll tests](../tests/unit/own_leaveall_test.c) check each transition and every state's txLA! and txLAF! cells.
 Refusal preserves the pending payload and does not age registrations through an unsent LeaveAll.
-The [timer draw](../src/core/mrp_mad.c#L788) lies strictly between the configured interval and 1.5 times that interval.
+The [timer draw](../src/core/mrp_mad.c#L989) lies strictly between the configured interval and 1.5 times that interval.
 The interval rule is in [IEEE 802.1Q-2018, clause 10.7.4.3](https://standards.ieee.org/ieee/802.1Q/6844/).
 An active state alone does not prove that a frame was sent.
 
 ### PeriodicTransmission
 
 Reference: [IEEE 802.1Q-2018, clause 10.7.10, Table 10-6](https://standards.ieee.org/ieee/802.1Q/6844/).
-Evidence: [pt_event](../src/core/mrp_mad.c#L824) and [mrp_set_periodic](../src/core/mrp_mad.c#L1148).
+Evidence: [pt_event](../src/core/mrp_mad.c#L1025) and [mrp_set_periodic](../src/core/mrp_mad.c#L1377).
 
 ~~~mermaid
 stateDiagram-v2
@@ -312,7 +327,7 @@ Comparison: matches the table for the displayed state transitions.
 Begin activates either state and arms the timer.
 Enable arms the timer when Passive; Active expiry rearms it and generates a periodic event.
 
-The [periodic handler](../src/core/mrp_mad.c#L824) uses 100 centiseconds, independently of Join spacing.
+The [periodic handler](../src/core/mrp_mad.c#L1025) uses 100 centiseconds, independently of Join spacing.
 This matches [IEEE 802.1Q-2018, clause 10.7.4.4](https://standards.ieee.org/ieee/802.1Q/6844/).
 Disable additionally disarms the timer; the table only changes state.
 During a refused transmission, periodic work is deferred until acceptance.
@@ -404,6 +419,7 @@ flowchart TD
 1. Define attribute types, wire lengths, and in-memory layouts beside a [public application interface](../src/include/shish_lan/mvrp.h).
 2. Implement [encode_attr, decode_attr, attr_len, and attr_cmp](../src/include/shish_lan/mrp.h).
 3. Provide [attr_mem_len](../src/include/shish_lan/mrp.h) when wire and stored sizes differ.
+   Provide [attr_key](../src/include/shish_lan/mrp.h) to pass other values without an attr_cmp call.
 4. Provide [attr_has_subtype](../src/include/shish_lan/mrp.h) when reception includes a subtype vector.
 5. Implement [join_ind and leave_ind](../src/include/shish_lan/mrp.h) with a valid host context.
 6. Set optional [map_join and map_leave](../src/include/shish_lan/mrp.h) callbacks only when propagation is required.

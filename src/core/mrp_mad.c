@@ -19,6 +19,104 @@
 #include "ports/alloc.h"
 #include "ports/timer.h"
 
+/*
+ * Lookup buckets a participant keeps by attr_key, a power of two of at most
+ * 256, or 0 for a scan of the participant's list. A bucket holds its
+ * instances in the list's order, so every lookup finds the list's first
+ * match either way. Build every translation unit with the same value.
+ * Reason: a lookup visits its key bucket instead of the participant's whole list.
+ * Requirement: one state machine pair per attribute value (IEEE 802.1Q-2018,
+ * clause 10.7). Issues: kebag-logic/milan-fpga#872 and #977, part of #665.
+ */
+#ifndef LWSRP_ATTR_BUCKETS
+#define LWSRP_ATTR_BUCKETS 0u
+#endif
+#if LWSRP_ATTR_BUCKETS && !LWSRP_ATTR_KEY
+#error "LWSRP_ATTR_BUCKETS hashes attr_key: it needs LWSRP_ATTR_KEY"
+#endif
+#if LWSRP_ATTR_BUCKETS
+_Static_assert((LWSRP_ATTR_BUCKETS & (LWSRP_ATTR_BUCKETS - 1u)) == 0u && LWSRP_ATTR_BUCKETS != 0u &&
+               LWSRP_ATTR_BUCKETS <= 256u, "LWSRP_ATTR_BUCKETS must be a power of two of at most 256");
+#endif
+/*
+ * 1 builds each Message by merging runs of its encoded vectors in FirstValue
+ * order, 0 by swapping each vector backwards past every greater one. Both
+ * place equal FirstValues in the list's order.
+ * Reason: a Message's build does not grow with the square of its vectors.
+ * Requirement: Message and vector encoding (IEEE 802.1Q-2018, clause 10.8.2).
+ * Issues: kebag-logic/milan-fpga#872 and #977, part of #665.
+ */
+#ifndef LWSRP_TX_MERGE
+#define LWSRP_TX_MERGE 0
+#endif
+/*
+ * 1 skips the MAP work of a participant created with one port: an
+ * indication reserves no propagation target and calls no map_join or
+ * map_leave. Propagation goes to the other ports of the MAP context, never to
+ * the port the registration came from (IEEE 802.1Q-2018, clause 10.3), and a
+ * participant of one port has no other: its policy can name no port, and
+ * the reservation is always freed unused. Every output, indication,
+ * observation and their order are the same; the policy is not called, and
+ * where the reservation's allocation would have been refused the event is
+ * applied instead of refusing the receive (doc/integrator.md). 0 reserves and
+ * calls the policy at every port count.
+ * Reason: an end station's indication allocates and frees nothing.
+ * Requirement: MAP propagation (IEEE 802.1Q-2018, clause 10.3).
+ * Issue: kebag-logic/milan-fpga#977, part of #665.
+ */
+#ifndef LWSRP_ONE_PORT_MAP
+#define LWSRP_ONE_PORT_MAP 0
+#endif
+
+/*
+ * A replaced registration (35.2.6, attr_replaces) takes rLv! and then the
+ * leave timer's event. Where rLv! left its Registrar MT, as the Milan rapid
+ * leave does from IN (milan_rapid_leave), the leave timer's row leaves MT
+ * and both machines unchanged and indicates nothing (Tables 10-3 and 10-4),
+ * so 1 delivers it only where rLv! left the Registrar elsewhere: every
+ * output, indication, observation and their order are the same. 0 delivers
+ * it always.
+ * Reason: a peer may replace every Talker at each transmit opportunity.
+ * Requirements: IEEE 802.1Q-2018, clause 35.2.6 and Tables 10-3 and 10-4;
+ * Milan v1.2, clause 4.2.7.2.2. Issue: kebag-logic/milan-fpga#977, part of #665.
+ */
+#ifndef LWSRP_RAPID_REPLACE
+#define LWSRP_RAPID_REPLACE 0
+#endif
+
+/*
+ * 1 copies no more than it uses: a Registrar row is copied only where a
+ * changed value's rJoinIn! or rJoinMt! rewrites its indication, and a
+ * receive keeps for its restore only the stored length of the value it may
+ * rewrite, the only octets a refresh writes (get_or_create_attr); with
+ * msrp.c's fixed-size fields copied with no call of memcpy. The same
+ * states, values and outputs; 0 copies the row and the whole value always.
+ * Reason: a copy costs a cacheless core about one fetch an octet.
+ * Requirements: the Registrar (IEEE 802.1Q-2018, clause 10.7.8) and MSRP's
+ * attribute encodings (clause 35.2.2). Issue: kebag-logic/milan-fpga#977,
+ * part of #665.
+ */
+#ifndef LWSRP_LEAN_COPY
+#define LWSRP_LEAN_COPY 0
+#endif
+
+/*
+ * After a send, every selected attribute takes tx!. The Registrar ignores
+ * tx! (Table 10-4) and the Applicant's row leaves VO, QA, AO, QO and QP as
+ * they are with nothing to send (Table 10-3), so 1 delivers it only to an
+ * Applicant the row moves: the same states, outputs and observations, an
+ * observer seeing no change in either case. And the assembler passes over
+ * the AttributeTypes of an open set's word that holds none from there on,
+ * where 0 tests each of the 256: the same Messages in the same order. 0
+ * delivers tx! to every one.
+ * Reason: a send skips event delivery for Applicants whose tx! row changes nothing.
+ * Requirements: IEEE 802.1Q-2018, Tables 10-3 and 10-4 and clause 10.8.2.
+ * Issue: kebag-logic/milan-fpga#977, part of #665.
+ */
+#ifndef LWSRP_LEAN_TX
+#define LWSRP_LEAN_TX 0
+#endif
+
 /* ------------------------------------------------------------------ */
 /* Internal types                                                       */
 /* ------------------------------------------------------------------ */
@@ -61,6 +159,9 @@ static void on_join_timer(void *arg);
 /* Per-attribute instance: one Applicant SM + one Registrar SM */
 struct mrp_attr_inst {
     uint8_t              attr_type;
+#if LWSRP_ATTR_KEY
+    uint8_t              key;          /* attr_key of attr_val, fixed at creation */
+#endif
     /* Largest in-memory value (struct msrp_talker_failed) with margin;
      * see attr_store_len(). */
     _Alignas(max_align_t) uint8_t attr_val[48];
@@ -73,6 +174,16 @@ struct mrp_attr_inst {
     bool                 tx_deferred;
     enum tx_msg          pending_tx;   /* message scheduled for next tx */
     struct mrp_attr_inst *next;
+#if LWSRP_ATTR_BUCKETS
+    /* The next instance of its lookup bucket, in the list's order. */
+    struct mrp_attr_inst *key_next;
+#endif
+#if LWSRP_TX_MERGE
+    /* While one Message is built: the next vector chosen, and the
+     * FirstValue this instance's vector encoded. */
+    struct mrp_attr_inst *tx_next;
+    const uint8_t        *tx_key;
+#endif
     /* Leave timer: fires MRP_EVENT_LEAVETIMER into the Registrar SM on expiry */
     struct shlan_timer          leave_timer;
     struct mrp_attr_timer_arg   leave_timer_arg;
@@ -106,6 +217,10 @@ struct mrp_port_state {
     struct mrp_map_work *map_head;
     struct mrp_map_work *map_tail;
     struct mrp_attr_inst *attrs;      /* linked list of attribute instances */
+#if LWSRP_ATTR_BUCKETS
+    /* The same instances by attr_key, each bucket in the list's order. */
+    struct mrp_attr_inst *by_key[LWSRP_ATTR_BUCKETS];
+#endif
     /* LeaveAll timer: fires MRP_EVENT_LEAVEALLTIMER on expiry */
     struct shlan_timer          la_timer;
     /* PeriodicTransmission timer: fires MRP_EVENT_PERIODICTIMER on expiry */
@@ -420,6 +535,7 @@ uint8_t mrp_app_n_ports(const struct mrp_app *app)
     return priv_of((struct mrp_app *)app)->n_ports;
 }
 
+#if !LWSRP_ATTR_BUCKETS
 uint32_t mrp_attr_registered_ports(const struct mrp_app *app,
                                    uint8_t attr_type, const void *attr_val)
 {
@@ -439,12 +555,75 @@ uint32_t mrp_attr_registered_ports(const struct mrp_app *app,
     return mask;
 }
 
+#if LWSRP_ATTR_KEY
+/* The value's key (attr_key), or 0 for an application without one. */
+static uint8_t key_of(const struct mrp_app_ops *ops, uint8_t type, const void *val)
+{
+    return ops->attr_key ? ops->attr_key(type, val) : 0u;
+}
+#endif
+
 static struct mrp_attr_inst *find_attr(struct mrp_port_state *ps, const struct mrp_app_ops *ops,
                                    uint8_t type, const void *val)
 {
-    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next)
-        if (a->attr_type == type && ops->attr_cmp(type, a->attr_val, val) == 0)
+#if LWSRP_ATTR_KEY
+    const uint8_t key = key_of(ops, type, val);
+    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
+        if (a->key == key && a->attr_type == type && ops->attr_cmp(type, a->attr_val, val) == 0) {
+#else
+    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
+        if (a->attr_type == type && ops->attr_cmp(type, a->attr_val, val) == 0) {
+#endif
+#else
+/* The value's key (attr_key), or 0 for an application without one. */
+static uint8_t key_of(const struct mrp_app_ops *ops, uint8_t type, const void *val)
+{
+    return ops->attr_key ? ops->attr_key(type, val) : 0u;
+}
+
+/*
+ * The lookup bucket of a key. Values attr_cmp holds equal, and pairs
+ * attr_replaces accepts, share a key (mrp.h attr_key), so every instance a
+ * lookup can match is in its value's bucket. Instances enter a bucket at
+ * its head as they enter the list, and leave both together, so a bucket
+ * holds its instances in the list's order and its first match is the
+ * list's first match.
+ */
+static struct mrp_attr_inst *const *bucket_of(const struct mrp_port_state *ps, uint8_t key)
+{
+    return &ps->by_key[key % LWSRP_ATTR_BUCKETS];
+}
+
+uint32_t mrp_attr_registered_ports(const struct mrp_app *app,
+                                   uint8_t attr_type, const void *attr_val)
+{
+    const struct mrp_priv *priv = priv_of((struct mrp_app *)app);
+    const uint8_t key = key_of(app->ops, attr_type, attr_val);
+    uint32_t mask = 0;
+    for (uint8_t p = 0; p < priv->n_ports && p < 32u; p++) {
+        const struct mrp_port_state *ps = &priv->ports[p];
+        for (const struct mrp_attr_inst *a = *bucket_of(ps, key); a; a = a->key_next) {
+            if (a->key == key && a->attr_type == attr_type &&
+                app->ops->attr_cmp(attr_type, a->attr_val, attr_val) == 0 &&
+                a->reg == MRP_REG_STATE_IN) {
+                mask |= (1u << p);
+                break;
+            }
+        }
+    }
+    return mask;
+}
+
+static struct mrp_attr_inst *find_attr(struct mrp_port_state *ps, const struct mrp_app_ops *ops,
+                                   uint8_t type, const void *val)
+{
+    const uint8_t key = key_of(ops, type, val);
+    for (struct mrp_attr_inst *a = *bucket_of(ps, key); a; a = a->key_next) {
+        if (a->key == key && a->attr_type == type && ops->attr_cmp(type, a->attr_val, val) == 0) {
+#endif
             return a;
+        }
+    }
     return NULL;
 }
 
@@ -487,12 +666,19 @@ static struct mrp_attr_inst *get_or_create_attr(struct mrp_app *app,
     }
 
     a->attr_type = type;
+#if LWSRP_ATTR_KEY
+    a->key       = key_of(ops, type, val);
+#endif
     memcpy(a->attr_val, val, attr_store_len(ops, type));
     a->appl       = MRP_APPL_STATE_VO;
     a->reg        = MRP_REG_STATE_MT;
     a->pending_tx = TX_MSG_NONE;
     a->next       = ps->attrs;
     ps->attrs     = a;
+#if LWSRP_ATTR_BUCKETS
+    a->key_next   = *bucket_of(ps, a->key);
+    ps->by_key[a->key % LWSRP_ATTR_BUCKETS] = a;
+#endif
 
     a->leave_timer_arg.app     = app;
     a->leave_timer_arg.ai      = a;
@@ -539,6 +725,11 @@ static int map_reserve(struct mrp_app *app, uint8_t type, const void *value,
     if (join ? !app->ops->map_join : !app->ops->map_leave) {
         return 0;
     }
+#if LWSRP_ONE_PORT_MAP
+    if (priv_of(app)->n_ports <= 1u) {
+        return 0; /* No other port to propagate to (LWSRP_ONE_PORT_MAP). */
+    }
+#endif
     for (uint8_t p = 0; p < priv_of(app)->n_ports && p < 32u; ++p) {
         struct mrp_map_work *work = shlan_calloc(1, sizeof(*work));
         if (!work) {
@@ -628,8 +819,14 @@ static int reg_event(struct mrp_app *app, struct mrp_attr_inst *ai,
         e = &milan_leave;
     }
 
+#if LWSRP_LEAN_COPY
+    struct reg_entry update;
+    if (changed && (ev == MRP_EVENT_RJOININ || ev == MRP_EVENT_RJOINMT)) {
+        update = *e;
+#else
     struct reg_entry update = *e;
     if (changed && (ev == MRP_EVENT_RJOININ || ev == MRP_EVENT_RJOINMT)) {
+#endif
         update.ind = REG_IND_JOIN;
         e = &update;
     }
@@ -683,6 +880,10 @@ static int reg_event(struct mrp_app *app, struct mrp_attr_inst *ai,
     default:
         break;
     }
+#if LWSRP_ONE_PORT_MAP
+    /* One port: nothing was reserved, nothing is queued, the policy names no port. */
+    indicated = indicated && priv_of(app)->n_ports > 1u;
+#endif
     if (indicated) {
         map_publish(app, port_id, ai->attr_type, ind_value, join, reserved);
         map_replay_all(app);
@@ -1016,8 +1217,16 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
     bool changed_in = previous && previous->reg != MRP_REG_STATE_MT &&
         memcmp(previous->attr_val, attr_val, attr_store_len(rc->app->ops, attr_type)) != 0;
     uint8_t previous_value[sizeof(((struct mrp_attr_inst *)0)->attr_val)];
+#if LWSRP_LEAN_COPY
+    /* A restore rewrites only what the refresh may have written: the value's stored length. */
+    const size_t kept = previous ? attr_store_len(rc->app->ops, attr_type) : 0u;
+#define RX_KEPT kept
+#else
+    /* The whole value, with no local: with LWSRP_LEAN_COPY at 0 the restore compiles as it did before the option (kebag-logic/milan-fpga#977). */
+#define RX_KEPT sizeof(previous_value)
+#endif
     if (previous) {
-        memcpy(previous_value, previous->attr_val, sizeof(previous_value));
+        memcpy(previous_value, previous->attr_val, RX_KEPT);
     }
     bool declares = attr_event == MRP_ATTR_EVENT_NEW || attr_event == MRP_ATTR_EVENT_JOININ ||
                     attr_event == MRP_ATTR_EVENT_JOINMT;
@@ -1034,18 +1243,30 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
      */
     if ((attr_event == MRP_ATTR_EVENT_JOININ || attr_event == MRP_ATTR_EVENT_JOINMT) &&
         rc->app->ops->attr_replaces) {
+#if !LWSRP_ATTR_BUCKETS
         for (struct mrp_attr_inst *old = rc->ps->attrs; old; old = old->next) {
+#else
+        for (struct mrp_attr_inst *old = *bucket_of(rc->ps, ai->key); old; old = old->key_next) {
+#endif
+#if LWSRP_ATTR_KEY
+            if (old != ai && old->reg != MRP_REG_STATE_MT && old->key == ai->key &&
+#else
             if (old != ai && old->reg != MRP_REG_STATE_MT &&
+#endif
                 rc->app->ops->attr_replaces(old->attr_type,old->attr_val,attr_type,attr_val)) {
                 int r = deliver_event_changed(rc->app, rc->ps, old,
                                                MRP_EVENT_RLV, rc->port_id, false);
+#if LWSRP_RAPID_REPLACE
+                if (r >= 0 && old->reg != MRP_REG_STATE_MT) {
+#else
                 if (r >= 0) {
+#endif
                     r = deliver_event_changed(rc->app, rc->ps, old,
                                               MRP_EVENT_LEAVETIMER, rc->port_id, false);
                 }
                 if (r < 0) {
                     if (previous) {
-                        memcpy(ai->attr_val, previous_value, sizeof(previous_value));
+                        memcpy(ai->attr_val, previous_value, RX_KEPT);
                     }
                     rc->error = r;
                     return;
@@ -1067,8 +1288,9 @@ static void rx_on_attr(void *raw_ctx, uint8_t attr_type,
     }
     int r = deliver_event_changed(rc->app, rc->ps, ai, ev, rc->port_id, changed_in);
     if (r < 0 && previous) {
-        memcpy(ai->attr_val, previous_value, sizeof(previous_value));
+        memcpy(ai->attr_val, previous_value, RX_KEPT);
     }
+#undef RX_KEPT
 }
 
 static void rx_on_leaveall(void *raw_ctx, uint8_t attr_type)
@@ -1118,6 +1340,13 @@ unsigned mrp_reclaim(struct mrp_app *app, uint8_t port_id)
         if (a->reg == MRP_REG_STATE_MT &&
             (a->appl == MRP_APPL_STATE_VO || a->appl == MRP_APPL_STATE_AO || a->appl == MRP_APPL_STATE_QO)) {
             *link = a->next;
+#if LWSRP_ATTR_BUCKETS
+            struct mrp_attr_inst **in = &ps->by_key[a->key % LWSRP_ATTR_BUCKETS];
+            while (*in != a) {
+                in = &(*in)->key_next;
+            }
+            *in = a->key_next;
+#endif
             shlan_timer_remove(&a->leave_timer);
             shlan_free(a);
             ++count;
@@ -1339,6 +1568,7 @@ static uint8_t *tx_close(const struct mrp_app_ops *ops, uint8_t *message, uint8_
     return end;
 }
 
+#if !LWSRP_TX_MERGE
 static void tx_swap(uint8_t *a, uint8_t *b, size_t n)
 {
     while (n--) {
@@ -1387,6 +1617,173 @@ static uint8_t *tx_message(const struct mrp_app_ops *ops, struct mrp_port_state 
         v += size;
     }
     return tx_close(ops, buf, v);
+#else
+/* One single-value VectorAttribute (10.8.2.8) for a at v: its FirstValue,
+ * its ThreePackedEvent and, for a subtype, its FourPackedEvent. */
+static bool tx_vector(const struct mrp_app_ops *ops, const struct mrp_attr_inst *a, enum tx_msg tx,
+                      uint8_t type, uint8_t len, bool subtype, uint8_t *v)
+{
+    v[0] = 0; v[1] = 1;
+    int r = ops->encode_attr(type, a->attr_val, v + 2, len);
+    if (r != len) {
+        return false;
+    }
+    v[2u + len] = mrp_three_pack((uint8_t)wire_event(tx, a->reg), 0, 0);
+    if (subtype) {
+        const uint8_t *bytes = a->attr_val;
+        v[3u + len] = mrp_four_pack(bytes[len], 0, 0, 0);
+    }
+    return true;
+}
+
+/* Whether a's encoded FirstValue orders after b's (10.8.2.7). */
+static bool tx_after(const struct mrp_attr_inst *a, const struct mrp_attr_inst *b, uint8_t len)
+{
+    return memcmp(a->tx_key, b->tx_key, len) > 0;
+}
+
+/* Two chosen lists, each in FirstValue order, as one; a ties ahead of b. */
+static struct mrp_attr_inst *tx_merge(struct mrp_attr_inst *a, struct mrp_attr_inst *b, uint8_t len)
+{
+    struct mrp_attr_inst *head = NULL, **tail = &head;
+    while (a && b) {
+        struct mrp_attr_inst **from = tx_after(a, b, len) ? &b : &a;
+        *tail = *from;
+        tail = &(*from)->tx_next;
+        *from = (*from)->tx_next;
+    }
+    *tail = a ? a : b;
+    return head;
+}
+
+/*
+ * The chosen vectors, encoded at first in the list's order, placed in
+ * ascending FirstValue order, equal values in the list's order: the order
+ * the encoder once reached by swapping each vector backwards past every
+ * greater one. The list is cut into runs, each non-descending or strictly
+ * descending and then reversed, and the runs are merged pairwise, earlier
+ * runs ahead on ties. Each vector whose place changed is encoded again
+ * there; the sort needs no FirstValue once it is done.
+ */
+static void tx_order(const struct mrp_app_ops *ops, enum mrp_event event, uint8_t type,
+                     struct mrp_attr_inst *list, uint8_t *first, size_t size)
+{
+    uint8_t len = ops->attr_len(type);
+    bool subtype = ops->attr_has_subtype && ops->attr_has_subtype(type);
+    struct mrp_attr_inst *pending[8] = {NULL};
+    while (list) {
+        struct mrp_attr_inst *run = list;
+        list = list->tx_next;
+        run->tx_next = NULL;
+        if (list && tx_after(run, list, len)) {
+            while (list && tx_after(run, list, len)) {
+                struct mrp_attr_inst *next = list->tx_next;
+                list->tx_next = run;
+                run = list;
+                list = next;
+            }
+        } else {
+            struct mrp_attr_inst *last = run;
+            while (list && !tx_after(last, list, len)) {
+                last->tx_next = list;
+                last = list;
+                list = list->tx_next;
+                last->tx_next = NULL;
+            }
+        }
+        unsigned k = 0;
+        while (k + 1u < sizeof(pending) / sizeof(pending[0]) && pending[k]) {
+            run = tx_merge(pending[k], run, len);
+            pending[k++] = NULL;
+        }
+        pending[k] = pending[k] ? tx_merge(pending[k], run, len) : run;
+    }
+    struct mrp_attr_inst *sorted = NULL;
+    for (unsigned k = 0; k < sizeof(pending) / sizeof(pending[0]); ++k) {
+        if (pending[k]) {
+            sorted = sorted ? tx_merge(pending[k], sorted, len) : pending[k];
+        }
+    }
+    uint8_t *v = first;
+    for (const struct mrp_attr_inst *a = sorted; a; a = a->tx_next, v += size) {
+        if (a->tx_key != v + 2) {
+            (void)tx_vector(ops, a, appl_table[event][a->appl].tx, type, len, subtype, v);
+        }
+    }
+}
+
+/*
+ * The vectors of size octets in [first, end), encoded in strictly descending
+ * FirstValue order, placed in ascending order by swapping them end for end:
+ * the order tx_order gives such a list, one descending run reversed, each
+ * vector's octets as its encoding there, which depends only on its attribute
+ * and its event. False, with nothing moved, where a vector is longer than the
+ * swap's buffer, which holds the longest one a stored value encodes.
+ */
+static bool tx_reverse(uint8_t *first, uint8_t *end, size_t size)
+{
+    uint8_t held[4u + sizeof(((struct mrp_attr_inst *)0)->attr_val)];
+    if (size > sizeof(held)) {
+        return false;
+    }
+    for (uint8_t *lo = first, *hi = end - size; lo < hi; lo += size, hi -= size) {
+        memcpy(held, lo, size);
+        memcpy(lo, hi, size);
+        memcpy(hi, held, size);
+    }
+    return true;
+}
+
+/*
+ * One Message for every selected value of a type: an optional LeaveAll vector
+ * first, then one single-value vector per value in ascending FirstValue order
+ * (10.8.2.7). Returns the end of the Message, or NULL if encoding fails; the
+ * vectors encoded before the failure are left in order.
+ */
+static uint8_t *tx_message(const struct mrp_app_ops *ops, struct mrp_port_state *ps,
+                           enum mrp_event event, uint8_t type, bool la, uint8_t *buf)
+{
+    uint8_t len = ops->attr_len(type);
+    bool subtype = ops->attr_has_subtype && ops->attr_has_subtype(type);
+    size_t size = tx_vector_len(ops, type, false);
+    uint8_t *v = tx_open(ops, type, buf);
+    if (la) {
+        v[0] = 0x20; v[1] = 0;
+        memset(v + 2, 0, len);
+        v += 2u + len;
+    }
+    uint8_t *first = v;
+    struct mrp_attr_inst *chosen = NULL, **tail = &chosen;
+    /* Vectors encoded in ascending order already stand where the sort would put them; ones encoded in strictly
+     * descending order, as the list holds the values one vector declared, stand there reversed, no two equal. */
+    bool ordered = true, descending = true;
+    for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
+        const struct appl_entry *e = &appl_table[event][a->appl];
+        if (!a->tx_selected || a->attr_type != type || e->tx == TX_MSG_NONE) {
+            continue;
+        }
+        if (!tx_vector(ops, a, e->tx, type, len, subtype, v)) {
+            if (!ordered) {
+                tx_order(ops, event, type, chosen, first, size);
+            }
+            return NULL;
+        }
+        if ((ordered || descending) && v != first) {
+            int c = memcmp(v - size + 2, v + 2, len);
+            ordered = ordered && c <= 0;
+            descending = descending && c > 0;
+        }
+        a->tx_key = v + 2;
+        a->tx_next = NULL;
+        *tail = a;
+        tail = &a->tx_next;
+        v += size;
+    }
+    if (!ordered && !(descending && tx_reverse(first, v, size))) {
+        tx_order(ops, event, type, chosen, first, size);
+    }
+    return tx_close(ops, buf, v);
+#endif
 }
 
 /* Messages follow in AttributeType order, then the MRPDU EndMark (10.8.1.2). */
@@ -1397,6 +1794,13 @@ static int tx_assemble(const struct mrp_app_ops *ops, struct mrp_port_state *ps,
     size_t off = 1;
     pdu[0] = ops->proto_version;
     for (unsigned type = 0; type < 256u; ++type) {
+#if LWSRP_LEAN_TX
+        /* A word of the open set with no type left from this one on holds no Message: on to the next word. */
+        if ((types->open[type / 32u] >> (type % 32u)) == 0u) {
+            type |= 31u;
+            continue;
+        }
+#endif
         if (!tx_type_in(types->open, type)) {
             continue;
         }
@@ -1509,7 +1913,14 @@ int mrp_transmit(struct mrp_app *app, uint8_t port_id,
     for (struct mrp_attr_inst *a = ps->attrs; a; a = a->next) {
         if (a->tx_selected) {
             a->tx_deferred = false;
+#if LWSRP_LEAN_TX
+            const struct appl_entry *row = &appl_table[event][a->appl];
+            if (event != MRP_EVENT_TX || row->ns != MRP_APPL_STATE_COUNT || row->tx != TX_MSG_NONE) {
+                deliver_event(app, ps, a, event, port_id);
+            }
+#else
             deliver_event(app, ps, a, event, port_id);
+#endif
         } else if (la) {
             deliver_event(app, ps, a, MRP_EVENT_TXLAF, port_id);
         }

@@ -16,11 +16,12 @@ The [root build definition](../CMakeLists.txt) selects between host and embedded
 | C language | Requires [C11 draft](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf). |
 | [CMAKE_BUILD_TYPE](https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html) set to Debug | Adds compiler debugging information through [CMake](https://cmake.org/cmake/help/latest/). |
 | Export compile commands | Enabled by the [build definition](../CMakeLists.txt). |
-| Unit dependency found | Builds the [unit runner](../tests/unit/main.c) with ten suites. |
+| Unit dependency found | Builds the [unit runner](../tests/unit/main.c) with eleven suites, and the key suite with the attribute key. |
 | Unit dependency absent | Host configuration fails. Headers and library are required. |
 | [ZEPHYR_BASE](../CMakeLists.txt) defined | Selects the module branch and returns before host configuration. |
 | [CONFIG_LWSRP](../Kconfig.zephyr) enabled | Builds protocol sources and default allocation and timer ports. |
 | [LWSRP_MILAN](../CMakeLists.txt) enabled | Selects immediate MSRP withdrawal on received Leave in IN. Defaults to OFF. |
+| [LWSRP_SCALE](../CMakeLists.txt) enabled | Selects the timer wheel, the lookup buckets and the merged Message build, with identical behavior; see [port services](#port-platform-services). Defaults to OFF. |
 
 There are no project options for hardware selection or coverage.
 The [register queue](../src/core/switch_ctrl.c) is absent from both source lists.
@@ -72,9 +73,58 @@ Do not link duplicate definitions.
 The [allocation interface](../src/ports/alloc.h) declares [shlan_malloc, shlan_calloc, and shlan_free](../src/ports/alloc.h).
 The default implementation uses the C library.
 The [timer interface](../src/ports/timer.h) defines initialization, one-shot arming, cancellation, removal, and ticking.
+Timers that expire in one tick fire latest registration first.
+By default each tick walks every registered timer.
+Four build options trade code and memory for work that does not grow with the attribute count.
+Set them with the LWSRP_SCALE option of the [build definition](../CMakeLists.txt), and build every source with the same values.
+The lookup buckets set the attribute key.
+
+| Option | Default | Set | Cost when set |
+| --- | --- | --- | --- |
+| [LWSRP_TIMER_SLOTS](../src/ports/timer.h) | 0: each tick walks every timer | A tick visits only its wheel slot's timers. | One pointer a slot; each timer four more words. |
+| [LWSRP_ATTR_KEY](../src/include/shish_lan/mrp.h) | 0: no attr_key callback; each lookup compares every attribute | Each attribute keeps attr_key's octet, compared before attr_cmp and attr_replaces. | One octet an attribute; the callback a type. |
+| [LWSRP_ATTR_BUCKETS](../src/core/mrp_mad.c) | 0: each lookup scans the participant | A lookup scans one bucket by attr_key. | One pointer a bucket a participant; one more an attribute. |
+| [LWSRP_TX_MERGE](../src/core/mrp_mad.c) | 0: each vector is swapped into place | Runs of encoded vectors are merged; vectors encoded in strictly descending order are reversed in place. | Two more pointers an attribute. |
+
+Each option changes no output, indication, observation, or receive-filter call, nor their order.
+Some change how often the MAD calls an application's lookup or encoding callbacks; see the [callback contract](#application-callback-contract).
+
+Five more options suit an end station, whose participants each have one port.
+Define them directly for every source; LWSRP_SCALE does not select them.
+
+| Option | Default | Set | Difference when set |
+| --- | --- | --- | --- |
+| [LWSRP_ONE_PORT_MAP](../src/core/mrp_mad.c) | 0: every indication reserves a propagation target a port and calls the policy | A one-port participant reserves none and calls no map_join or map_leave. | See [one-port propagation](#one-port-propagation). |
+| [LWSRP_LEAN_VALIDATE](../src/core/mrp_pdu.c) | 0: both parser passes zero each decoded value | Only the delivering pass zeroes it. | The validation pass reads only the decoder's result, which must not depend on the buffer's prior content; see the [callback contract](#application-callback-contract). |
+| [LWSRP_RAPID_REPLACE](../src/core/mrp_mad.c) | 0: a replaced registration takes rLv! and then the leave timer's event | One that rLv! left MT, as the Milan rapid leave does, takes no leave timer event. | None: in MT that event changes neither state machine and indicates nothing. |
+| [LWSRP_LEAN_COPY](../src/core/mrp_mad.c) | 0: each delivery copies its Registrar row, a receive keeps a whole value for its restore, and MSRP's fixed-size fields are copied by memcpy | A row is copied only where its indication is rewritten; a restore keeps the stored length; a field is stored an octet at a time. | None: the same states, values and octets. |
+| [LWSRP_LEAN_TX](../src/core/mrp_mad.c) | 0: after a send every selected attribute takes tx!, and the assembler tests each AttributeType | An Applicant that tx! leaves as it is, with nothing to send, takes none; a type word with no open type left is passed over. | None: the Registrar ignores tx!, such an Applicant's row changes nothing, and the Messages keep their order. |
+
+### One-port propagation
+
+Propagation goes only to the other ports of the MAP context ([IEEE 802.1Q-2018, clause 10.3](https://standards.ieee.org/ieee/802.1Q/6844/)).
+A participant of one port has no other, so its policy can name no port and its reservation is always freed unused.
+With [LWSRP_ONE_PORT_MAP](../src/core/mrp_mad.c) set, such a participant skips both.
+Its outputs, indications, observations and their order are unchanged.
+Two things differ.
+The policy callback is not called at one port, so a policy must not depend on being called.
+A reservation's allocation can no longer be refused: where the default build refuses the receive with a negative result, this build applies the event.
+A participant of two or more ports behaves as in the default build.
 A fixed pool can replace the default heap.
 Allocation failure returns a negative result.
 Earlier received attributes may remain applied when a later allocation fails.
+
+### Application callback contract
+
+Three options narrow what the MAD may assume of an application's [operations](../src/include/shish_lan/mrp.h).
+In-tree applications already meet each rule.
+Under [LWSRP_LEAN_VALIDATE](../src/core/mrp_pdu.c), decode_attr's result must depend on the wire octets, their length, offset and type alone.
+It must never depend on what its output buffer held before the call.
+The validation pass passes an unzeroed buffer; the delivering pass still zeroes it.
+Under [LWSRP_TX_MERGE](../src/core/mrp_mad.c), encode_attr may be called again for each vector the sort moves.
+Its output must depend on the type, value and buffer length alone.
+Under [LWSRP_ATTR_KEY](../src/include/shish_lan/mrp.h), attr_cmp and attr_replaces are called only for values sharing a key.
+With these options set, the host must not rely on a side effect of those callbacks or on their call counts.
 
 ## Create and declare
 
@@ -130,9 +180,9 @@ sequenceDiagram
     Codec->>Core: Decoded events
     Core->>Policy: Check interest
     Core->>Core: Find or allocate
-    Core->>Core: Reserve possible targets
+    Core->>Core: Reserve possible targets, past one port
     Core->>Policy: Indicate registration
-    Core->>Policy: Select propagation ports
+    Core->>Policy: Select propagation ports, past one port
     Core->>Core: Queue and replay targets
     Core->>Host: Observe transition
     Core-->>Host: Parse result
@@ -251,7 +301,7 @@ sequenceDiagram
     Target->>Target: Schedule next output
 ~~~
 
-The [assembler](../src/core/mrp_mad.c#L1415) splits populations across Join-spaced opportunities.
+The [assembler](../src/core/mrp_mad.c#L1819) splits populations across Join-spaced opportunities.
 Previously omitted attributes precede repeated declarations.
 Each PDU holds one Message per attribute type, with values in ascending FirstValue order.
 Size the buffer for the largest single-value Message and the application's LeaveAll preamble.
@@ -262,7 +312,7 @@ Do not treat successful local declaration as proof of network transmission.
 
 The host adds Ethernet headers and selects the physical interface.
 Use the application's [group address and EtherType](../src/include/shish_lan/mrp.h).
-The [stream destination](../src/modules/msrp.c#L415) is 01-80-C2-00-00-0E.
+The [stream destination](../src/modules/msrp.c#L458) is 01-80-C2-00-00-0E.
 It matches [IEEE 802.1Q-2018, clause 35.2.2.1 and Table 8-1](https://standards.ieee.org/ieee/802.1Q/6844/).
 The [address regression](../tests/unit/integration_test.c) also pins the MAC and VLAN destinations.
 
@@ -290,7 +340,7 @@ Deliver every elapsed centisecond, including ticks coalesced by the platform.
 The [timer defaults](../src/include/shish_lan/mrp.h) are Join 20, Leave 60, and LeaveAll 1000 centiseconds.
 The Mark II profile uses Leave 500 centiseconds through [mrp_port_configure](../src/include/shish_lan/mrp.h).
 Combine this interval with the [Milan received-Leave option](#milan-received-leave) for immediate explicit withdrawals.
-The [periodic handler](../src/core/mrp_mad.c#L824) uses 100 centiseconds independently of Join spacing.
+The [periodic handler](../src/core/mrp_mad.c#L1025) uses 100 centiseconds independently of Join spacing.
 LeaveAll draws lie strictly between its configured interval and 1.5 times that interval.
 The rules are in [IEEE 802.1Q-2018, clauses 10.7.4.3 and 10.7.4.4](https://standards.ieee.org/ieee/802.1Q/6844/).
 Supply different seeds where independent participants need different timing.
@@ -316,7 +366,7 @@ sequenceDiagram
 ~~~
 
 Call the matching [application destroy operation](../src/include/shish_lan/mrp.h) only after all callbacks and accesses have stopped.
-The [destructor](../src/core/mrp_mad.c#L924) unlinks all owned timers before releasing storage.
+The [destructor](../src/core/mrp_mad.c#L1125) unlinks all owned timers before releasing storage.
 Other applications may continue ticking afterward.
 Destruction itself does not transmit withdrawals.
 Complete any required network withdrawal before teardown.
